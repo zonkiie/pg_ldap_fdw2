@@ -20,3 +20,11 @@
 
 PG_MODULE_MAGIC;
 
+#define MODULE_PREFIX ldap2_fdw
+
+extern Datum ldap2_fdw_handler(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(ldap2_fdw_handler);
+
+void		_PG_init(void);
+void		_PG_fini(void);
+
