@@ -4,6 +4,7 @@
  */
 
 #include "postgres.h"
+#include "postgres_fdw.h"
 #include "access/sysattr.h"
 #include "nodes/pg_list.h"
 #include "nodes/makefuncs.h"
@@ -12,12 +13,28 @@
 #include "catalog/pg_type.h" 
 #include "foreign/fdwapi.h"
 #include "foreign/foreign.h"
+#include "commands/defrem.h"
 #include "commands/explain.h"
-#include "optimizer/paths.h"
+#include "commands/vacuum.h"
+#include "optimizer/cost.h"
 #include "optimizer/pathnode.h"
+#include "optimizer/paths.h"
 #include "optimizer/planmain.h"
+#include "optimizer/prep.h"
+#include "optimizer/restrictinfo.h"
+#include "optimizer/var.h"
 #include "parser/parsetree.h"
 #include "optimizer/restrictinfo.h"
+#include "access/htup_details.h"
+#include "access/sysattr.h"
+#include "funcapi.h"
+#include "miscadmin.h"
+#include "nodes/makefuncs.h"
+#include "nodes/nodeFuncs.h"
+#include "utils/builtins.h"
+#include "utils/guc.h"
+#include "utils/lsyscache.h"
+#include "utils/memutils.h"
 
 PG_MODULE_MAGIC;
 
@@ -365,34 +382,6 @@ ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
 
 
 
-
-
-/* 
-#include "postgres.h"
-#include "postgres_fdw.h"
-#include "access/htup_details.h"
-#include "access/sysattr.h"
-#include "commands/defrem.h"
-#include "commands/explain.h"
-#include "commands/vacuum.h"
-#include "foreign/fdwapi.h"
-#include "funcapi.h"
-#include "miscadmin.h"
-#include "nodes/makefuncs.h"
-#include "nodes/nodeFuncs.h"
-#include "optimizer/cost.h"
-#include "optimizer/pathnode.h"
-#include "optimizer/paths.h"
-#include "optimizer/planmain.h"
-#include "optimizer/prep.h"
-#include "optimizer/restrictinfo.h"
-#include "optimizer/var.h"
-#include "parser/parsetree.h"
-#include "utils/builtins.h"
-#include "utils/guc.h"
-#include "utils/lsyscache.h"
-#include "utils/memutils.h"
-*/
 
 /*
  * ldap2_fdw_PlanForeignModify
