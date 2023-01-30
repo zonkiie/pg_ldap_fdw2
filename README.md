@@ -1,5 +1,6 @@
 # pg_ldap_fdw2
 LDAP Foreign Data Wrapper for PostgreSQL
+I will try to implement a Read AND Write FDW.
 
 ## Sources
 [https://github.com/wikrsh/hello_fdw](https://github.com/wikrsh/hello_fdw)
