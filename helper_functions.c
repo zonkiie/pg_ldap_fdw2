@@ -99,22 +99,6 @@ void free_file(FILE** file)
 	*file = NULL;
 }
 
-char * quote_string(const char *str, quote_strings * quot)
-{
-	_cleanup_cstr_ char * quoted_array_delimiter;
-	_cleanup_cstr_ char * quoted_attribute_delimiter;
-	asprintf(&quoted_array_delimiter, "\\%s", quot->array_delimiter);
-	asprintf(&quoted_attribute_delimiter, "\\%s", quot->attribute_delimiter);
-	
-	_cleanup_carr_ char ** step = (char**)calloc(10, sizeof(char*));
-	step[0] = str_replace(str, quot->array_delimiter, quoted_array_delimiter);
-	step[1] = str_replace(step[0], "\"", "\"\"\"\"");
-	step[2] = str_replace(step[1], "\n", "\\n");
-	step[3] = str_replace(step[2], "\r", "\\r");
-	step[4] = str_replace(step[3], quot->attribute_delimiter, quoted_attribute_delimiter);
-	return strdup(step[4]);
-}
-
 bool in_array(char ** array, char * value)
 {
 	for(int i = 0; array[i] != NULL; i++)
