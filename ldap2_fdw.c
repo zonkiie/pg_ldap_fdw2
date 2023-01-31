@@ -36,6 +36,8 @@
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 
+#include "helper_functions.h"
+
 PG_MODULE_MAGIC;
 
 #define MODULE_PREFIX ldap2_fdw
