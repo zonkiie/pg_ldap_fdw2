@@ -154,6 +154,8 @@ enum FdwModifyPrivateIndex
     FdwModifyPrivateRetrievedAttrs
 };
 
+_cleanup_ldap_ LDAP *ld = NULL;
+
 
 void _PG_init() 
 {
