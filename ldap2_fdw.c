@@ -164,6 +164,7 @@ char *filter = NULL;
 char *configfile = NULL;
 char *attributes = NULL;
 char *uri = NULL;
+char *buf = NULL;
 
 void _PG_init() 
 {
