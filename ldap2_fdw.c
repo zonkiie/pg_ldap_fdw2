@@ -163,6 +163,10 @@ _cleanup_cstr_ char *filter = NULL;
 _cleanup_cstr_ char *attributes = NULL;
 _cleanup_cstr_ char *uri = NULL;
 _cleanup_cstr_ char *buf = NULL;
+_cleanup_berval_ struct berval *berval_password = NULL;
+_cleanup_ldap_message_ LDAPMessage *res = NULL;
+char *dn, *matched_msg = NULL, *error_msg = NULL;
+int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0;
 
 void _PG_init() 
 {
