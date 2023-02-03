@@ -1,0 +1,7 @@
+CREATE FUNCTION ldap2_fdw_handler()
+RETURNS fdw_handler
+AS 'MODULE_PATHNAME'
+LANGUAGE C STRICT;
+
+CREATE FOREIGN DATA WRAPPER ldap2_fdw
+  HANDLER ldap2_fdw_handler;

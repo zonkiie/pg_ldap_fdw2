@@ -1,0 +1,4 @@
+comment = 'LDAP2 FDW.'
+default_version = '1.0'
+module_pathname = '$libdir/ldap2_fdw'
+relocatable = true
