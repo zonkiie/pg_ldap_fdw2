@@ -154,17 +154,15 @@ enum FdwModifyPrivateIndex
     FdwModifyPrivateRetrievedAttrs
 };
 
-//_cleanup_ldap_ 
-LDAP *ld = NULL;
-char *username = NULL;
-char *password = NULL;
-char *hostname = NULL;
-char *basedn = NULL;
-char *filter = NULL;
-char *configfile = NULL;
-char *attributes = NULL;
-char *uri = NULL;
-char *buf = NULL;
+_cleanup_ldap_ LDAP *ld = NULL;
+_cleanup_cstr_ char *username = NULL;
+_cleanup_cstr_ char *password = NULL;
+_cleanup_cstr_ char *hostname = NULL;
+_cleanup_cstr_ char *basedn = NULL;
+_cleanup_cstr_ char *filter = NULL;
+_cleanup_cstr_ char *attributes = NULL;
+_cleanup_cstr_ char *uri = NULL;
+_cleanup_cstr_ char *buf = NULL;
 
 void _PG_init() 
 {
