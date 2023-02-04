@@ -20,21 +20,21 @@
 #define _cleanup_carr_ __attribute((cleanup(free_carr_n)))
 #define _cleanup_berval_ __attribute((cleanup(free_berval)))
 
-int str_split(char ***dest, char *str, char *separator);
-char * str_replace(const char *str, const char *search, const char *replace);
-char *trim(char *string, char *trimchars);
-bool char_charlist(char c, char *charlist);
-int substr_count(char *str, char *substr);
-void free_cstr(char ** str);
-void reassign_cstr(char **str, const char * value);
-int get_carr_size(char ** carr);
-void free_carr_n(char ***carr);
-void free_file(FILE** file);
-bool in_array(char ** array, char * value);
-bool add_to_unique_array(char *** array, char * value);
-void free_ldap(LDAP **ldap);
-void free_ldap_message(LDAPMessage **message);
-void free_ber(BerElement **ber);
-void free_berval(struct berval **bval);
+int str_split(char ***, char *, char *);
+char * str_replace(const char *, const char *, const char *);
+char *trim(char *, char *);
+bool char_charlist(char , char *);
+int substr_count(char *, char *);
+void free_cstr(char ** );
+void reassign_cstr(char **, const char * );
+int get_carr_size(char ** );
+void free_carr_n(char ***);
+void free_file(FILE** );
+bool in_array(char ** , char * );
+bool add_to_unique_array(char *** , char * );
+void free_ldap(LDAP **);
+void free_ldap_message(LDAPMessage **);
+void free_ber(BerElement **);
+void free_berval(struct berval **);
 
 #endif
