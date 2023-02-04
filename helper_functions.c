@@ -47,6 +47,27 @@ char * str_replace(const char *str, const char *search, const char *replace)
 	return retstr;
 }
 
+char *trim(char *string, char *trimchars)
+{
+	if(!trimchars || strlen(trimchars) == 0) return strdup(string);
+	// ltrim
+	int start = 0;
+	while(char_charlist(string[start], trimchars)) start++;
+	// rtrim
+	int copylen = strlen(string + start);
+	while(copylen > 1 && char_charlist((string + start)[copylen - 1], trimchars)) copylen--;
+	return strndup((string + start), copylen);
+}
+
+bool char_charlist(char c, char *charlist)
+{
+	for(int i = 0; i < strlen(charlist); i++)
+	{
+		if(charlist[i] == c) return true;
+	}
+	return false;
+}
+
 int substr_count(char *str, char *substr)
 {
 	if(str == NULL || !strcmp(str, "")) return 0;
