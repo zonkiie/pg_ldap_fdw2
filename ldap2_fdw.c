@@ -168,6 +168,47 @@ _cleanup_ldap_message_ LDAPMessage *res = NULL;
 char *dn, *matched_msg = NULL, *error_msg = NULL;
 int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0;
 
+void GetOptions()
+{
+	ForeignTable *ft = GetForeignTable(foreigntableid);
+	ListCell *cell;
+	foreach(cell, ft->options)
+	{
+		DefElem *def = lfirst_node(DefElem, cell);
+		if (strcmp("uri", def->defname) == 0)
+		{
+			uri = defGetString(def);
+		}
+		else if (strcmp("hostname", def->defname) == 0)
+		{
+			hostname = defGetString(def);
+		}
+		else if (strcmp("username", def->defname) == 0)
+		{
+			username = defGetString(def);
+		}
+		else if (strcmp("password", def->defname) == 0)
+		{
+			password = defGetString(def);
+		}
+		else if (strcmp("basedn", def->defname) == 0)
+		{
+			basedn = defGetString(def);
+		}
+		else if (strcmp("filter", def->defname) == 0)
+		{
+			filter = defGetString(def);
+		}
+		else
+		{
+			ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+				errmsg("invalid option \"%s\"", def->defname),
+				errhint("Valid table options for ldap2_fdw are \"uri\", \"hostname\", \"username\", \"password\", \"basedn\", \"filter\"")));
+		}
+	}
+}
+
 void _PG_init() 
 {
 }
