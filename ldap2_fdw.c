@@ -157,20 +157,18 @@ enum FdwModifyPrivateIndex
 _cleanup_ldap_ LDAP *ld = NULL;
 _cleanup_cstr_ char *username = NULL;
 _cleanup_cstr_ char *password = NULL;
-_cleanup_cstr_ char *hostname = NULL;
 _cleanup_cstr_ char *basedn = NULL;
 _cleanup_cstr_ char *filter = NULL;
 _cleanup_cstr_ char *attributes = NULL;
 _cleanup_cstr_ char *uri = NULL;
 _cleanup_cstr_ char *buf = NULL;
-_cleanup_berval_ struct berval *berval_password = NULL;
 _cleanup_ldap_message_ LDAPMessage *res = NULL;
 char *dn, *matched_msg = NULL, *error_msg = NULL;
-int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0;
+int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0, use_sasl = 0;
 
-void GetOptions()
+void GetOptions(Oid foreignTableId)
 {
-	ForeignTable *ft = GetForeignTable(foreigntableid);
+	ForeignTable *ft = GetForeignTable(foreignTableId);
 	ListCell *cell;
 	foreach(cell, ft->options)
 	{
@@ -178,10 +176,6 @@ void GetOptions()
 		if (strcmp("uri", def->defname) == 0)
 		{
 			uri = defGetString(def);
-		}
-		else if (strcmp("hostname", def->defname) == 0)
-		{
-			hostname = defGetString(def);
 		}
 		else if (strcmp("username", def->defname) == 0)
 		{
@@ -204,9 +198,56 @@ void GetOptions()
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 				errmsg("invalid option \"%s\"", def->defname),
-				errhint("Valid table options for ldap2_fdw are \"uri\", \"hostname\", \"username\", \"password\", \"basedn\", \"filter\"")));
+				errhint("Valid table options for ldap2_fdw are \"uri\", \"username\", \"password\", \"basedn\", \"filter\"")));
 		}
 	}
+}
+
+int common_ldap_bind(LDAP *ld, const char *username, const char *passwd)
+{
+	int rc = 0;
+	_cleanup_berval_ struct berval *berval_password = NULL;
+	if(password != NULL) berval_password = ber_bvstrdup(password);
+	if(!use_sasl && ( rc = ldap_simple_bind_s( ld, username, password ) ) != LDAP_SUCCESS)
+		return -1;
+	else if(use_sasl && ( rc = ldap_sasl_bind_s( ld, username, LDAP_SASL_SIMPLE, berval_password , NULL, NULL, NULL)) != LDAP_SUCCESS)
+		return -1;
+	return rc;
+}
+
+void initLdap()
+{
+
+	int version = LDAP_VERSION3;
+	
+	if ( ( rc = ldap_initialize( &ld, uri ) ) != LDAP_SUCCESS )
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_UNABLE_TO_ESTABLISH_CONNECTION),
+				errmsg("Could not establish connection to \"%s\"", uri),
+				errhint("Check that ldap server runs, accept connections and can be reached.")));
+		return;
+	}
+
+	if ( ( rc = ldap_set_option( ld, LDAP_OPT_PROTOCOL_VERSION, &version ) ) != LDAP_SUCCESS )
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_ERROR),
+				errmsg("Could not set ldap version option!"),
+				errhint("Could not set ldap version option. Does ldap server accept the correct ldap version 3?")));
+		return;
+	}
+
+	if ( ( rc = common_ldap_bind( ld, username, password ) ) != LDAP_SUCCESS)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_ERROR),
+				errmsg("Could not exec ldap bind to \"%s\" with username \"%s\"!", uri, username),
+				errhint("Could not bind to ldap server. Is username and password correct?")));
+		return;
+	}
+
+
 }
 
 void _PG_init() 
