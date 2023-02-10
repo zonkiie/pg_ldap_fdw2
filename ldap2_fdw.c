@@ -310,10 +310,9 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   RelOptInfo *baserel,
 						   Oid foreigntableid)
 {
-	baserel-> rows = 0;
+	baserel->rows = 0;
 	finished = 0;
-	attributes_array = (char *[]){"objectClass"};
-	rc = ldap_search_ext( ld, basedn, scope, filter, attributes_array, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
+	rc = ldap_search_ext( ld, basedn, scope, filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	if ( rc != LDAP_SUCCESS )
 	{
 		if ( error_msg != NULL && *error_msg != '\0' )
@@ -333,7 +332,7 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 		switch( rc )
 		{
 			case LDAP_RES_SEARCH_ENTRY:
-				baserel-> rows++;
+				baserel->rows++;
 				break;
 		}
 	}
