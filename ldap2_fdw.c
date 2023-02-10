@@ -196,7 +196,7 @@ void GetOptions(Oid foreignTableId)
 		}
 		else if(strcmp("scope", def->defname) == 0)
 		{
-			_cleanup_cstr_ char *sscope = strdup(defGetString(def));
+			_cleanup_cstr_ char *sscope = strdup(defGetString(def)); // strdup(def->arg);
 			if(!strcasecmp(sscope, "LDAP_SCOPE_BASE")) scope = LDAP_SCOPE_BASE;
 			else if(!strcasecmp(sscope, "LDAP_SCOPE_ONELEVEL")) scope = LDAP_SCOPE_ONELEVEL;
 			else if(!strcasecmp(sscope, "LDAP_SCOPE_SUBTREE")) scope = LDAP_SCOPE_SUBTREE;
