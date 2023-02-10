@@ -162,9 +162,10 @@ _cleanup_cstr_ char *filter = NULL;
 _cleanup_cstr_ char *attributes = NULL;
 _cleanup_cstr_ char *uri = NULL;
 _cleanup_cstr_ char *buf = NULL;
+char ** attributes_array = NULL;
 _cleanup_ldap_message_ LDAPMessage *res = NULL;
 char *dn, *matched_msg = NULL, *error_msg = NULL;
-int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0, use_sasl = 0;
+int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0, use_sasl = 0, scope = 0;
 
 void GetOptions(Oid foreignTableId)
 {
@@ -193,12 +194,27 @@ void GetOptions(Oid foreignTableId)
 		{
 			filter = defGetString(def);
 		}
+		else if(strcmp("scope", def->defname) == 0)
+		{
+			_cleanup_cstr_ char *sscope = strdup(defGetString(def));
+			if(!strcasecmp(sscope, "LDAP_SCOPE_BASE")) scope = LDAP_SCOPE_BASE;
+			else if(!strcasecmp(sscope, "LDAP_SCOPE_ONELEVEL")) scope = LDAP_SCOPE_ONELEVEL;
+			else if(!strcasecmp(sscope, "LDAP_SCOPE_SUBTREE")) scope = LDAP_SCOPE_SUBTREE;
+			else if(!strcasecmp(sscope, "LDAP_SCOPE_CHILDREN")) scope = LDAP_SCOPE_CHILDREN;
+			else ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+				errmsg("invalid value \"%s\" for scope", sscope),
+				errhint("Valid values for ldap2_fdw are \"LDAP_SCOPE_BASE\", \"LDAP_SCOPE_ONELEVEL\", \"LDAP_SCOPE_SUBTREE\", \"LDAP_SCOPE_CHILDREN\"."))
+			);
+
+		}
 		else
 		{
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 				errmsg("invalid option \"%s\"", def->defname),
-				errhint("Valid table options for ldap2_fdw are \"uri\", \"username\", \"password\", \"basedn\", \"filter\"")));
+				errhint("Valid table options for ldap2_fdw are \"uri\", \"username\", \"password\", \"basedn\", \"filter\""))
+			);
 		}
 	}
 }
@@ -294,7 +310,33 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   RelOptInfo *baserel,
 						   Oid foreigntableid)
 {
-		baserel-> rows = 0;
+	baserel-> rows = 0;
+	finished = 0;
+	attributes_array = (char *[]){"objectClass"};
+	rc = ldap_search_ext( ld, basedn, scope, filter, attributes_array, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
+	if ( rc != LDAP_SUCCESS )
+	{
+		if ( error_msg != NULL && *error_msg != '\0' )
+		{
+
+			fprintf( stderr, "%s\n", error_msg );
+			ereport(ERROR,
+				(errcode(ERRCODE_FDW_ERROR),
+				errmsg("Could not exec ldap_search_ext on \"%s\" with filer \"%s\"", basedn, filter),
+				errhint("Could not bind to ldap server. Is username and password correct?"))
+			);
+		}
+	}
+	while(!finished)
+	{
+		rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &zerotime, &res );
+		switch( rc )
+		{
+			case LDAP_RES_SEARCH_ENTRY:
+				baserel-> rows++;
+				break;
+		}
+	}
 }
 
 /*
