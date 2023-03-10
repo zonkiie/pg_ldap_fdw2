@@ -310,6 +310,7 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   RelOptInfo *baserel,
 						   Oid foreigntableid)
 {
+	GetOptions(foreigntableid);
 	baserel->rows = 0;
 	finished = 0;
 	rc = ldap_search_ext( ld, basedn, scope, filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
@@ -347,6 +348,8 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						 RelOptInfo *baserel,
 						 Oid foreigntableid)
 {
+	/* Fetch options */
+	GetOptions(foreigntableid);
 	Path	   *path;
 #if (PG_VERSION_NUM < 90500)
 	path = (Path *) create_foreignscan_path(root, baserel,
@@ -385,6 +388,10 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						List *tlist,
 						List *scan_clauses)
 {
+	/* Fetch options */
+	GetOptions(foreigntableid);
+
+	Path	   *foreignPath;
 	Index		scan_relid = baserel->relid;
   Datum    blob = 0;
   Const    *blob2 = makeConst(INTERNALOID, 0, 0,
@@ -408,6 +415,10 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						List *scan_clauses,
 						Plan *outer_plan)
 {
+	/* Fetch options */
+	GetOptions(foreigntableid);
+
+	Path	   *foreignPath;
 	Index		scan_relid = baserel->relid;
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
 
