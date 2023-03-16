@@ -9,8 +9,6 @@
 #include <getopt.h>
 #include <malloc.h>
 #include <search.h>
-#include <ldap.h>
-#include <sasl/sasl.h>
 
 #define _cleanup_cstr_ __attribute((cleanup(free_cstr)))
 #define _cleanup_ldap_ __attribute((cleanup(free_ldap)))
@@ -32,9 +30,5 @@ void free_carr_n(char ***);
 void free_file(FILE** );
 bool in_array(char ** , char * );
 bool add_to_unique_array(char *** , char * );
-void free_ldap(LDAP **);
-void free_ldap_message(LDAPMessage **);
-void free_ber(BerElement **);
-void free_berval(struct berval **);
 
 #endif
