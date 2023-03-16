@@ -37,6 +37,7 @@
 #include "utils/memutils.h"
 
 #include "helper_functions.h"
+#include "ldap_functions.h"
 
 PG_MODULE_MAGIC;
 
