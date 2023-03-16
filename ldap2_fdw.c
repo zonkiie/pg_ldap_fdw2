@@ -372,7 +372,23 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						NULL,
 						NIL);
 #endif
-  add_path(baserel, path);
+	FileFdwPlanState *fdw_private = (FileFdwPlanState *) baserel->fdw_private;
+	Cost		startup_cost;
+	Cost		total_cost;
+
+	/* Estimate costs */
+	estimate_costs(root, baserel, fdw_private, &startup_cost, &total_cost);
+	/* Create a ForeignPath node and add it as only possible path */
+	add_path(baserel, (Path *)
+	create_foreignscan_path(root, baserel,
+							NULL,		/* default pathtarget */
+							baserel->rows,
+							startup_cost,
+							total_cost,
+							NIL,		/* no pathkeys */
+							NULL,		/* no outer rel either */
+							NULL,      /* no extra plan */
+							NIL));		/* no fdw_private data */
 }
 
 /*
