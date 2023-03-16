@@ -227,6 +227,40 @@ int common_ldap_bind(LDAP *ld, const char *username, const char *passwd)
 	else if(use_sasl) return ldap_sasl_bind_s( ld, username, LDAP_SASL_SIMPLE, berval_password , NULL, NULL, NULL);
 }
 
+static void estimate_size()
+{
+	
+}
+
+static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
+			   FileFdwPlanState *fdw_private,
+			   Cost *startup_cost, Cost *total_cost)
+{
+	BlockNumber pages = fdw_private->pages;
+	double		ntuples = fdw_private->ntuples;
+	Cost		run_cost = 0;
+	Cost		cpu_per_tuple;
+
+	/*
+	 * We estimate costs almost the same way as cost_seqscan(), thus assuming
+	 * that I/O costs are equivalent to a regular table file of the same size.
+	 * However, we take per-tuple CPU costs as 10x of a seqscan, to account
+	 * for the cost of parsing records.
+	 *
+	 * In the case of a program source, this calculation is even more divorced
+	 * from reality, but we have no good alternative; and it's not clear that
+	 * the numbers we produce here matter much anyway, since there's only one
+	 * access path for the rel.
+	 */
+	run_cost += seq_page_cost * pages;
+
+	*startup_cost = baserel->baserestrictcost.startup;
+	cpu_per_tuple = cpu_tuple_cost * 10 + baserel->baserestrictcost.per_tuple;
+	run_cost += cpu_per_tuple * ntuples;
+	*total_cost = *startup_cost + run_cost;
+}
+
+
 void initLdap()
 {
 
