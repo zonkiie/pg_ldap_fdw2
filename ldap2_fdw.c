@@ -220,9 +220,35 @@ void GetOptions(Oid foreignTableId)
 	}
 }
 
-static void estimate_size()
+static int estimate_size(LDAP *ldap, const char *basedn, const char *filter, int scope)
 {
+	int rows = 0;
+	finished = 0;
+	rc = ldap_search_ext( ld, basedn, scope, filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
+	if ( rc != LDAP_SUCCESS )
+	{
+		if ( error_msg != NULL && *error_msg != '\0' )
+		{
 
+			fprintf( stderr, "%s\n", error_msg );
+			ereport(ERROR,
+				(errcode(ERRCODE_FDW_ERROR),
+				errmsg("Could not exec ldap_search_ext on \"%s\" with filer \"%s\"", basedn, filter),
+				errhint("Could not bind to ldap server. Is username and password correct?"))
+			);
+		}
+	}
+	while(!finished)
+	{
+		rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &zerotime, &res );
+		switch( rc )
+		{
+			case LDAP_RES_SEARCH_ENTRY:
+				rows++;
+				break;
+		}
+	}
+	return rows;
 }
 
 static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
@@ -338,32 +364,7 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   Oid foreigntableid)
 {
 	GetOptions(foreigntableid);
-	baserel->rows = 0;
-	finished = 0;
-	rc = ldap_search_ext( ld, basedn, scope, filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
-	if ( rc != LDAP_SUCCESS )
-	{
-		if ( error_msg != NULL && *error_msg != '\0' )
-		{
-
-			fprintf( stderr, "%s\n", error_msg );
-			ereport(ERROR,
-				(errcode(ERRCODE_FDW_ERROR),
-				errmsg("Could not exec ldap_search_ext on \"%s\" with filer \"%s\"", basedn, filter),
-				errhint("Could not bind to ldap server. Is username and password correct?"))
-			);
-		}
-	}
-	while(!finished)
-	{
-		rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &zerotime, &res );
-		switch( rc )
-		{
-			case LDAP_RES_SEARCH_ENTRY:
-				baserel->rows++;
-				break;
-		}
-	}
+	baserel->rows = estimate_size(ld, basedn, filter, scope);
 }
 
 /*
