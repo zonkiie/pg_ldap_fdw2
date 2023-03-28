@@ -4,7 +4,7 @@
  */
 
 #include "postgres.h"
-#include "postgres_fdw.h"
+// #include "postgres_fdw.h"
 #include "access/sysattr.h"
 #include "nodes/pg_list.h"
 #include "nodes/makefuncs.h"
