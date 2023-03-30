@@ -10,6 +10,8 @@
 #include <malloc.h>
 #include <search.h>
 
+extern struct         timeval  zerotime;
+
 #define _cleanup_cstr_ __attribute((cleanup(free_cstr)))
 #define _cleanup_file_ __attribute((cleanup(free_file)))
 #define _cleanup_carr_ __attribute((cleanup(free_carr_n)))

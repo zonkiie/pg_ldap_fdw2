@@ -124,8 +124,6 @@ static int ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
 							  double *totalrows,
 							  double *totaldeadrows);
 
-struct         timeval  zerotime = {.tv_sec = 0L, .tv_usec = 0L};
-
 /*
  * FDW-specific information for RelOptInfo.fdw_private.
  */
