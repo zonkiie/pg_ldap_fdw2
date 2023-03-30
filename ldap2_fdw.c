@@ -124,6 +124,18 @@ static int ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
 							  double *totalrows,
 							  double *totaldeadrows);
 
+/*
+ * FDW-specific information for RelOptInfo.fdw_private.
+ */
+typedef struct FileFdwPlanState
+{
+	char       *filename;       /* file or program to read */
+	bool        is_program;     /* true if filename represents an OS command */	
+	List       *options;        /* merged COPY options, excluding filename 
+								   and is_program */
+	BlockNumber pages;          /* estimate of file's physical size */
+	double      ntuples;        /* estimate of number of data rows  */
+} FileFdwPlanState;
 
 
 /* magic */
