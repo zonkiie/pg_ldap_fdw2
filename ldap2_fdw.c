@@ -127,15 +127,11 @@ static int ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
 /*
  * FDW-specific information for RelOptInfo.fdw_private.
  */
-typedef struct FileFdwPlanState
+typedef struct LdapFdwPlanState
 {
-	char       *filename;       /* file or program to read */
-	bool        is_program;     /* true if filename represents an OS command */	
-	List       *options;        /* merged COPY options, excluding filename 
-								   and is_program */
 	BlockNumber pages;          /* estimate of file's physical size */
 	double      ntuples;        /* estimate of number of data rows  */
-} FileFdwPlanState;
+} LdapFdwPlanState;
 
 
 /* magic */
@@ -265,7 +261,7 @@ static int estimate_size(LDAP *ldap, const char *basedn, const char *filter, int
 }
 
 static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
-			   FileFdwPlanState *fdw_private,
+			   LdapFdwPlanState *fdw_private,
 			   Cost *startup_cost, Cost *total_cost)
 {
 	BlockNumber pages = fdw_private->pages;
@@ -413,7 +409,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						NULL,
 						NIL);
 #endif
-	FileFdwPlanState *fdw_private = (FileFdwPlanState *) baserel->fdw_private;
+	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	Cost		startup_cost;
 	Cost		total_cost;
 
