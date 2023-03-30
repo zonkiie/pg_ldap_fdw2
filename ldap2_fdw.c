@@ -316,7 +316,7 @@ void initLdap()
 		return;
 	}
 
-	if ( ( rc = common_ldap_bind( ld, username, password ) ) != LDAP_SUCCESS)
+	if ( ( rc = common_ldap_bind( ld, username, password, use_sasl) ) != LDAP_SUCCESS)
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_FDW_ERROR),

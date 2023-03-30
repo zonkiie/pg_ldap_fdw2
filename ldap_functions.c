@@ -1,6 +1,6 @@
 #include <ldap_functions.h>
 
-int common_ldap_bind(LDAP *ld, const char *username, const char *password)
+int common_ldap_bind(LDAP *ld, const char *username, const char *password, int use_sasl)
 {
 	_cleanup_berval_ struct berval *berval_password = NULL;
 	if(password != NULL) berval_password = ber_bvstrdup(password);
