@@ -9,6 +9,7 @@
 #include <getopt.h>
 #include <malloc.h>
 #include <search.h>
+#include <stddef.h>
 
 extern struct         timeval  zerotime;
 
