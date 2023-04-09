@@ -10,7 +10,7 @@
 #include "nodes/makefuncs.h"
 #include "catalog/pg_foreign_server.h"
 #include "catalog/pg_foreign_table.h"
-#include "catalog/pg_type.h" 
+#include "catalog/pg_type.h"
 #include "foreign/fdwapi.h"
 #include "foreign/foreign.h"
 #include "commands/defrem.h"
@@ -280,6 +280,9 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 	 * the numbers we produce here matter much anyway, since there's only one
 	 * access path for the rel.
 	 */
+	 /*
+	  * Cost Code copied from csv-fdw
+	 */
 	run_cost += seq_page_cost * pages;
 
 	*startup_cost = baserel->baserestrictcost.startup;
@@ -324,7 +327,7 @@ void initLdap()
 
 }
 
-void _PG_init() 
+void _PG_init()
 {
 }
 
@@ -393,8 +396,8 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						baserel->rows,
 						10,
 						0,
-						NIL,	
-						NULL,	
+						NIL,
+						NULL,
 						NULL);
 #else
 	path = (Path *) create_foreignscan_path(root, baserel,
@@ -430,7 +433,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 
 /*
  * GetForeignPlan
- *	create a ForeignScan plan node 
+ *	create a ForeignScan plan node
  */
 #if (PG_VERSION_NUM <= 90500)
 static ForeignScan *
@@ -455,7 +458,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	return make_foreignscan(tlist,
 			scan_clauses,
 			scan_relid,
-			scan_clauses,		
+			scan_clauses,
 			(void *)blob2);
 }
 #else
@@ -497,8 +500,8 @@ ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
 */
 /*
  * BeginForeignScan
- *   called during executor startup. perform any initialization 
- *   needed, but not start the actual scan. 
+ *   called during executor startup. perform any initialization
+ *   needed, but not start the actual scan.
  */
 
 static void
@@ -512,9 +515,9 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
  * IterateForeignScan
  *		Retrieve next row from the result set, or clear tuple slot to indicate
  *		EOF.
- *   Fetch one row from the foreign source, returning it in a tuple table slot 
- *    (the node's ScanTupleSlot should be used for this purpose). 
- *  Return NULL if no more rows are available. 
+ *   Fetch one row from the foreign source, returning it in a tuple table slot
+ *    (the node's ScanTupleSlot should be used for this purpose).
+ *  Return NULL if no more rows are available.
  */
 static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
@@ -533,7 +536,7 @@ ldap2_fdw_ReScanForeignScan(ForeignScanState *node)
 
 /*
  *EndForeignScan
- *	End the scan and release resources. 
+ *	End the scan and release resources.
  */
 static void
 ldap2_fdw_EndForeignScan(ForeignScanState *node)
@@ -545,7 +548,7 @@ ldap2_fdw_EndForeignScan(ForeignScanState *node)
  * postgresAddForeignUpdateTargets
  *    Add resjunk column(s) needed for update/delete on a foreign table
  */
-static void 
+static void
 ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
 								RangeTblEntry *target_rte,
 								Relation target_relation)
@@ -642,7 +645,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 		while ((col = bms_first_member(tmpset)) >= 0)
 		{
 			col += FirstLowInvalidHeapAttributeNumber;
-			if (col <= InvalidAttrNumber)		// shouldn't happen 
+			if (col <= InvalidAttrNumber)		// shouldn't happen
 				elog(ERROR, "system-column update is not supported");
 			targetAttrs = lappend_int(targetAttrs, col);
 		}
@@ -790,7 +793,7 @@ ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
 		ExplainPropertyText("ldap2_fdw_ SQL", sql, es);
 	}
 */
-  
+
 }
 
 /*
@@ -836,7 +839,7 @@ ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
 							  double *totalrows,
 							  double *totaldeadrows)
 {
-  
+
   totalrows = 0;
   totaldeadrows = 0;
 	return 0;
