@@ -419,8 +419,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	/* Estimate costs */
 	estimate_costs(root, baserel, fdw_private, &startup_cost, &total_cost);
 	/* Create a ForeignPath node and add it as only possible path */
-	add_path(baserel, (Path *)
-	create_foreignscan_path(root, baserel,
+	add_path(baserel, (Path *) create_foreignscan_path(root, baserel,
 							NULL,		/* default pathtarget */
 							baserel->rows,
 							startup_cost,
@@ -449,8 +448,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 
 	Path	   *foreignPath;
 	Index		scan_relid = baserel->relid;
-  Datum    blob = 0;
-  Const    *blob2 = makeConst(INTERNALOID, 0, 0,
+	Datum    blob = 0;
+	Const    *blob2 = makeConst(INTERNALOID, 0, 0,
                  sizeof(blob),
                  blob,
                  false, false);
