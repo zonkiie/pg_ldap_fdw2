@@ -229,6 +229,27 @@ void GetOptions(Oid foreignTableId)
 	}
 }
 
+typedef struct LdapFdwOptions
+{
+	char * uri;
+	char * username;
+	char * password;
+	char * basedn;
+	char * filter;
+	int scope;
+} LdapFdwOptions;
+
+void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
+{
+
+}
+
+void print_list(List *list)
+{
+	int i = 0;
+	//while(list->)
+}
+
 static int estimate_size(LDAP *ldap, const char *basedn, const char *filter, int scope)
 {
 	int rows = 0;
