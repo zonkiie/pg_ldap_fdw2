@@ -246,7 +246,10 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 
 void print_list(List *list)
 {
-	int i = 0;
+	for(int i = 0; i < list->length; i++)
+	{
+		fprintf(stderr, "%s\n", list->elements[i]->ptr_value);
+	}
 	//while(list->)
 }
 
