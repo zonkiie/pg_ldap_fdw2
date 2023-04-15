@@ -244,13 +244,12 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 
 }
 
-void print_list(List *list)
+void print_list(FILE *out_channel, List *list)
 {
 	for(int i = 0; i < list->length; i++)
 	{
-		fprintf(stderr, "%s\n", list->elements[i]->ptr_value);
+		fprintf(out_channel, "%s\n", list->elements[i]->ptr_value);
 	}
-	//while(list->)
 }
 
 static int estimate_size(LDAP *ldap, const char *basedn, const char *filter, int scope)
@@ -469,6 +468,14 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 {
 	/* Fetch options */
 	GetOptions(foreigntableid);
+
+	FILE * log_channel = stderr;
+
+	fprintf(log_channel, "tlist\n");
+	print_list(log_channel, tlist);
+
+	fprintf(log_channel, "scan_clauses\n");
+	print_list(log_channel, scan_clauses);
 
 	Path	   *foreignPath;
 	Index		scan_relid = baserel->relid;
