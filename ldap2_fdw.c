@@ -44,6 +44,8 @@ PG_MODULE_MAGIC;
 
 #define MODULE_PREFIX ldap2_fdw
 
+#define LDAP2_FDW_LOGFILE "/dev/shm/ldap2_fdw.log"
+
 extern Datum ldap2_fdw_handler(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ldap2_fdw_handler);
 
@@ -469,13 +471,15 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	/* Fetch options */
 	GetOptions(foreigntableid);
 
-	FILE * log_channel = stderr;
+	//FILE * log_channel = stderr;
+	_cleanup_file_ FILE * log_channel = fopen(LDAP2_FDW_LOGFILE, "a");
 
 	fprintf(log_channel, "tlist\n");
 	print_list(log_channel, tlist);
 
 	fprintf(log_channel, "scan_clauses\n");
 	print_list(log_channel, scan_clauses);
+	free_file(&log_channel);
 
 	Path	   *foreignPath;
 	Index		scan_relid = baserel->relid;
