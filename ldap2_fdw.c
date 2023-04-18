@@ -37,6 +37,7 @@
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 
+#include "LdapFdwOptions.h"
 #include "helper_functions.h"
 #include "ldap_functions.h"
 
@@ -231,18 +232,56 @@ void GetOptions(Oid foreignTableId)
 	}
 }
 
-typedef struct LdapFdwOptions
-{
-	char * uri;
-	char * username;
-	char * password;
-	char * basedn;
-	char * filter;
-	int scope;
-} LdapFdwOptions;
-
 void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 {
+	ForeignTable *ft = GetForeignTable(foreignTableId);
+	ListCell *cell;
+	foreach(cell, ft->options)
+	{
+		DefElem *def = lfirst_node(DefElem, cell);
+		if (strcmp("uri", def->defname) == 0)
+		{
+			options->uri = defGetString(def);
+		}
+		else if (strcmp("username", def->defname) == 0)
+		{
+			options->username = defGetString(def);
+		}
+		else if (strcmp("password", def->defname) == 0)
+		{
+			options->password = defGetString(def);
+		}
+		else if (strcmp("basedn", def->defname) == 0)
+		{
+			options->basedn = defGetString(def);
+		}
+		else if (strcmp("filter", def->defname) == 0)
+		{
+			options->filter = defGetString(def);
+		}
+		else if(strcmp("scope", def->defname) == 0)
+		{
+			_cleanup_cstr_ char *sscope = strdup(defGetString(def)); // strdup(def->arg);
+			if(!strcasecmp(sscope, "LDAP_SCOPE_BASE")) options->scope = LDAP_SCOPE_BASE;
+			else if(!strcasecmp(sscope, "LDAP_SCOPE_ONELEVEL")) options->scope = LDAP_SCOPE_ONELEVEL;
+			else if(!strcasecmp(sscope, "LDAP_SCOPE_SUBTREE")) options->scope = LDAP_SCOPE_SUBTREE;
+			else if(!strcasecmp(sscope, "LDAP_SCOPE_CHILDREN")) options->scope = LDAP_SCOPE_CHILDREN;
+			else ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+				errmsg("invalid value \"%s\" for scope", sscope),
+				errhint("Valid values for ldap2_fdw are \"LDAP_SCOPE_BASE\", \"LDAP_SCOPE_ONELEVEL\", \"LDAP_SCOPE_SUBTREE\", \"LDAP_SCOPE_CHILDREN\"."))
+			);
+
+		}
+		else
+		{
+			ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+				errmsg("invalid option \"%s\"", def->defname),
+				errhint("Valid table options for ldap2_fdw are \"uri\", \"username\", \"password\", \"basedn\", \"filter\""))
+			);
+		}
+	}
 
 }
 

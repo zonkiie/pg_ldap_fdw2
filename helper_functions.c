@@ -84,6 +84,22 @@ void free_cstr(char ** str)
 	*str = NULL;
 }
 
+void free_pstr(char ** str)
+{
+	if(*str == NULL) return;
+	pfree(*str);
+	*str = NULL;
+}
+
+void free_options(LdapFdwOptions * options)
+{
+	free_pstr(options->uri);
+	free_pstr(options->username);
+	free_pstr(options->password);
+	free_pstr(options->basedn);
+	free_pstr(options->filter);
+}
+
 void reassign_cstr(char **str, const char * value)
 {
 	free_cstr(str);
