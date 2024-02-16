@@ -21,6 +21,7 @@ extern struct         timeval  zerotime;
 #define _cleanup_options_ __attribute((cleanup(free_options)))
 
 int str_split(char ***, char *, char *);
+int str_join(char **, char **, char *);
 char * str_replace(const char *, const char *, const char *);
 char *trim(char *, char *);
 bool char_charlist(char , char *);

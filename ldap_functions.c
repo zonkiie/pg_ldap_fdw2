@@ -37,4 +37,17 @@ void free_berval(struct berval **bval)
 	*bval = NULL;
 }
 
+int fetch_objectclass()
+{
+	return 0;
+}
 
+int fetch_attribute_type()
+{
+	return 0;
+}
+
+int fetch_schema(LDAP *ld)
+{
+	return 0;
+}

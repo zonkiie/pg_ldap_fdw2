@@ -8,6 +8,7 @@ typedef struct LdapFdwOptions
 	char * password;
 	char * basedn;
 	char * filter;
+	char * objectclass;
 	int scope;
 } LdapFdwOptions;
 

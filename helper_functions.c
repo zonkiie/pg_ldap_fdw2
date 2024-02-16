@@ -24,6 +24,29 @@ int str_split(char ***dest, char *str, char *separator)
 	return index;
 }
 
+int str_join(char **targetstr, char **array, char *joinstr)
+{
+	if(array == NULL)
+	{
+		*targetstr = NULL;
+		return 0;
+	}
+	int i = 0;
+	int size = 0;
+	int sl = strlen(joinstr);
+	(*targetstr) = (char*)calloc(strlen(array[0]) + 1, 1);
+	strcpy((*targetstr), array[0]);
+	while(array[i + 1] != NULL)
+	{
+		(*targetstr) = (char*)realloc(*targetstr, strlen(*targetstr) + strlen(array[i + 1]) + sl + 1);
+		strcat(*targetstr, joinstr);
+		strcat(*targetstr, array[i + 1]);
+		i++;
+	}
+	return(size);
+}
+
+
 char * str_replace(const char *str, const char *search, const char *replace)
 {
 	if(str == NULL) return NULL;

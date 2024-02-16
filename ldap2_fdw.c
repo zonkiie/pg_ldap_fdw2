@@ -259,6 +259,10 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		{
 			options->filter = defGetString(def);
 		}
+		else if (strcmp("objectclass", def->defname) == 0)
+		{
+			options->objectclass = defGetString(def);
+		}
 		else if(strcmp("scope", def->defname) == 0)
 		{
 			_cleanup_cstr_ char *sscope = strdup(defGetString(def)); // strdup(def->arg);
