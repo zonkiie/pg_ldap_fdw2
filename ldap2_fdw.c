@@ -263,9 +263,9 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		{
 			options->objectclass = defGetString(def);
 		}
-		else if (strcmp("schema_dn", def->defname) == 0)
+		else if (strcmp("schemadn", def->defname) == 0)
 		{
-			options->schema_dn = defGetString(def);
+			options->schemadn = defGetString(def);
 		}
 		else if(strcmp("scope", def->defname) == 0)
 		{
@@ -286,7 +286,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 				errmsg("invalid option \"%s\"", def->defname),
-				errhint("Valid table options for ldap2_fdw are \"uri\", \"username\", \"password\", \"basedn\", \"filter\""))
+				errhint("Valid table options for ldap2_fdw are \"uri\", \"username\", \"password\", \"basedn\", \"filter\", \"objectclass\", \"schemadn\""))
 			);
 		}
 	}

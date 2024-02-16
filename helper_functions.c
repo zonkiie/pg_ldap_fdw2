@@ -122,7 +122,7 @@ void free_options(LdapFdwOptions * options)
 	free_pstr(options->basedn);
 	free_pstr(options->filter);
 	free_pstr(options->objectclass);
-	free_pstr(options->schema_dn);
+	free_pstr(options->schemadn);
 
 }
 
