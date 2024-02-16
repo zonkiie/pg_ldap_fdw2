@@ -168,69 +168,12 @@ enum FdwModifyPrivateIndex
 };
 
 _cleanup_ldap_ LDAP *ld = NULL;
-_cleanup_cstr_ char *username = NULL;
-_cleanup_cstr_ char *password = NULL;
-_cleanup_cstr_ char *basedn = NULL;
-_cleanup_cstr_ char *filter = NULL;
-_cleanup_cstr_ char *attributes = NULL;
-_cleanup_cstr_ char *uri = NULL;
+_cleanup_options_ LdapFdwOptions *option_params = (LdapFdwOptions *)calloc(1, sizeof(LdapFdwOptions *));
 _cleanup_cstr_ char *buf = NULL;
 char ** attributes_array = NULL;
 _cleanup_ldap_message_ LDAPMessage *res = NULL;
 char *dn, *matched_msg = NULL, *error_msg = NULL;
 int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0, use_sasl = 0, scope = 0;
-
-void GetOptions(Oid foreignTableId)
-{
-	ForeignTable *ft = GetForeignTable(foreignTableId);
-	ListCell *cell;
-	foreach(cell, ft->options)
-	{
-		DefElem *def = lfirst_node(DefElem, cell);
-		if (strcmp("uri", def->defname) == 0)
-		{
-			uri = defGetString(def);
-		}
-		else if (strcmp("username", def->defname) == 0)
-		{
-			username = defGetString(def);
-		}
-		else if (strcmp("password", def->defname) == 0)
-		{
-			password = defGetString(def);
-		}
-		else if (strcmp("basedn", def->defname) == 0)
-		{
-			basedn = defGetString(def);
-		}
-		else if (strcmp("filter", def->defname) == 0)
-		{
-			filter = defGetString(def);
-		}
-		else if(strcmp("scope", def->defname) == 0)
-		{
-			_cleanup_cstr_ char *sscope = strdup(defGetString(def)); // strdup(def->arg);
-			if(!strcasecmp(sscope, "LDAP_SCOPE_BASE")) scope = LDAP_SCOPE_BASE;
-			else if(!strcasecmp(sscope, "LDAP_SCOPE_ONELEVEL")) scope = LDAP_SCOPE_ONELEVEL;
-			else if(!strcasecmp(sscope, "LDAP_SCOPE_SUBTREE")) scope = LDAP_SCOPE_SUBTREE;
-			else if(!strcasecmp(sscope, "LDAP_SCOPE_CHILDREN")) scope = LDAP_SCOPE_CHILDREN;
-			else ereport(ERROR,
-				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-				errmsg("invalid value \"%s\" for scope", sscope),
-				errhint("Valid values for ldap2_fdw are \"LDAP_SCOPE_BASE\", \"LDAP_SCOPE_ONELEVEL\", \"LDAP_SCOPE_SUBTREE\", \"LDAP_SCOPE_CHILDREN\"."))
-			);
-
-		}
-		else
-		{
-			ereport(ERROR,
-				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
-				errmsg("invalid option \"%s\"", def->defname),
-				errhint("Valid table options for ldap2_fdw are \"uri\", \"username\", \"password\", \"basedn\", \"filter\""))
-			);
-		}
-	}
-}
 
 void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 {
@@ -447,8 +390,8 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   RelOptInfo *baserel,
 						   Oid foreigntableid)
 {
-	GetOptions(foreigntableid);
-	baserel->rows = estimate_size(ld, basedn, filter, scope);
+	GetOptionStructr(option_params, foreigntableid);
+	baserel->rows = estimate_size(ld, option_params->basedn, option_params->filter, option_params->scope);
 }
 
 /*
@@ -461,7 +404,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						 Oid foreigntableid)
 {
 	/* Fetch options */
-	GetOptions(foreigntableid);
+	GetOptionStructr(option_params, foreigntableid);
 	Path	   *path;
 #if (PG_VERSION_NUM < 90500)
 	path = (Path *) create_foreignscan_path(root, baserel,
@@ -516,7 +459,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						List *scan_clauses)
 {
 	/* Fetch options */
-	GetOptions(foreigntableid);
+	GetOptionStructr(option_params, foreigntableid);
 
 	//FILE * log_channel = stderr;
 	_cleanup_file_ FILE * log_channel = fopen(LDAP2_FDW_LOGFILE, "a");
@@ -553,7 +496,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						Plan *outer_plan)
 {
 	/* Fetch options */
-	GetOptions(foreigntableid);
+	GetOptionStructr(option_params, foreigntableid);
 
 	Path	   *foreignPath;
 	Index		scan_relid = baserel->relid;
