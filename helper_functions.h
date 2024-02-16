@@ -28,7 +28,7 @@ bool char_charlist(char , char *);
 int substr_count(char *, char *);
 void free_cstr(char ** );
 void free_pstr(char ** );
-void free_config(LdapFdwOptions *);
+void free_options(LdapFdwOptions *);
 void reassign_cstr(char **, const char * );
 int get_carr_size(char ** );
 void free_carr_n(char ***);

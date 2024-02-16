@@ -9,6 +9,7 @@ typedef struct LdapFdwOptions
 	char * basedn;
 	char * filter;
 	char * objectclass;
+	char * schema_dn;
 	int scope;
 } LdapFdwOptions;
 
