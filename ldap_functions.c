@@ -1,4 +1,5 @@
 #include <ldap_functions.h>
+#include "helper_functions.h"
 
 int common_ldap_bind(LDAP *ld, const char *username, const char *password, int use_sasl)
 {
@@ -77,7 +78,23 @@ size_t fetch_objectclass(char ***attributes, LDAP *ld, char * object_class)
 						int oclass_error = 0;
 						const char * oclass_error_text;
 						LDAPObjectClass *oclass = ldap_str2objectclass(vals[i]->bv_val, &oclass_error, &oclass_error_text, LDAP_SCHEMA_ALLOW_ALL);
+						char **names = oclass->oc_names;
+						if(in_array(names, object_class)) {
+							
+							*attributes = (char**)malloc(1);
 
+							for(int attributes_must_size = 0; oclass->oc_at_oids_must[attributes_must_size] != NULL; attributes_must_size++) {
+								*attributes = realloc(*attributes, size + 1);
+								*attributes[size] = strdup(oclass->oc_at_oids_must[attributes_must_size]);
+								size++;
+							}
+
+							for(int attributes_may_size = 0; oclass->oc_at_oids_may[attributes_may_size] != NULL; attributes_may_size++) {
+								*attributes = realloc(*attributes, size + 1);
+								*attributes[size] = strdup(oclass->oc_at_oids_may[attributes_may_size]);
+								size++;
+							}
+						}
 						ldap_objectclass_free(oclass);
 					}
 				}
@@ -85,7 +102,6 @@ size_t fetch_objectclass(char ***attributes, LDAP *ld, char * object_class)
 				ber_bvecfree(vals);
 			}
 			ldap_memfree( a );
-
 		}
 		if ( ber != NULL ) {
 
