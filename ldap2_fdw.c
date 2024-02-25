@@ -173,6 +173,7 @@ _cleanup_cstr_ char *buf = NULL;
 char ** attributes_array = NULL;
 _cleanup_ldap_message_ LDAPMessage *res = NULL;
 char *dn, *matched_msg = NULL, *error_msg = NULL;
+struct timeval timeout_struct = {.tv_sec = 10L, .tv_usec = 0L};
 int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0, use_sasl = 0, scope = 0;
 
 void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
