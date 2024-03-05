@@ -532,6 +532,7 @@ ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
 static void
 ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 {
+	// LDAP search
 }
 
 
@@ -547,6 +548,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 {
+	// ldap fetch result
 	return NULL;
 }
 
@@ -566,6 +568,7 @@ ldap2_fdw_ReScanForeignScan(ForeignScanState *node)
 static void
 ldap2_fdw_EndForeignScan(ForeignScanState *node)
 {
+	// cleanup
 }
 
 
