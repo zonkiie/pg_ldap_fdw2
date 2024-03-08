@@ -533,6 +533,7 @@ static void
 ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 {
 	// LDAP search
+	rc = ldap_search_ext( ld, basedn, scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
 }
 
 
@@ -549,6 +550,8 @@ static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 {
 	// ldap fetch result
+	rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &timeout_struct, &res );
+
 	return NULL;
 }
 
@@ -569,6 +572,7 @@ static void
 ldap2_fdw_EndForeignScan(ForeignScanState *node)
 {
 	// cleanup
+	free_ldap_message(&res);
 }
 
 
