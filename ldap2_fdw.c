@@ -313,11 +313,11 @@ void initLdap()
 
 	int version = LDAP_VERSION3;
 
-	if ( ( rc = ldap_initialize( &ld, uri ) ) != LDAP_SUCCESS )
+	if ( ( rc = ldap_initialize( &ld, options->uri ) ) != LDAP_SUCCESS )
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_FDW_UNABLE_TO_ESTABLISH_CONNECTION),
-				errmsg("Could not establish connection to \"%s\"", uri),
+				errmsg("Could not establish connection to \"%s\"", options->uri),
 				errhint("Check that ldap server runs, accept connections and can be reached.")));
 		return;
 	}
@@ -331,11 +331,11 @@ void initLdap()
 		return;
 	}
 
-	if ( ( rc = common_ldap_bind( ld, username, password, use_sasl) ) != LDAP_SUCCESS)
+	if ( ( rc = common_ldap_bind( ld, options->username, options->password, use_sasl) ) != LDAP_SUCCESS)
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_FDW_ERROR),
-				errmsg("Could not exec ldap bind to \"%s\" with username \"%s\"!", uri, username),
+				errmsg("Could not exec ldap bind to \"%s\" with username \"%s\"!", options->uri, options->username),
 				errhint("Could not bind to ldap server. Is username and password correct?")));
 		return;
 	}
@@ -533,7 +533,7 @@ static void
 ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 {
 	// LDAP search
-	rc = ldap_search_ext( ld, basedn, scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
+	rc = ldap_search_ext( ld, options->basedn, options->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
 }
 
 
