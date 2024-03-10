@@ -505,9 +505,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 
 	return make_foreignscan(tlist,
 			scan_clauses,
-			scan_relid,
+			scan_relid, // baserel->relid,
 			scan_clauses,
-			NIL,
+			NIL, // best_path->fdw_private,
 			NIL,
 			NIL,
 			outer_plan);
@@ -549,10 +549,39 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 {
+	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
+	Relation rel;
+	AttInMetadata  *attinmeta;
+	HeapTuple tuple;
+	HelloFdwExecutionState *hestate = (HelloFdwExecutionState *) node->fdw_state;
+	int i;
+	int natts;
+	char **values;
+
 	// ldap fetch result
 	rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &timeout_struct, &res );
 
-	return NULL;
+	if( hestate->rownum != 0 ){
+		ExecClearTuple(slot);
+		return slot;
+	}
+	rel = node->ss.ss_currentRelation;
+	attinmeta = TupleDescGetAttInMetadata(rel->rd_att);
+
+	natts = rel->rd_att->natts;
+	values = (char **) palloc(sizeof(char *) * natts);
+
+	for(i = 0; i < natts; i++ ){
+		values[i] = "Hello,World";
+	}
+
+	tuple = BuildTupleFromCStrings(attinmeta, values);
+	ExecStoreTuple(tuple, slot, InvalidBuffer, true);
+
+	hestate->rownum++;
+
+	return slot;
+
 }
 
 /*
