@@ -553,7 +553,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	Relation rel;
 	AttInMetadata  *attinmeta;
 	HeapTuple tuple;
-	HelloFdwExecutionState *hestate = (HelloFdwExecutionState *) node->fdw_state;
+	LdapFdwPlanState *hestate = (LdapFdwPlanState *) node->fdw_state;
 	int i;
 	int natts;
 	char **values;
