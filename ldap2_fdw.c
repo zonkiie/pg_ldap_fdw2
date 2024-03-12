@@ -532,6 +532,11 @@ ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
 static void
 ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 {
+	ForeignScan *fsplan = (ForeignScan *) node->ss.ps.plan;
+	node->fdw_state = (void *) fsstate;
+	//fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
+	// Todo: Convert plan to ldap filter
+	// from:     dynamodb_fdw/dynamodb_impl.cpp line 800
 	// LDAP search
 	rc = ldap_search_ext( ld, options->basedn, options->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
 }
