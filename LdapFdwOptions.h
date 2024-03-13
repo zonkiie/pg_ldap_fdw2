@@ -11,6 +11,7 @@ typedef struct LdapFdwOptions
 	char * objectclass;
 	char * schemadn;
 	int scope;
+	int use_sasl;
 } LdapFdwOptions;
 
 #endif

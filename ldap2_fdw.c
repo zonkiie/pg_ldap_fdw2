@@ -170,11 +170,13 @@ enum FdwModifyPrivateIndex
 _cleanup_ldap_ LDAP *ld = NULL;
 _cleanup_options_ LdapFdwOptions *option_params = (LdapFdwOptions *)calloc(1, sizeof(LdapFdwOptions *));
 _cleanup_cstr_ char *buf = NULL;
+LDAPControl **serverctrls = NULL;
+LDAPControl **clientctrls = NULL;
 char ** attributes_array = NULL;
 _cleanup_ldap_message_ LDAPMessage *res = NULL;
 char *dn, *matched_msg = NULL, *error_msg = NULL;
 struct timeval timeout_struct = {.tv_sec = 10L, .tv_usec = 0L};
-int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0, use_sasl = 0, scope = 0;
+int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0;
 
 void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 {
@@ -230,11 +232,11 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 				errmsg("invalid option \"%s\"", def->defname),
-				errhint("Valid table options for ldap2_fdw are \"uri\", \"username\", \"password\", \"basedn\", \"filter\", \"objectclass\", \"schemadn\""))
+				errhint("Valid table options for ldap2_fdw are \"uri\", \"username\", \"password\", \"basedn\", \"filter\", \"objectclass\", \"schemadn\", \"scope\""))
 			);
 		}
 	}
-
+	options->use_sasl = 0;
 }
 
 void print_list(FILE *out_channel, List *list)
@@ -313,11 +315,11 @@ void initLdap()
 
 	int version = LDAP_VERSION3;
 
-	if ( ( rc = ldap_initialize( &ld, options->uri ) ) != LDAP_SUCCESS )
+	if ( ( rc = ldap_initialize( &ld, option_params->uri ) ) != LDAP_SUCCESS )
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_FDW_UNABLE_TO_ESTABLISH_CONNECTION),
-				errmsg("Could not establish connection to \"%s\"", options->uri),
+				errmsg("Could not establish connection to \"%s\"", option_params->uri),
 				errhint("Check that ldap server runs, accept connections and can be reached.")));
 		return;
 	}
@@ -331,11 +333,11 @@ void initLdap()
 		return;
 	}
 
-	if ( ( rc = common_ldap_bind( ld, options->username, options->password, use_sasl) ) != LDAP_SUCCESS)
+	if ( ( rc = common_ldap_bind( ld, option_params->username, option_params->password, option_params->use_sasl) ) != LDAP_SUCCESS)
 	{
 		ereport(ERROR,
 				(errcode(ERRCODE_FDW_ERROR),
-				errmsg("Could not exec ldap bind to \"%s\" with username \"%s\"!", options->uri, options->username),
+				errmsg("Could not exec ldap bind to \"%s\" with username \"%s\"!", option_params->uri, option_params->username),
 				errhint("Could not bind to ldap server. Is username and password correct?")));
 		return;
 	}
@@ -417,7 +419,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						NULL);
 #else
 	path = (Path *) create_foreignscan_path(root, baserel,
-#if PG_VERSION_NUM >= 90600
+#if (PG_VERSION_NUM >= 90600)
 						NULL,
 #endif
 						baserel->rows,
@@ -534,11 +536,11 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 {
 	ForeignScan *fsplan = (ForeignScan *) node->ss.ps.plan;
 	node->fdw_state = (void *) fsstate;
-	//fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
+	fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
 	// Todo: Convert plan to ldap filter
 	// from:     dynamodb_fdw/dynamodb_impl.cpp line 800
 	// LDAP search
-	rc = ldap_search_ext( ld, options->basedn, options->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
+	rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
 }
 
 
