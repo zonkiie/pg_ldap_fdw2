@@ -547,6 +547,9 @@ static void
 ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 {
 	ForeignScan *fsplan = (ForeignScan *) node->ss.ps.plan;
+	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
+	
+	fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	node->fdw_state = (void *) fsstate;
 	fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
 	fsstate->retrieved_attrs = list_nth(fsplan->fdw_private, FdwScanPrivateRetrievedAttrs);
