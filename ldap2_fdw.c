@@ -171,13 +171,15 @@ enum FdwModifyPrivateIndex
     FdwModifyPrivateRetrievedAttrs
 };
 
-_cleanup_ldap_ LDAP *ld = NULL;
-_cleanup_options_ LdapFdwOptions *option_params = (LdapFdwOptions *)calloc(1, sizeof(LdapFdwOptions *));
-_cleanup_cstr_ char *buf = NULL;
+//_cleanup_ldap_ LDAP *ld = NULL;
+LDAP *ld = NULL;
+//_cleanup_options_ LdapFdwOptions *option_params = (LdapFdwOptions *)calloc(1, sizeof(LdapFdwOptions *));
+LdapFdwOptions *option_params = NULL;
 LDAPControl **serverctrls = NULL;
 LDAPControl **clientctrls = NULL;
 char ** attributes_array = NULL;
-_cleanup_ldap_message_ LDAPMessage *res = NULL;
+//_cleanup_ldap_message_ LDAPMessage *res = NULL;
+LDAPMessage *res = NULL;
 char *dn, *matched_msg = NULL, *error_msg = NULL;
 struct timeval timeout_struct = {.tv_sec = 10L, .tv_usec = 0L};
 int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0;
@@ -247,7 +249,7 @@ void print_list(FILE *out_channel, List *list)
 {
 	for(int i = 0; i < list->length; i++)
 	{
-		fprintf(out_channel, "%s\n", list->elements[i]->ptr_value);
+		fprintf(out_channel, "%s\n", (char*)list->elements[i].ptr_value);
 	}
 }
 
@@ -278,6 +280,8 @@ static int estimate_size(LDAP *ldap, const char *basedn, const char *filter, int
 				rows++;
 				break;
 		}
+		ldap_msgfree(res);
+		res = NULL;
 	}
 	return rows;
 }
@@ -316,8 +320,9 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 
 void initLdap()
 {
-
-	int version = LDAP_VERSION3;
+	int version;
+	option_params = malloc(sizeof(LdapFdwOptions *));
+	version = LDAP_VERSION3;
 
 	if ( ( rc = ldap_initialize( &ld, option_params->uri ) ) != LDAP_SUCCESS )
 	{
@@ -355,6 +360,7 @@ void _PG_init()
 
 void _PG_fini()
 {
+	free_ldap(&ld);
 }
 
 Datum ldap2_fdw_handler(PG_FUNCTION_ARGS)
@@ -410,9 +416,12 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						 RelOptInfo *baserel,
 						 Oid foreigntableid)
 {
+	Path	   *path;
+	LdapFdwPlanState *fdw_private;
+	Cost		startup_cost;
+	Cost		total_cost;
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
-	Path	   *path;
 #if (PG_VERSION_NUM < 90500)
 	path = (Path *) create_foreignscan_path(root, baserel,
 						baserel->rows,
@@ -434,9 +443,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						NULL,
 						NIL);
 #endif
-	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
-	Cost		startup_cost;
-	Cost		total_cost;
+	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 
 	/* Estimate costs */
 	estimate_costs(root, baserel, fdw_private, &startup_cost, &total_cost);
@@ -502,11 +509,12 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						List *scan_clauses,
 						Plan *outer_plan)
 {
+	Path	   *foreignPath;
+	Index		scan_relid;
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
 
-	Path	   *foreignPath;
-	Index		scan_relid = baserel->relid;
+	scan_relid = baserel->relid;
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
 
 	return make_foreignscan(tlist,
