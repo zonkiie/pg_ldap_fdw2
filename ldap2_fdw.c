@@ -47,6 +47,10 @@ PG_MODULE_MAGIC;
 
 #define LDAP2_FDW_LOGFILE "/dev/shm/ldap2_fdw.log"
 
+void GetOptionStructr(LdapFdwOptions *, Oid);
+void print_list(FILE *, List *);
+void initLdap();
+
 extern Datum ldap2_fdw_handler(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ldap2_fdw_handler);
 
