@@ -509,7 +509,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						List *scan_clauses,
 						Plan *outer_plan)
 {
-	Path	   *foreignPath;
+	//Path	   *foreignPath;
 	Index		scan_relid;
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
@@ -551,12 +551,12 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	
 	fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	node->fdw_state = (void *) fsstate;
-	fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
-	fsstate->retrieved_attrs = list_nth(fsplan->fdw_private, FdwScanPrivateRetrievedAttrs);
+	//fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
+	//fsstate->retrieved_attrs = list_nth(fsplan->fdw_private, FdwScanPrivateRetrievedAttrs);
 	// Todo: Convert plan to ldap filter
 	// from:     dynamodb_fdw/dynamodb_impl.cpp line 800
 	// LDAP search
-	rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
+	//rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
 }
 
 
@@ -573,6 +573,7 @@ static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 {
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
+	/*
 	Relation rel;
 	AttInMetadata  *attinmeta;
 	HeapTuple tuple;
@@ -602,7 +603,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	ExecStoreTuple(tuple, slot, InvalidBuffer, true);
 
 	hestate->rownum++;
-
+	*/
 	return slot;
 
 }

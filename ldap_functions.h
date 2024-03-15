@@ -2,7 +2,9 @@
 #define __ldap_functions__
 
 #include <ldap.h>
+#include <ldap_schema.h>
 #include <sasl/sasl.h>
+#include "LdapFdwOptions.h"
 
 int common_ldap_bind(LDAP *, const char *, const char *, int);
 void free_ldap(LDAP **);
@@ -17,5 +19,6 @@ size_t fetch_objectclass(char ***, LDAP *, char *);
 #define _cleanup_berval_ __attribute((cleanup(free_berval)))
 
 extern struct timeval timeout_struct;
+extern LdapFdwOptions *option_params;
 
 #endif

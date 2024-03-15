@@ -42,13 +42,15 @@ size_t fetch_objectclass(char ***attributes, LDAP *ld, char * object_class)
 {
 	size_t size = 0;
 	char *a = NULL;
+	char *base_dn = option_params->basedn;
+	int rc = 0;
 	LDAPMessage *e;
 	LDAPMessage *schema = NULL;
 	rc = ldap_search_ext_s(
 		ld,
 		base_dn,
 		LDAP_SCOPE_BASE,
-		schema_filter, //"(objectClass=*)",
+		/*schema_filter, */ "(objectClass=*)",
 		(char*[]){ "objectClasses", NULL }, // (char*[]){ "attributeTypes", "objectClasses", NULL },   //(char*[]){ NULL },
 		0,
 		NULL,
