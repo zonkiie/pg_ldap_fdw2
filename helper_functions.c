@@ -1,6 +1,7 @@
 #include "helper_functions.h"
 
 struct         timeval  zerotime = {.tv_sec = 0L, .tv_usec = 0L};
+const size_t blocksize = 1024;
 
 int str_split(char ***dest, char *str, char *separator)
 {
@@ -183,5 +184,44 @@ bool add_to_unique_array(char *** array, char * value)
 	}
 	(*array)[i] = strdup(value);
 	return true;
+}
+
+size_t put_file_content_nm(char* filename, char* content, size_t contentsize, char* mode)
+{
+	size_t pos = 0;
+	size_t bytes_written = 0;
+	size_t bytes_total_written = 0;
+	size_t rest = contentsize;
+	FILE* outfile = fopen(filename, mode);
+	if(outfile == NULL) return -1;
+	while(1)
+	{
+		if((bytes_written = fwrite(content + pos, 1, (rest>blocksize?blocksize:rest), outfile)) <= 0) break;
+		bytes_total_written += bytes_written, rest -= bytes_written;
+		if(rest <= 0) break;
+		pos+=blocksize;
+	}
+	fclose(outfile);
+	return bytes_total_written;
+}
+
+size_t put_file_content_n(char* filename, char* content, size_t contentsize)
+{
+	return put_file_content_nm(filename, content, contentsize, "w");
+}
+
+size_t put_file_content(char* filename, char* content)
+{
+	return put_file_content_nm(filename, content, strlen(content), "w");
+}
+
+size_t append_file_content_n(char* filename, char* content, size_t contentsize)
+{
+	return put_file_content_nm(filename, content, contentsize, "a");
+}
+
+size_t append_file_content(char* filename, char* content)
+{
+	return put_file_content_nm(filename, content, strlen(content), "a");
 }
 

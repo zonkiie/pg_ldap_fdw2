@@ -36,4 +36,10 @@ void free_file(FILE** );
 bool in_array(char ** , char * );
 bool add_to_unique_array(char *** , char * );
 
+size_t put_file_content_nm(char*, char*, size_t, char*);
+size_t put_file_content_n(char*, char*, size_t);
+size_t put_file_content(char*, char*);
+size_t append_file_content_n(char*, char*, size_t);
+size_t append_file_content(char*, char*);
+
 #endif
