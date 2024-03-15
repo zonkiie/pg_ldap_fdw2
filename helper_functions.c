@@ -6,10 +6,12 @@ const size_t blocksize = 1024;
 int str_split(char ***dest, char *str, char *separator)
 {
 	int el_count = substr_count(str, separator) + 1;
+	int index = 0;
+	char *walker, *trailer;
 	*dest = (char**)malloc((el_count + 1) * sizeof(char*));
 	memset((*dest), 0, (el_count + 1));
-	char *walker = strstr(str, separator), *trailer = str;
-	int index = 0;
+	walker = strstr(str, separator);
+	trailer = str;
 	while(true)
 	{
 		if(walker == NULL)
@@ -27,14 +29,14 @@ int str_split(char ***dest, char *str, char *separator)
 
 int str_join(char **targetstr, char **array, char *joinstr)
 {
+	int i = 0;
+	int size = 0;
+	int sl = strlen(joinstr);
 	if(array == NULL)
 	{
 		*targetstr = NULL;
 		return 0;
 	}
-	int i = 0;
-	int size = 0;
-	int sl = strlen(joinstr);
 	(*targetstr) = (char*)calloc(strlen(array[0]) + 1, 1);
 	strcpy((*targetstr), array[0]);
 	while(array[i + 1] != NULL)
@@ -50,35 +52,46 @@ int str_join(char **targetstr, char **array, char *joinstr)
 
 char * str_replace(const char *str, const char *search, const char *replace)
 {
+	char *retstr = NULL, *walker = NULL, *trailer = NULL, *part = NULL, *saveptr = NULL;
+	int scrap = 0;
 	if(str == NULL) return NULL;
 	if(!strcmp(str, "")) return strdup("");
-	char *retstr = strdup(""), *walker, *trailer = (char*)str;
+	retstr = strdup("");
+	trailer = (char*)str;
 	while(true)
 	{
 		if((walker = strstr(trailer, search)) == NULL)
 		{
-			_cleanup_cstr_ char * savestr = strdup(retstr);
+			char * savestr;
+			savestr = strdup(retstr);
 			free(retstr);
-			asprintf(&retstr, "%s%s", savestr, trailer);
+			scrap = asprintf(&retstr, "%s%s", savestr, trailer);
+			free(savestr);
 			break;
 		}
-		_cleanup_cstr_ char * part = strndup(trailer, walker - trailer);
-		_cleanup_cstr_ char * saveptr = strdup(retstr);
+		part = strndup(trailer, walker - trailer);
+		saveptr = strdup(retstr);
 		free(retstr);
-		asprintf(&retstr, "%s%s%s", saveptr, part, replace);
+		scrap = asprintf(&retstr, "%s%s%s", saveptr, part, replace);
 		trailer = walker + strlen(search);
+		free(part);
+		part = NULL;
+		free(saveptr);
+		saveptr = NULL;
 	}
+	if(scrap)
+		;
 	return retstr;
 }
 
 char *trim(char *string, char *trimchars)
 {
+	int start = 0, copylen = 0;
 	if(!trimchars || strlen(trimchars) == 0) return strdup(string);
 	// ltrim
-	int start = 0;
 	while(char_charlist(string[start], trimchars)) start++;
 	// rtrim
-	int copylen = strlen(string + start);
+	copylen = strlen(string + start);
 	while(copylen > 1 && char_charlist((string + start)[copylen - 1], trimchars)) copylen--;
 	return strndup((string + start), copylen);
 }
@@ -94,10 +107,11 @@ bool char_charlist(char c, char *charlist)
 
 int substr_count(char *str, char *substr)
 {
-	if(str == NULL || !strcmp(str, "")) return 0;
-	char * found = str;
+	char * found;
 	int count = 0;
-	while(found = strstr(found + strlen(substr), substr)) count++;
+	if(str == NULL || !strcmp(str, "")) return 0;
+	found = str;
+	while((found = strstr(found + strlen(substr), substr))) count++;
 	return count;
 }
 
@@ -135,8 +149,8 @@ void reassign_cstr(char **str, const char * value)
 
 int get_carr_size(char ** carr)
 {
-	if(carr == NULL) return 0;
     int i = 0;
+	if(carr == NULL) return 0;
     for(; carr[i] != NULL; i++);
     return i;
 }
@@ -144,8 +158,9 @@ int get_carr_size(char ** carr)
 /** Free c array strings and null memory */
 void free_carr_n(char ***carr)
 {
+	int size = 0;
     if(carr == NULL || *carr == NULL) return;
-	int size = get_carr_size(*carr);
+	size = get_carr_size(*carr);
 	for(int i = size - 1; i >= 0; i--) 
 	{
 		free((*carr)[i]);

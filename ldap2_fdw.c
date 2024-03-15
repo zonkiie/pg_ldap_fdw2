@@ -457,6 +457,10 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 							NULL,		/* no outer rel either */
 							NULL,      /* no extra plan */
 							NIL));		/* no fdw_private data */
+	
+	// Eliminate Compiler warning
+	if(path)
+		;
 }
 
 /*

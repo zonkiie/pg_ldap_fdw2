@@ -12,6 +12,8 @@ void free_ldap_message(LDAPMessage **);
 void free_ber(BerElement **);
 void free_berval(struct berval **);
 size_t fetch_objectclass(char ***, LDAP *, char *);
+int fetch_attribute_type();
+int fetch_schema(LDAP *);
 
 #define _cleanup_ldap_ __attribute((cleanup(free_ldap)))
 #define _cleanup_ldap_message_ __attribute((cleanup(free_ldap_message)))
@@ -20,5 +22,7 @@ size_t fetch_objectclass(char ***, LDAP *, char *);
 
 extern struct timeval timeout_struct;
 extern LdapFdwOptions *option_params;
+
+int ldap_simple_bind_s(LDAP *, const char *, const char *);
 
 #endif

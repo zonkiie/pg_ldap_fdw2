@@ -7,6 +7,7 @@ int common_ldap_bind(LDAP *ld, const char *username, const char *password, int u
 	if(password != NULL) berval_password = ber_bvstrdup(password);
 	if(!use_sasl) return ldap_simple_bind_s( ld, username, password);
 	else if(use_sasl) return ldap_sasl_bind_s( ld, username, LDAP_SASL_SIMPLE, berval_password , NULL, NULL, NULL);
+	return -1;
 }
 
 void free_ldap(LDAP **ldap)
@@ -44,8 +45,8 @@ size_t fetch_objectclass(char ***attributes, LDAP *ld, char * object_class)
 	char *a = NULL;
 	char *base_dn = option_params->basedn;
 	int rc = 0;
-	LDAPMessage *e;
-	LDAPMessage *schema = NULL;
+	LDAPMessage *schema = NULL, *entry = NULL;
+	BerElement *ber;
 	rc = ldap_search_ext_s(
 		ld,
 		base_dn,
@@ -67,11 +68,9 @@ size_t fetch_objectclass(char ***attributes, LDAP *ld, char * object_class)
 		return -1;
 	}
 
-	LDAPMessage *entry;
     for (entry = ldap_first_entry(ld, schema); entry != NULL; entry = ldap_next_entry(ld, entry)) {
 		char* schema_entry_str = ldap_get_dn(ld, entry);
 		ldap_memfree(schema_entry_str);
-		BerElement *ber;
 		for ( a = ldap_first_attribute( ld, entry, &ber ); a != NULL; a = ldap_next_attribute( ld, entry, ber ) ) {
 			struct berval **vals = NULL;
 			if ((vals = ldap_get_values_len( ld, entry, a)) != NULL ) {
