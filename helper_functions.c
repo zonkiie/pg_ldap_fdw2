@@ -117,13 +117,13 @@ void free_pstr(char ** str)
 
 void free_options(LdapFdwOptions * options)
 {
-	free_pstr(options->uri);
-	free_pstr(options->username);
-	free_pstr(options->password);
-	free_pstr(options->basedn);
-	free_pstr(options->filter);
-	free_pstr(options->objectclass);
-	free_pstr(options->schemadn);
+	free_pstr(&(options->uri));
+	free_pstr(&(options->username));
+	free_pstr(&(options->password));
+	free_pstr(&(options->basedn));
+	free_pstr(&(options->filter));
+	free_pstr(&(options->objectclass));
+	free_pstr(&(options->schemadn));
 
 }
 

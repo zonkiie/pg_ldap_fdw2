@@ -11,6 +11,7 @@
 #include <search.h>
 #include <stddef.h>
 #include "LdapFdwOptions.h"
+#include "postgres.h"
 
 extern struct         timeval  zerotime;
 
