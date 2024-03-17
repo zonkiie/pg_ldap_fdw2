@@ -5,7 +5,7 @@ I will try to implement a Read AND Write FDW.
 ## Usage
     CREATE EXTENSION ldap2_fdw;
     CREATE SERVER ldap FOREIGN DATA WRAPPER ldap2_fdw OPTIONS (uri 'ldap://localhost', username 'cn=admin', password '<admin password>');
-    // User Mapping will be implemented later
+    -- User Mapping will be implemented later
     CREATE FOREIGN TABLE IF NOT EXISTS names (id uuid NOT NULL, cn varchar NOT NULL, sn varchar NOTNULL) SERVER ldap OPTIONS(uri 'ldap://localhost', username 'cn=admin', password 'password');
     DROP FOREIGN TABLE IF EXISTS names SERVER ldap;
     DROP SERVER ldap;
