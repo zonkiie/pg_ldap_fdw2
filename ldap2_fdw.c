@@ -519,6 +519,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	GetOptionStructr(option_params, foreigntableid);
 
 	scan_relid = baserel->relid;
+	print_list(stderr, scan_clauses);
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
 
 	return make_foreignscan(tlist,
