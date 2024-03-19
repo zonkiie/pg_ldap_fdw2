@@ -2,14 +2,17 @@
 LDAP Foreign Data Wrapper for PostgreSQL.  
 I will try to implement a Read AND Write FDW.
 
-## Usage
-    CREATE EXTENSION ldap2_fdw;
-    CREATE SERVER ldap FOREIGN DATA WRAPPER ldap2_fdw OPTIONS (uri 'ldap://localhost', username 'cn=admin', password '<admin password>');
+## Install
+    CREATE EXTENSION IF NOT EXISTS ldap2_fdw;
+    CREATE SERVER IF NOT EXISTS ldap FOREIGN DATA WRAPPER ldap2_fdw OPTIONS (uri 'ldap://localhost', username 'cn=admin', password 'password');
     -- User Mapping will be implemented later
-    CREATE FOREIGN TABLE IF NOT EXISTS names (id uuid NOT NULL, cn varchar NOT NULL, sn varchar NOTNULL) SERVER ldap OPTIONS(uri 'ldap://localhost', username 'cn=admin', password 'password');
-    DROP FOREIGN TABLE IF EXISTS names SERVER ldap;
-    DROP SERVER ldap;
-    DROP EXTENSION ldap2_fdw;
+    CREATE FOREIGN TABLE IF NOT EXISTS names (id uuid NOT NULL, cn varchar NOT NULL, sn varchar NOT NULL) SERVER ldap OPTIONS(uri 'ldap://localhost', username 'cn=admin', password 'password');
+## Uninstall
+    DROP FOREIGN TABLE IF EXISTS names;
+    DROP SERVER IF EXISTS ldap CASCADE;
+    DROP EXTENSION IF EXISTS ldap2_fdw CASCADE;
+
+## Usage
     
 
 ## A list of Foreign Data Wrappers
