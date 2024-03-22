@@ -37,6 +37,10 @@
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 
+
+#include <syslog.h>
+
+
 #include "LdapFdwOptions.h"
 #include "helper_functions.h"
 #include "ldap_functions.h"
@@ -186,41 +190,55 @@ int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_re
 
 void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 {
+	ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 	ForeignTable *ft = GetForeignTable(foreignTableId);
+	ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 	ListCell *cell;
+	ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 	foreach(cell, ft->options)
 	{
+		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 		DefElem *def = lfirst_node(DefElem, cell);
+		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 		if (strcmp("uri", def->defname) == 0)
 		{
+		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->uri = defGetString(def);
+		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 		}
 		else if (strcmp("username", def->defname) == 0)
 		{
+		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->username = defGetString(def);
 		}
 		else if (strcmp("password", def->defname) == 0)
 		{
+		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->password = defGetString(def);
 		}
 		else if (strcmp("basedn", def->defname) == 0)
 		{
+		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->basedn = defGetString(def);
 		}
 		else if (strcmp("filter", def->defname) == 0)
 		{
+		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->filter = defGetString(def);
 		}
 		else if (strcmp("objectclass", def->defname) == 0)
 		{
+		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->objectclass = defGetString(def);
 		}
 		else if (strcmp("schemadn", def->defname) == 0)
 		{
+		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->schemadn = defGetString(def);
 		}
 		else if(strcmp("scope", def->defname) == 0)
 		{
+			ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			_cleanup_cstr_ char *sscope = strdup(defGetString(def)); // strdup(def->arg);
 			if(!strcasecmp(sscope, "LDAP_SCOPE_BASE")) options->scope = LDAP_SCOPE_BASE;
 			else if(!strcasecmp(sscope, "LDAP_SCOPE_ONELEVEL")) options->scope = LDAP_SCOPE_ONELEVEL;
@@ -235,6 +253,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		}
 		else
 		{
+			ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 				errmsg("invalid option \"%s\"", def->defname),
@@ -242,7 +261,9 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 			);
 		}
 	}
+	ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 	options->use_sasl = 0;
+	ereport(LOG, errmsg_internal("GetOptionStructr ereport finished\n"));
 }
 
 void print_list(FILE *out_channel, List *list)
@@ -320,8 +341,9 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 
 void initLdap()
 {
+	ereport(LOG, errmsg_internal("initLdap ereport\n"));
 	int version;
-	option_params = malloc(sizeof(LdapFdwOptions *));
+	//option_params = (LdapFdwOptions *)malloc(sizeof(LdapFdwOptions *));
 	version = LDAP_VERSION3;
 
 	if ( ( rc = ldap_initialize( &ld, option_params->uri ) ) != LDAP_SUCCESS )
@@ -356,15 +378,20 @@ void initLdap()
 
 void _PG_init()
 {
+	ereport(LOG, errmsg_internal("_PG_init ereport\n"));
+	option_params = (LdapFdwOptions *)malloc(sizeof(LdapFdwOptions *));
+
 }
 
 void _PG_fini()
 {
-	free_ldap(&ld);
+	//free_ldap(&ld);
 }
 
 Datum ldap2_fdw_handler(PG_FUNCTION_ARGS)
 {
+	ereport(LOG, errmsg_internal("ldap2_fdw_handler ereport\n"));
+	
     FdwRoutine *fdw_routine = makeNode(FdwRoutine);
 
     fdw_routine->GetForeignRelSize = ldap2_fdw_GetForeignRelSize;
