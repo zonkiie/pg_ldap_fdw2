@@ -190,56 +190,50 @@ int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_re
 
 void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 {
-	ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
+	if(options == NULL) {
+		ereport(ERROR,
+			(errcode(ERRCODE_FDW_INVALID_USE_OF_NULL_POINTER),
+			errmsg("options is null!"),
+			errhint("options is null - variable is not initialized!"))
+		);
+		return;
+	}
 	ForeignTable *ft = GetForeignTable(foreignTableId);
-	ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 	ListCell *cell;
-	ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 	foreach(cell, ft->options)
 	{
-		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 		DefElem *def = lfirst_node(DefElem, cell);
-		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 		if (strcmp("uri", def->defname) == 0)
 		{
-		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->uri = defGetString(def);
-		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 		}
 		else if (strcmp("username", def->defname) == 0)
 		{
-		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->username = defGetString(def);
 		}
 		else if (strcmp("password", def->defname) == 0)
 		{
-		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->password = defGetString(def);
 		}
 		else if (strcmp("basedn", def->defname) == 0)
 		{
-		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->basedn = defGetString(def);
 		}
 		else if (strcmp("filter", def->defname) == 0)
 		{
-		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->filter = defGetString(def);
 		}
 		else if (strcmp("objectclass", def->defname) == 0)
 		{
-		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->objectclass = defGetString(def);
 		}
 		else if (strcmp("schemadn", def->defname) == 0)
 		{
-		ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
 			options->schemadn = defGetString(def);
 		}
 		else if(strcmp("scope", def->defname) == 0)
 		{
-			ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
-			_cleanup_cstr_ char *sscope = strdup(defGetString(def)); // strdup(def->arg);
+			char *sscope = pstrdup(defGetString(def)); // strdup(def->arg);
 			if(!strcasecmp(sscope, "LDAP_SCOPE_BASE")) options->scope = LDAP_SCOPE_BASE;
 			else if(!strcasecmp(sscope, "LDAP_SCOPE_ONELEVEL")) options->scope = LDAP_SCOPE_ONELEVEL;
 			else if(!strcasecmp(sscope, "LDAP_SCOPE_SUBTREE")) options->scope = LDAP_SCOPE_SUBTREE;
@@ -249,7 +243,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 				errmsg("invalid value \"%s\" for scope", sscope),
 				errhint("Valid values for ldap2_fdw are \"LDAP_SCOPE_BASE\", \"LDAP_SCOPE_ONELEVEL\", \"LDAP_SCOPE_SUBTREE\", \"LDAP_SCOPE_CHILDREN\"."))
 			);
-
+			pfree(sscope);
 		}
 		else
 		{
@@ -379,7 +373,7 @@ void initLdap()
 void _PG_init()
 {
 	ereport(LOG, errmsg_internal("_PG_init ereport\n"));
-	option_params = (LdapFdwOptions *)malloc(sizeof(LdapFdwOptions *));
+	option_params = (LdapFdwOptions *)palloc(sizeof(LdapFdwOptions *));
 
 }
 
