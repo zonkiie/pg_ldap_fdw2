@@ -51,6 +51,8 @@ PG_MODULE_MAGIC;
 
 #define LDAP2_FDW_LOGFILE "/dev/shm/ldap2_fdw.log"
 
+#define DEBUGPOINT ereport(LOG, errmsg_internal("ereport Func %s, Line %d\n", __FUNCTION__, __LINE__))
+
 void GetOptionStructr(LdapFdwOptions *, Oid);
 void print_list(FILE *, List *);
 void initLdap();
@@ -203,6 +205,9 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 	foreach(cell, ft->options)
 	{
 		DefElem *def = lfirst_node(DefElem, cell);
+		
+		ereport(LOG, errmsg_internal("ereport Func %s, Line %d, def: %s\n", __FUNCTION__, __LINE__, def->defname));
+		
 		if (strcmp("uri", def->defname) == 0)
 		{
 			options->uri = defGetString(def);
@@ -255,7 +260,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 			);
 		}
 	}
-	ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
+	DEBUGPOINT;
 	options->use_sasl = 0;
 	ereport(LOG, errmsg_internal("GetOptionStructr ereport finished\n"));
 }
@@ -270,6 +275,7 @@ void print_list(FILE *out_channel, List *list)
 
 static int estimate_size(LDAP *ldap, const char *basedn, const char *filter, int scope)
 {
+	DEBUGPOINT;
 	int rows = 0;
 	finished = 0;
 	rc = ldap_search_ext( ld, basedn, scope, filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
@@ -305,6 +311,7 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 			   LdapFdwPlanState *fdw_private,
 			   Cost *startup_cost, Cost *total_cost)
 {
+	DEBUGPOINT;
 	BlockNumber pages = fdw_private->pages;
 	double		ntuples = fdw_private->ntuples;
 	Cost		run_cost = 0;
@@ -335,10 +342,20 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 
 void initLdap()
 {
-	ereport(LOG, errmsg_internal("initLdap ereport\n"));
+	DEBUGPOINT;
+	
 	int version;
 	//option_params = (LdapFdwOptions *)malloc(sizeof(LdapFdwOptions *));
 	version = LDAP_VERSION3;
+	
+	if(option_params->uri == NULL || !strcmp(option_params->uri, ""))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_ATTRIBUTE_VALUE),
+				errmsg("URI is empty!"),
+				errhint("LDAP URI is not given or has empty value!")));
+		return;
+	}
 
 	if ( ( rc = ldap_initialize( &ld, option_params->uri ) ) != LDAP_SUCCESS )
 	{
@@ -372,19 +389,19 @@ void initLdap()
 
 void _PG_init()
 {
-	ereport(LOG, errmsg_internal("_PG_init ereport\n"));
+	DEBUGPOINT;
 	option_params = (LdapFdwOptions *)palloc(sizeof(LdapFdwOptions *));
-
 }
 
 void _PG_fini()
 {
+	DEBUGPOINT;
 	//free_ldap(&ld);
 }
 
 Datum ldap2_fdw_handler(PG_FUNCTION_ARGS)
 {
-	ereport(LOG, errmsg_internal("ldap2_fdw_handler ereport\n"));
+	DEBUGPOINT;
 	
     FdwRoutine *fdw_routine = makeNode(FdwRoutine);
 
@@ -412,6 +429,7 @@ Datum ldap2_fdw_handler(PG_FUNCTION_ARGS)
 
     fdw_routine->AnalyzeForeignTable = ldap2_fdw_AnalyzeForeignTable;
 
+	DEBUGPOINT;
     PG_RETURN_POINTER(fdw_routine);
 }
 
@@ -425,6 +443,7 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   Oid foreigntableid)
 {
 	GetOptionStructr(option_params, foreigntableid);
+	initLdap();
 	baserel->rows = estimate_size(ld, option_params->basedn, option_params->filter, option_params->scope);
 }
 
@@ -437,12 +456,15 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						 RelOptInfo *baserel,
 						 Oid foreigntableid)
 {
+	DEBUGPOINT;
+	
 	Path	   *path;
 	LdapFdwPlanState *fdw_private;
 	Cost		startup_cost;
 	Cost		total_cost;
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
+	initLdap();
 #if (PG_VERSION_NUM < 90500)
 	path = (Path *) create_foreignscan_path(root, baserel,
 						baserel->rows,
@@ -497,8 +519,11 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						List *tlist,
 						List *scan_clauses)
 {
+	DEBUGPOINT;
+
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
+	initLdap();
 
 	//FILE * log_channel = stderr;
 	_cleanup_file_ FILE * log_channel = fopen(LDAP2_FDW_LOGFILE, "a");
@@ -534,10 +559,12 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						List *scan_clauses,
 						Plan *outer_plan)
 {
+	DEBUGPOINT;
 	//Path	   *foreignPath;
 	Index		scan_relid;
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
+	initLdap();
 
 	scan_relid = baserel->relid;
 	print_list(stderr, scan_clauses);
@@ -572,6 +599,7 @@ ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
 static void
 ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 {
+	DEBUGPOINT;
 	ForeignScan *fsplan = (ForeignScan *) node->ss.ps.plan;
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
 	
@@ -598,6 +626,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 {
+	DEBUGPOINT;
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
 	/*
 	Relation rel;
