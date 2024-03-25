@@ -218,6 +218,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		}
 		else if (strcmp("password", def->defname) == 0)
 		{
+			ereport(LOG, errmsg_internal("GetOptionStructr password %s\n", options->password));
 			options->password = defGetString(def);
 		}
 		else if (strcmp("basedn", def->defname) == 0)
@@ -343,6 +344,19 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 void initLdap()
 {
 	DEBUGPOINT;
+	
+	if(option_params == NULL)
+	{
+		DEBUGPOINT;
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_ATTRIBUTE_VALUE),
+				errmsg("option_params is null!"),
+				errhint("ldap option params is not initialized!")));
+		return;
+	}
+	
+	ereport(LOG, errmsg_internal("initLdap uri: %s, username: %s, password %s\n", option_params->uri, option_params->username, option_params->password));
+
 	
 	int version;
 	//option_params = (LdapFdwOptions *)malloc(sizeof(LdapFdwOptions *));
