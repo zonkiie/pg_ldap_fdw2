@@ -389,6 +389,13 @@ void initLdap()
 		return;
 	}
 
+	// removed ldap bind - call bind from another function
+}
+
+void bindLdap()
+{
+	ereport(LOG, errmsg_internal("initLdap uri: %s, username: %s, password %s\n", option_params->uri, option_params->username, option_params->password));
+	
 	if ( ( rc = common_ldap_bind( ld, option_params->username, option_params->password, option_params->use_sasl) ) != LDAP_SUCCESS)
 	{
 		ereport(ERROR,
@@ -397,8 +404,8 @@ void initLdap()
 				errhint("Could not bind to ldap server. Is username and password correct?")));
 		return;
 	}
-
-
+	
+	DEBUGPOINT;
 }
 
 void _PG_init()
