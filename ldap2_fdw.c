@@ -212,6 +212,12 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		{
 			options->uri = defGetString(def);
 		}
+		else if(strcmp("hostname", def->defname) == 0)
+		{
+			char * hostname = defGetString(def);
+			options->uri = psprintf("ldap://%s", hostname);
+			free(hostname);
+		}
 		else if (strcmp("username", def->defname) == 0)
 		{
 			options->username = defGetString(def);
@@ -257,7 +263,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 				errmsg("invalid option \"%s\"", def->defname),
-				errhint("Valid table options for ldap2_fdw are \"uri\", \"username\", \"password\", \"basedn\", \"filter\", \"objectclass\", \"schemadn\", \"scope\""))
+				errhint("Valid table options for ldap2_fdw are \"uri\", \"hostname\", \"username\", \"password\", \"basedn\", \"filter\", \"objectclass\", \"schemadn\", \"scope\""))
 			);
 		}
 	}
@@ -394,7 +400,7 @@ void initLdap()
 
 void bindLdap()
 {
-	ereport(LOG, errmsg_internal("initLdap uri: %s, username: %s, password %s\n", option_params->uri, option_params->username, option_params->password));
+	ereport(LOG, errmsg_internal("bindLdap username: %s, password %s\n", option_params->username, option_params->password));
 	
 	if ( ( rc = common_ldap_bind( ld, option_params->username, option_params->password, option_params->use_sasl) ) != LDAP_SUCCESS)
 	{
@@ -691,6 +697,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 static void
 ldap2_fdw_ReScanForeignScan(ForeignScanState *node)
 {
+	DEBUGPOINT;
 }
 
 /*
@@ -700,6 +707,7 @@ ldap2_fdw_ReScanForeignScan(ForeignScanState *node)
 static void
 ldap2_fdw_EndForeignScan(ForeignScanState *node)
 {
+	DEBUGPOINT;
 	// cleanup
 	free_ldap_message(&res);
 }
@@ -714,6 +722,7 @@ ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
 								RangeTblEntry *target_rte,
 								Relation target_relation)
 {
+	DEBUGPOINT;
  Var      *var;
   const char *attrname;
   TargetEntry *tle;
@@ -762,6 +771,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 						  Index resultRelation,
 						  int subplan_index)
 {
+	DEBUGPOINT;
 /*
 	CmdType		operation = plan->operation;
 	RangeTblEntry *rte = planner_rt_fetch(resultRelation, root);
@@ -870,6 +880,7 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 						   int subplan_index,
 						   int eflags)
 {
+	DEBUGPOINT;
 		return;
 }
 
@@ -883,6 +894,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
+	DEBUGPOINT;
 	return NULL;
 }
 
@@ -896,6 +908,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
+	DEBUGPOINT;
 	return NULL;
 }
 
@@ -909,6 +922,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
+	DEBUGPOINT;
 	return NULL;
 }
 
@@ -920,6 +934,7 @@ static void
 ldap2_fdw_EndForeignModify(EState *estate,
 						 ResultRelInfo *resultRelInfo)
 {
+	DEBUGPOINT;
 	return;
 }
 
@@ -932,6 +947,7 @@ ldap2_fdw_EndForeignModify(EState *estate,
 static int
 ldap2_fdw_IsForeignRelUpdatable(Relation rel)
 {
+	DEBUGPOINT;
 	/* updatable is INSERT, UPDATE and DELETE.
 	 */
 	return (1 << CMD_INSERT) | (1 << CMD_UPDATE) | (1 << CMD_DELETE) ;
@@ -949,6 +965,7 @@ ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
 	char	   *sql;
 	if (es->verbose)
 	{
+		DEBUGPOINT;
 		fdw_private = ((ForeignScan *) node->ss.ps.plan)->fdw_private;
 		sql = strVal(list_nth(fdw_private, FdwScanPrivateSelectSql));
 		ExplainPropertyText("ldap2_fdw_ SQL", sql, es);
@@ -968,6 +985,7 @@ ldap2_fdw_ExplainForeignModify(ModifyTableState *mtstate,
 							 int subplan_index,
 							 ExplainState *es)
 {
+	DEBUGPOINT;
 	if (es->verbose)
 	{
 		char	   *sql = strVal(list_nth(fdw_private,
@@ -987,6 +1005,7 @@ ldap2_fdw_AnalyzeForeignTable(Relation relation,
 							AcquireSampleRowsFunc *func,
 							BlockNumber *totalpages)
 {
+	DEBUGPOINT;
   *func = ldap2_fdw_AcquireSampleRowsFunc ;
 	return false;
 }
@@ -1001,6 +1020,7 @@ ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
 							  double *totaldeadrows)
 {
 
+	DEBUGPOINT;
   totalrows = 0;
   totaldeadrows = 0;
 	return 0;
