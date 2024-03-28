@@ -259,7 +259,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		}
 		else
 		{
-			ereport(LOG, errmsg_internal("GetOptionStructr ereport Line %d\n", __LINE__));
+			ereport(LOG, errmsg_internal("%s ereport Line %d\n", __FUNCTION__, __LINE__));
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 				errmsg("invalid option \"%s\"", def->defname),
