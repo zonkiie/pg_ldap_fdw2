@@ -192,6 +192,7 @@ int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_re
 
 void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 {
+	DEBUGPOINT;
 	if(options == NULL) {
 		ereport(ERROR,
 			(errcode(ERRCODE_FDW_INVALID_USE_OF_NULL_POINTER),
@@ -469,6 +470,7 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   RelOptInfo *baserel,
 						   Oid foreigntableid)
 {
+	DEBUGPOINT;
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
 	baserel->rows = estimate_size(ld, option_params->basedn, option_params->filter, option_params->scope);
