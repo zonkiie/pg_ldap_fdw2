@@ -56,6 +56,7 @@ PG_MODULE_MAGIC;
 void GetOptionStructr(LdapFdwOptions *, Oid);
 void print_list(FILE *, List *);
 void initLdap();
+void bindLdap();
 
 extern Datum ldap2_fdw_handler(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ldap2_fdw_handler);
@@ -192,6 +193,12 @@ int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_re
 
 void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 {
+	ForeignTable *foreignTable = NULL;
+	ForeignServer *foreignServer = NULL;
+	UserMapping *mapping = NULL;
+	ListCell *cell = NULL;
+	List * all_options = NULL;
+	
 	DEBUGPOINT;
 	if(options == NULL) {
 		ereport(ERROR,
@@ -201,9 +208,16 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		);
 		return;
 	}
-	ForeignTable *ft = GetForeignTable(foreignTableId);
-	ListCell *cell;
-	foreach(cell, ft->options)
+	foreignTable = GetForeignTable(foreignTableId);
+	foreignServer = GetForeignServer(foreignTable->serverid);
+	mapping = GetUserMapping(GetUserId(), foreignTable->serverid);
+	
+	all_options = list_copy(foreignTable);
+	all_options = list_concat(all_options, foreignServer);
+	all_options = list_concat(all_options, mapping);
+	
+	//foreach(cell, foreignTable->options)
+	foreach(cell, all_options)
 	{
 		DefElem *def = lfirst_node(DefElem, cell);
 		
@@ -397,6 +411,7 @@ void initLdap()
 	}
 
 	// removed ldap bind - call bind from another function
+	bindLdap();
 }
 
 void bindLdap()
