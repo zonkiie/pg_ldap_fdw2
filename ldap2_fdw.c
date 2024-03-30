@@ -199,7 +199,6 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 	ListCell *cell = NULL;
 	List * all_options = NULL;
 	
-	DEBUGPOINT;
 	if(options == NULL) {
 		ereport(ERROR,
 			(errcode(ERRCODE_FDW_INVALID_USE_OF_NULL_POINTER),
@@ -208,20 +207,23 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		);
 		return;
 	}
+
+	
 	foreignTable = GetForeignTable(foreignTableId);
 	foreignServer = GetForeignServer(foreignTable->serverid);
 	mapping = GetUserMapping(GetUserId(), foreignTable->serverid);
 	
-	all_options = list_copy(foreignTable);
-	all_options = list_concat(all_options, foreignServer);
-	all_options = list_concat(all_options, mapping);
+	
+	all_options = list_copy(foreignTable->options);
+	all_options = list_concat(all_options, foreignServer->options);
+	all_options = list_concat(all_options, mapping->options);
 	
 	//foreach(cell, foreignTable->options)
 	foreach(cell, all_options)
 	{
 		DefElem *def = lfirst_node(DefElem, cell);
 		
-		ereport(LOG, errmsg_internal("ereport Func %s, Line %d, def: %s\n", __FUNCTION__, __LINE__, def->defname));
+		//ereport(LOG, errmsg_internal("ereport Func %s, Line %d, def: %s\n", __FUNCTION__, __LINE__, def->defname));
 		
 		if (strcmp("uri", def->defname) == 0)
 		{
@@ -239,7 +241,6 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		}
 		else if (strcmp("password", def->defname) == 0)
 		{
-			ereport(LOG, errmsg_internal("GetOptionStructr password %s\n", options->password));
 			options->password = defGetString(def);
 		}
 		else if (strcmp("basedn", def->defname) == 0)
@@ -282,9 +283,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 			);
 		}
 	}
-	DEBUGPOINT;
 	options->use_sasl = 0;
-	ereport(LOG, errmsg_internal("GetOptionStructr ereport finished\n"));
 }
 
 void print_list(FILE *out_channel, List *list)
@@ -297,7 +296,6 @@ void print_list(FILE *out_channel, List *list)
 
 static int estimate_size(LDAP *ldap, const char *basedn, const char *filter, int scope)
 {
-	DEBUGPOINT;
 	int rows = 0;
 	finished = 0;
 	rc = ldap_search_ext( ld, basedn, scope, filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
@@ -326,6 +324,7 @@ static int estimate_size(LDAP *ldap, const char *basedn, const char *filter, int
 		ldap_msgfree(res);
 		res = NULL;
 	}
+	DEBUGPOINT;
 	return rows;
 }
 
@@ -364,7 +363,6 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 
 void initLdap()
 {
-	DEBUGPOINT;
 	
 	if(option_params == NULL)
 	{
@@ -427,12 +425,10 @@ void bindLdap()
 		return;
 	}
 	
-	DEBUGPOINT;
 }
 
 void _PG_init()
 {
-	DEBUGPOINT;
 	option_params = (LdapFdwOptions *)palloc(sizeof(LdapFdwOptions *));
 }
 
@@ -444,8 +440,6 @@ void _PG_fini()
 
 Datum ldap2_fdw_handler(PG_FUNCTION_ARGS)
 {
-	DEBUGPOINT;
-	
     FdwRoutine *fdw_routine = makeNode(FdwRoutine);
 
     fdw_routine->GetForeignRelSize = ldap2_fdw_GetForeignRelSize;
@@ -472,7 +466,6 @@ Datum ldap2_fdw_handler(PG_FUNCTION_ARGS)
 
     fdw_routine->AnalyzeForeignTable = ldap2_fdw_AnalyzeForeignTable;
 
-	DEBUGPOINT;
     PG_RETURN_POINTER(fdw_routine);
 }
 
@@ -488,6 +481,8 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	DEBUGPOINT;
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
+	DEBUGPOINT;
+
 	baserel->rows = estimate_size(ld, option_params->basedn, option_params->filter, option_params->scope);
 }
 
