@@ -374,7 +374,7 @@ void initLdap()
 		return;
 	}
 	
-	ereport(LOG, errmsg_internal("initLdap uri: %s, username: %s, password %s\n", option_params->uri, option_params->username, option_params->password));
+	//ereport(LOG, errmsg_internal("initLdap uri: %s, username: %s, password %s\n", option_params->uri, option_params->username, option_params->password));
 
 	
 	int version;
@@ -414,7 +414,7 @@ void initLdap()
 
 void bindLdap()
 {
-	ereport(LOG, errmsg_internal("bindLdap username: %s, password %s\n", option_params->username, option_params->password));
+	//ereport(LOG, errmsg_internal("bindLdap username: %s, password %s\n", option_params->username, option_params->password));
 	
 	if ( ( rc = common_ldap_bind( ld, option_params->username, option_params->password, option_params->use_sasl) ) != LDAP_SUCCESS)
 	{
