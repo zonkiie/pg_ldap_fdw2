@@ -381,7 +381,7 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_ERROR),
-				errmsg("Could not exec ldap_search_ext on \"%s\" with filer \"%s\"", basedn, filter),
+				errmsg("Could not exec ldap_search_ext on \"%s\" with filer \"%s\"", options->basedn, options->filter),
 				errhint("Could not bind to ldap server. Is username and password correct?"))
 			);
 		}
