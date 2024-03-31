@@ -223,7 +223,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 	{
 		DefElem *def = lfirst_node(DefElem, cell);
 		
-		//ereport(LOG, errmsg_internal("ereport Func %s, Line %d, def: %s\n", __FUNCTION__, __LINE__, def->defname));
+		ereport(LOG, errmsg_internal("ereport Func %s, Line %d, def: %s\n", __FUNCTION__, __LINE__, def->defname));
 		
 		if (strcmp("uri", def->defname) == 0)
 		{
@@ -298,8 +298,19 @@ static int estimate_size(LDAP *ldap, const char *basedn, const char *filter, int
 {
 	int rows = 0;
 	finished = 0;
+	if(basedn == NULL || !strcmp(basedn, ""))
+	{
+		ereport(ERROR,
+			(errcode(ERRCODE_FDW_ERROR),
+			errmsg("Basedn is null or empty!"),
+			errhint("Basedn is null or empty!"))
+		);
+	}
+	
 	DEBUGPOINT;
-	ereport(LOG, errmsg_internal("%s ereport Line %d : basedn: %s, filter: %s\n", __FUNCTION__, __LINE__, basedn, filter));
+	ereport(LOG, errmsg_internal("%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, filter));
+	DEBUGPOINT;
+	ereport(LOG, errmsg_internal("%s ereport Line %d : basedn: %s\n", __FUNCTION__, __LINE__, basedn));
 	DEBUGPOINT;
 	rc = ldap_search_ext( ld, basedn, scope, filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	DEBUGPOINT;
