@@ -1,6 +1,9 @@
 #ifndef __ldapfdwoptions__
 #define __ldapfdwoptions__
 
+#include <unistd.h>
+
+
 typedef struct LdapFdwOptions
 {
 	char * uri;
@@ -13,5 +16,7 @@ typedef struct LdapFdwOptions
 	int scope;
 	int use_sasl;
 } LdapFdwOptions;
+
+void initLdapFdwOptions(LdapFdwOptions*);
 
 #endif

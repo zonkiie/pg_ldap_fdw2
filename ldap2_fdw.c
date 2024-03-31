@@ -298,13 +298,16 @@ static int estimate_size(LDAP *ldap, const char *basedn, const char *filter, int
 {
 	int rows = 0;
 	finished = 0;
+	DEBUGPOINT;
+	ereport(LOG, errmsg_internal("%s ereport Line %d : basedn: %s, filter: %s\n", __FUNCTION__, __LINE__, basedn, filter));
+	DEBUGPOINT;
 	rc = ldap_search_ext( ld, basedn, scope, filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
+	DEBUGPOINT;
 	if ( rc != LDAP_SUCCESS )
 	{
 		if ( error_msg != NULL && *error_msg != '\0' )
 		{
 
-			fprintf( stderr, "%s\n", error_msg );
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_ERROR),
 				errmsg("Could not exec ldap_search_ext on \"%s\" with filer \"%s\"", basedn, filter),
@@ -312,6 +315,7 @@ static int estimate_size(LDAP *ldap, const char *basedn, const char *filter, int
 			);
 		}
 	}
+	DEBUGPOINT;
 	while(!finished)
 	{
 		rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &zerotime, &res );
@@ -427,7 +431,9 @@ void bindLdap()
 
 void _PG_init()
 {
-	option_params = (LdapFdwOptions *)palloc(sizeof(LdapFdwOptions *));
+	option_params = (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions *));
+	initLdapFdwOptions(option_params);
+	DEBUGPOINT;
 }
 
 void _PG_fini()
@@ -482,6 +488,7 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	DEBUGPOINT;
 
 	baserel->rows = estimate_size(ld, option_params->basedn, option_params->filter, option_params->scope);
+	DEBUGPOINT;
 }
 
 /*
