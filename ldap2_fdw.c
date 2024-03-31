@@ -45,6 +45,11 @@
 #include "helper_functions.h"
 #include "ldap_functions.h"
 
+void GetOptionStructr(LdapFdwOptions *, Oid);
+void print_list(FILE *, List *);
+void initLdap();
+void bindLdap();
+
 PG_MODULE_MAGIC;
 
 #define MODULE_PREFIX ldap2_fdw
@@ -52,11 +57,6 @@ PG_MODULE_MAGIC;
 #define LDAP2_FDW_LOGFILE "/dev/shm/ldap2_fdw.log"
 
 #define DEBUGPOINT ereport(LOG, errmsg_internal("ereport Func %s, Line %d\n", __FUNCTION__, __LINE__))
-
-void GetOptionStructr(LdapFdwOptions *, Oid);
-void print_list(FILE *, List *);
-void initLdap();
-void bindLdap();
 
 extern Datum ldap2_fdw_handler(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ldap2_fdw_handler);
@@ -332,11 +332,11 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 			   LdapFdwPlanState *fdw_private,
 			   Cost *startup_cost, Cost *total_cost)
 {
-	DEBUGPOINT;
 	BlockNumber pages = fdw_private->pages;
 	double		ntuples = fdw_private->ntuples;
 	Cost		run_cost = 0;
 	Cost		cpu_per_tuple;
+	DEBUGPOINT;
 
 	/*
 	 * We estimate costs almost the same way as cost_seqscan(), thus assuming
@@ -363,6 +363,7 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 
 void initLdap()
 {
+	int version = LDAP_VERSION3;
 	
 	if(option_params == NULL)
 	{
@@ -377,9 +378,7 @@ void initLdap()
 	//ereport(LOG, errmsg_internal("initLdap uri: %s, username: %s, password %s\n", option_params->uri, option_params->username, option_params->password));
 
 	
-	int version;
 	//option_params = (LdapFdwOptions *)malloc(sizeof(LdapFdwOptions *));
-	version = LDAP_VERSION3;
 	
 	if(option_params->uri == NULL || !strcmp(option_params->uri, ""))
 	{
@@ -407,7 +406,6 @@ void initLdap()
 				errhint("Could not set ldap version option. Does ldap server accept the correct ldap version 3?")));
 		return;
 	}
-
 	// removed ldap bind - call bind from another function
 	bindLdap();
 }
@@ -495,12 +493,13 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						 RelOptInfo *baserel,
 						 Oid foreigntableid)
 {
-	DEBUGPOINT;
 	
 	Path	   *path;
 	LdapFdwPlanState *fdw_private;
 	Cost		startup_cost;
 	Cost		total_cost;
+	
+	DEBUGPOINT;
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
@@ -598,9 +597,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						List *scan_clauses,
 						Plan *outer_plan)
 {
-	DEBUGPOINT;
 	//Path	   *foreignPath;
 	Index		scan_relid;
+	DEBUGPOINT;
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
@@ -638,9 +637,10 @@ ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
 static void
 ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 {
-	DEBUGPOINT;
 	ForeignScan *fsplan = (ForeignScan *) node->ss.ps.plan;
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
+	
+	DEBUGPOINT;
 	
 	fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	node->fdw_state = (void *) fsstate;
@@ -665,7 +665,6 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 {
-	DEBUGPOINT;
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
 	/*
 	Relation rel;
@@ -675,6 +674,11 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	int i;
 	int natts;
 	char **values;
+	*/
+	
+	DEBUGPOINT;
+	
+	/*
 
 	// ldap fetch result
 	rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &timeout_struct, &res );
@@ -734,10 +738,11 @@ ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
 								RangeTblEntry *target_rte,
 								Relation target_relation)
 {
+	Var      *var;
+	const char *attrname;
+	TargetEntry *tle;
+	
 	DEBUGPOINT;
- Var      *var;
-  const char *attrname;
-  TargetEntry *tle;
 
 /*
  * In postgres_fdw, what we need is the ctid, same as for a regular table.
@@ -783,7 +788,6 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 						  Index resultRelation,
 						  int subplan_index)
 {
-	DEBUGPOINT;
 /*
 	CmdType		operation = plan->operation;
 	RangeTblEntry *rte = planner_rt_fetch(resultRelation, root);
@@ -794,6 +798,9 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	List	   *retrieved_attrs = NIL;
 
 	StringInfoData sql;
+	
+	DEBUGPOINT;
+	
 	initStringInfo(&sql);
 
 	/*
