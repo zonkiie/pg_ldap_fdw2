@@ -249,7 +249,9 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		}
 		else if (strcmp("filter", def->defname) == 0)
 		{
-			options->filter = defGetString(def);
+			//options->filter = defGetString(def);
+			char * filter = defGetString(def);
+			if(filter != NULL) options->filter = pstrdup(filter);
 		}
 		else if (strcmp("objectclass", def->defname) == 0)
 		{
@@ -368,11 +370,12 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 	}
 	
 	DEBUGPOINT;
-	ereport(LOG, errmsg_internal("%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter));
-	DEBUGPOINT;
 	ereport(LOG, errmsg_internal("%s ereport Line %d : basedn: %s\n", __FUNCTION__, __LINE__, options->basedn));
 	DEBUGPOINT;
-	rc = ldap_search_ext( ld, options->basedn, options->scope, options->filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
+	ereport(LOG, errmsg_internal("%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter));
+	DEBUGPOINT;
+	//rc = ldap_search_ext( ld, options->basedn, options->scope, options->filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
+	rc = ldap_search_ext( ld, options->basedn, options->scope, NULL, (char *[]){NULL}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	DEBUGPOINT;
 	if ( rc != LDAP_SUCCESS )
 	{
@@ -395,10 +398,14 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 			case LDAP_RES_SEARCH_ENTRY:
 				rows++;
 				break;
+			default:
+				finished = 1;
+				break;
 		}
 		ldap_msgfree(res);
 		res = NULL;
 	}
+	ereport(LOG, errmsg_internal("%s ereport Line %d : rows: %d\n", __FUNCTION__, __LINE__, rows));
 	DEBUGPOINT;
 	return rows;
 }
