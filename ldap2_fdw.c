@@ -414,9 +414,13 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 			   LdapFdwPlanState *fdw_private,
 			   Cost *startup_cost, Cost *total_cost)
 {
+	DEBUGPOINT;
 	BlockNumber pages = fdw_private->pages;
+	DEBUGPOINT;
 	double		ntuples = fdw_private->ntuples;
+	DEBUGPOINT;
 	Cost		run_cost = 0;
+	DEBUGPOINT;
 	Cost		cpu_per_tuple;
 	DEBUGPOINT;
 
@@ -614,6 +618,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 
 	/* Estimate costs */
 	estimate_costs(root, baserel, fdw_private, &startup_cost, &total_cost);
+	DEBUGPOINT;
 	/* Create a ForeignPath node and add it as only possible path */
 	add_path(baserel, (Path *) create_foreignscan_path(root, baserel,
 							NULL,		/* default pathtarget */
@@ -624,6 +629,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 							NULL,		/* no outer rel either */
 							NULL,      /* no extra plan */
 							NIL));		/* no fdw_private data */
+	DEBUGPOINT;
 	
 	// Eliminate Compiler warning
 	if(path)
