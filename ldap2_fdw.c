@@ -296,55 +296,6 @@ void print_list(FILE *out_channel, List *list)
 	}
 }
 
-static int estimate_size_extr(LDAP *ldap, const char *basedn, const char *filter, int scope)
-{
-	int rows = 0;
-	finished = 0;
-	if(basedn == NULL || !strcmp(basedn, ""))
-	{
-		ereport(ERROR,
-			(errcode(ERRCODE_FDW_ERROR),
-			errmsg("Basedn is null or empty!"),
-			errhint("Basedn is null or empty!"))
-		);
-	}
-	
-	DEBUGPOINT;
-	ereport(LOG, errmsg_internal("%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, filter));
-	DEBUGPOINT;
-	ereport(LOG, errmsg_internal("%s ereport Line %d : basedn: %s\n", __FUNCTION__, __LINE__, basedn));
-	DEBUGPOINT;
-	rc = ldap_search_ext( ld, basedn, scope, filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
-	DEBUGPOINT;
-	if ( rc != LDAP_SUCCESS )
-	{
-		if ( error_msg != NULL && *error_msg != '\0' )
-		{
-
-			ereport(ERROR,
-				(errcode(ERRCODE_FDW_ERROR),
-				errmsg("Could not exec ldap_search_ext on \"%s\" with filer \"%s\"", basedn, filter),
-				errhint("Could not bind to ldap server. Is username and password correct?"))
-			);
-		}
-	}
-	DEBUGPOINT;
-	while(!finished)
-	{
-		rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &zerotime, &res );
-		switch( rc )
-		{
-			case LDAP_RES_SEARCH_ENTRY:
-				rows++;
-				break;
-		}
-		ldap_msgfree(res);
-		res = NULL;
-	}
-	DEBUGPOINT;
-	return rows;
-}
-
 static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 {
 	int rows = 0;
