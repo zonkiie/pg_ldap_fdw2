@@ -323,7 +323,11 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 	DEBUGPOINT;
 	ereport(LOG, errmsg_internal("%s ereport Line %d : basedn: %s\n", __FUNCTION__, __LINE__, options->basedn));
 	DEBUGPOINT;
-	ereport(LOG, errmsg_internal("%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter));
+	if(options->filter != NULL)
+	{
+		DEBUGPOINT;
+		ereport(LOG, errmsg_internal("%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter));
+	}
 	DEBUGPOINT;
 	//rc = ldap_search_ext( ld, options->basedn, options->scope, options->filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	rc = ldap_search_ext( ld, options->basedn, options->scope, NULL, (char *[]){NULL}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
