@@ -369,6 +369,11 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 			   LdapFdwPlanState *fdw_private,
 			   Cost *startup_cost, Cost *total_cost)
 {
+	if(fdw_private == NULL) {
+		DEBUGPOINT;
+		*total_cost = 1;
+		return;
+	}
 	DEBUGPOINT;
 	BlockNumber pages = fdw_private->pages;
 	DEBUGPOINT;
