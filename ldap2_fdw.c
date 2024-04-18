@@ -224,6 +224,12 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		DefElem *def = lfirst_node(DefElem, cell);
 		
 		ereport(LOG, errmsg_internal("ereport Func %s, Line %d, def: %s\n", __FUNCTION__, __LINE__, def->defname));
+		char * value = NULL;
+		if(nodeTag(def->arg) == T_String)
+		{
+			DEBUGPOINT;
+			value = defGetString(def);
+		}
 		
 		if (strcmp("uri", def->defname) == 0)
 		{
@@ -284,6 +290,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 				errhint("Valid table options for ldap2_fdw are \"uri\", \"hostname\", \"username\", \"password\", \"basedn\", \"filter\", \"objectclass\", \"schemadn\", \"scope\""))
 			);
 		}
+		pfree(value);
 	}
 	options->use_sasl = 0;
 }
