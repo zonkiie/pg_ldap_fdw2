@@ -233,39 +233,47 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		
 		if (strcmp("uri", def->defname) == 0)
 		{
-			options->uri = defGetString(def);
+			//options->uri = defGetString(def);
+			if(value != NULL) options->uri = pstrdup(value);
 		}
 		else if(strcmp("hostname", def->defname) == 0)
 		{
-			char * hostname = defGetString(def);
-			options->uri = psprintf("ldap://%s", hostname);
-			free(hostname);
+			//char * hostname = defGetString(def);
+			//options->uri = psprintf("ldap://%s", hostname);
+			//free(hostname);
+			if(value != NULL) options->uri = psprintf("ldap://%s", value);
 		}
 		else if (strcmp("username", def->defname) == 0)
 		{
-			options->username = defGetString(def);
+			//options->username = defGetString(def);
+			if(value != NULL) options->username = pstrdup(value);
 		}
 		else if (strcmp("password", def->defname) == 0)
 		{
-			options->password = defGetString(def);
+			//options->password = defGetString(def);
+			if(value != NULL) options->password = pstrdup(value);
 		}
 		else if (strcmp("basedn", def->defname) == 0)
 		{
-			options->basedn = defGetString(def);
+			//options->basedn = defGetString(def);
+			if(value != NULL) options->basedn = pstrdup(value);
 		}
 		else if (strcmp("filter", def->defname) == 0)
 		{
 			//options->filter = defGetString(def);
-			char * filter = defGetString(def);
-			if(filter != NULL) options->filter = pstrdup(filter);
+			//char * filter = defGetString(def);
+			//if(filter != NULL) options->filter = pstrdup(filter);
+			if(value != NULL) options->filter = pstrdup(value);
 		}
 		else if (strcmp("objectclass", def->defname) == 0)
 		{
-			options->objectclass = defGetString(def);
+			//options->objectclass = defGetString(def);
+			if(value != NULL) options->objectclass = pstrdup(value);
 		}
 		else if (strcmp("schemadn", def->defname) == 0)
 		{
-			options->schemadn = defGetString(def);
+			//options->schemadn = defGetString(def);
+			if(value != NULL) options->schemadn = pstrdup(value);
 		}
 		else if(strcmp("scope", def->defname) == 0)
 		{
