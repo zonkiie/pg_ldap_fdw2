@@ -670,11 +670,14 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
+	DEBUGPOINT;
 
 	scan_relid = baserel->relid;
 	print_list(stderr, scan_clauses);
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
 
+	DEBUGPOINT;
+	
 	return make_foreignscan(tlist,
 			scan_clauses,
 			scan_relid, // baserel->relid,
@@ -710,7 +713,11 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	DEBUGPOINT;
 	
 	fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
+	DEBUGPOINT;
 	node->fdw_state = (void *) fsstate;
+	
+	DEBUGPOINT;
+	
 	//fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
 	//fsstate->retrieved_attrs = list_nth(fsplan->fdw_private, FdwScanPrivateRetrievedAttrs);
 	// Todo: Convert plan to ldap filter
