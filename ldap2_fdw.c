@@ -666,6 +666,10 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 {
 	//Path	   *foreignPath;
 	Index		scan_relid;
+	
+	ListCell *cell = NULL;
+	
+	
 	DEBUGPOINT;
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
@@ -673,7 +677,16 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	DEBUGPOINT;
 
 	scan_relid = baserel->relid;
-	print_list(stderr, scan_clauses);
+	DEBUGPOINT;
+	foreach(cell, scan_clauses) {
+		DefElem *def = lfirst_node(DefElem, cell);
+		char * value = NULL;
+		value = defGetString(def);
+		ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
+	}
+	
+	//print_list(stderr, scan_clauses);
+	DEBUGPOINT;
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
 
 	DEBUGPOINT;
