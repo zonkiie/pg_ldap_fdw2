@@ -680,7 +680,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	DEBUGPOINT;
 	foreach(cell, scan_clauses) {
 		DefElem *def = lfirst_node(DefElem, cell);
+		ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
 		char * value = NULL;
+		DEBUGPOINT;
 		value = defGetString(def);
 		ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
 	}
