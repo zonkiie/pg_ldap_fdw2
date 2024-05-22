@@ -678,19 +678,69 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 
 	scan_relid = baserel->relid;
 	DEBUGPOINT;
-	foreach(cell, scan_clauses) {
+	/*foreach(cell, scan_clauses) {
 		DefElem *def = lfirst_node(DefElem, cell);
 		ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
 		char * value = NULL;
 		DEBUGPOINT;
 		value = defGetString(def);
 		ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
-	}
+	}*/
 	
 	//print_list(stderr, scan_clauses);
 	DEBUGPOINT;
+	
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
+	
+	char * values = NameListToString(scan_clauses);
+	
+	ereport(LOG, errmsg_internal("%s ereport Line %d : Raw Values: %s\n", __FUNCTION__, __LINE__, values));
+	DEBUGPOINT;
 
+	
+	/*
+	foreach(cell, scan_clauses) {
+		DefElem *def = lfirst_node(DefElem, cell);
+		ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
+		char * value = NULL;
+		DEBUGPOINT;
+		if(def == NULL)
+		{
+			DEBUGPOINT;
+		}
+		else if (def->arg == NULL)
+		{
+			DEBUGPOINT;
+		}
+		else
+		{
+			DEBUGPOINT;
+			switch(nodeTag(def->arg))
+			{
+				case T_String:
+					DEBUGPOINT;
+					value = defGetString(def);
+					break;
+				case T_Integer:
+				case T_Float:
+					DEBUGPOINT;
+					break;
+				case T_A_Star:
+					DEBUGPOINT;
+					break;
+				case T_List:
+					DEBUGPOINT;
+					break;
+				default:
+					DEBUGPOINT;
+					break;
+				
+			}
+			DEBUGPOINT;
+			ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
+		}
+	}*/
+	
 	DEBUGPOINT;
 	
 	return make_foreignscan(tlist,
