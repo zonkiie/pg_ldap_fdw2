@@ -6,8 +6,10 @@
 #include "postgres.h"
 // #include "postgres_fdw.h"
 #include "access/sysattr.h"
+#include "access/htup_details.h"
 #include "nodes/pg_list.h"
 #include "nodes/makefuncs.h"
+#include "nodes/nodeFuncs.h"
 #include "catalog/pg_foreign_server.h"
 #include "catalog/pg_foreign_table.h"
 #include "catalog/pg_type.h"
@@ -26,12 +28,8 @@
 #include "optimizer/optimizer.h"
 #include "parser/parsetree.h"
 #include "optimizer/restrictinfo.h"
-#include "access/htup_details.h"
-#include "access/sysattr.h"
 #include "funcapi.h"
 #include "miscadmin.h"
-#include "nodes/makefuncs.h"
-#include "nodes/nodeFuncs.h"
 #include "utils/builtins.h"
 #include "utils/guc.h"
 #include "utils/lsyscache.h"
@@ -689,12 +687,27 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
 	//print_list(stderr, scan_clauses);
 	DEBUGPOINT;
+	if(scan_clauses == NULL)
+	{
+		DEBUGPOINT;
+	}
+	else
+	{
+		DEBUGPOINT;
+	}
+	
+	ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %s\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
 	
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
+
+	ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %s\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
 	
-	char * values = NameListToString(scan_clauses);
+	DEBUGPOINT;
 	
-	ereport(LOG, errmsg_internal("%s ereport Line %d : Raw Values: %s\n", __FUNCTION__, __LINE__, values));
+	//char * values = NameListToString(scan_clauses);
+	//char * values = ListToString(scan_clauses, ", ");
+	
+	//ereport(LOG, errmsg_internal("%s ereport Line %d : Raw Values: %s\n", __FUNCTION__, __LINE__, values));
 	DEBUGPOINT;
 
 	
