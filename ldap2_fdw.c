@@ -666,6 +666,10 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	Index		scan_relid;
 	
 	ListCell *cell = NULL;
+	List *remote_exprs = NIL;
+	List *local_exprs = NIL;
+	
+	MongoFdwRelationInfo *fpinfo = (MongoFdwRelationInfo *) baserel->fdw_private;
 	
 	
 	DEBUGPOINT;
@@ -684,6 +688,39 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		value = defGetString(def);
 		ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
 	}*/
+	
+	/*
+	 * From MongoDB FDW
+	 * 
+	 * Separate the restrictionClauses into those that can be executed
+	 * remotely and those that can't.  baserestrictinfo clauses that were
+	 * previously determined to be safe or unsafe are shown in
+	 * fpinfo->remote_conds and fpinfo->local_conds.  Anything else in the
+	 * restrictionClauses list will be a join clause, which we have to check
+	 * for remote-safety.  Only the OpExpr clauses are sent to the remote
+	 * server.
+	 */
+	foreach(cell, scan_clauses)
+	{
+		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
+
+		Assert(IsA(rinfo, RestrictInfo));
+
+		/* Ignore pseudoconstants, they are dealt with elsewhere */
+		if (rinfo->pseudoconstant)
+			continue;
+
+		if (list_member_ptr(fpinfo->remote_conds, rinfo))
+			remote_exprs = lappend(remote_exprs, rinfo->clause);
+		else if (list_member_ptr(fpinfo->local_conds, rinfo))
+			local_exprs = lappend(local_exprs, rinfo->clause);
+		else if (IsA(rinfo->clause, OpExpr) &&
+				 mongo_is_foreign_expr(root, foreignrel, rinfo->clause, false))
+			remote_exprs = lappend(remote_exprs, rinfo->clause);
+		else
+			local_exprs = lappend(local_exprs, rinfo->clause);
+	}
+	
 	
 	//print_list(stderr, scan_clauses);
 	DEBUGPOINT;
