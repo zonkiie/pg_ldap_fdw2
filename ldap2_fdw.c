@@ -420,6 +420,15 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 }
 
 
+/**
+ * FROM mongo_query.c, function mongo_is_foreign_expr
+ */
+static bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Expr *expression, bool is_having_cond)
+{
+	return true;
+}
+
+
 void initLdap()
 {
 	int version = LDAP_VERSION3;
@@ -668,8 +677,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	ListCell *cell = NULL;
 	List *remote_exprs = NIL;
 	List *local_exprs = NIL;
+	LdapFdwPlanState *fdw_private;
 	
-	MongoFdwRelationInfo *fpinfo = (MongoFdwRelationInfo *) baserel->fdw_private;
+	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	
 	
 	DEBUGPOINT;
@@ -695,7 +705,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	 * Separate the restrictionClauses into those that can be executed
 	 * remotely and those that can't.  baserestrictinfo clauses that were
 	 * previously determined to be safe or unsafe are shown in
-	 * fpinfo->remote_conds and fpinfo->local_conds.  Anything else in the
+	 * fdw_private->remote_conds and fdw_private->local_conds.  Anything else in the
 	 * restrictionClauses list will be a join clause, which we have to check
 	 * for remote-safety.  Only the OpExpr clauses are sent to the remote
 	 * server.
@@ -710,12 +720,11 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		if (rinfo->pseudoconstant)
 			continue;
 
-		if (list_member_ptr(fpinfo->remote_conds, rinfo))
+		if (list_member_ptr(fdw_private->remote_conds, rinfo))
 			remote_exprs = lappend(remote_exprs, rinfo->clause);
-		else if (list_member_ptr(fpinfo->local_conds, rinfo))
+		else if (list_member_ptr(fdw_private->local_conds, rinfo))
 			local_exprs = lappend(local_exprs, rinfo->clause);
-		else if (IsA(rinfo->clause, OpExpr) &&
-				 mongo_is_foreign_expr(root, foreignrel, rinfo->clause, false))
+		else if (IsA(rinfo->clause, OpExpr) && ldap_fdw_is_foreign_expr(root, foreignrel, rinfo->clause, false))
 			remote_exprs = lappend(remote_exprs, rinfo->clause);
 		else
 			local_exprs = lappend(local_exprs, rinfo->clause);
