@@ -143,6 +143,8 @@ typedef struct LdapFdwPlanState
 {
 	BlockNumber pages;          /* estimate of file's physical size */
 	double      ntuples;        /* estimate of number of data rows  */
+	List	   *local_conds;
+	List	   *remote_conds;
 } LdapFdwPlanState;
 
 
@@ -547,6 +549,12 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   Oid foreigntableid)
 {
 	DEBUGPOINT;
+	
+	LdapFdwPlanState *fpinfo;
+	fpinfo = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
+	baserel->fdw_private = (void *) fpinfo;
+	
+	
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
 	DEBUGPOINT;
@@ -724,7 +732,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 			remote_exprs = lappend(remote_exprs, rinfo->clause);
 		else if (list_member_ptr(fdw_private->local_conds, rinfo))
 			local_exprs = lappend(local_exprs, rinfo->clause);
-		else if (IsA(rinfo->clause, OpExpr) && ldap_fdw_is_foreign_expr(root, foreignrel, rinfo->clause, false))
+		else if (IsA(rinfo->clause, OpExpr) && ldap_fdw_is_foreign_expr(root, baserel, rinfo->clause, false))
 			remote_exprs = lappend(remote_exprs, rinfo->clause);
 		else
 			local_exprs = lappend(local_exprs, rinfo->clause);
