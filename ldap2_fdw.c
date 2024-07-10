@@ -555,6 +555,7 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	baserel->fdw_private = (void *) fpinfo;
 	
 	
+	
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
 	DEBUGPOINT;
@@ -723,6 +724,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
 
 		Assert(IsA(rinfo, RestrictInfo));
+		
+		ereport(LOG, errmsg_internal("%s ereport Line %d : List Cell: %s\n", __FUNCTION__, __LINE__, cell->ptr_value));
 
 		/* Ignore pseudoconstants, they are dealt with elsewhere */
 		if (rinfo->pseudoconstant)
@@ -750,11 +753,11 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		DEBUGPOINT;
 	}
 	
-	ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %s\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
+	ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
 	
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
 
-	ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %s\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
+	ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
 	
 	DEBUGPOINT;
 	
