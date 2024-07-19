@@ -681,7 +681,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						Plan *outer_plan)
 {
 	//Path	   *foreignPath;
-	Index		scan_relid;
+	Index		scan_relid = baserel->relid;
 	
 	ListCell *cell = NULL;
 	List *remote_exprs = NIL;
@@ -725,7 +725,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 
 		Assert(IsA(rinfo, RestrictInfo));
 		
-		ereport(LOG, errmsg_internal("%s ereport Line %d : List Cell: %s\n", __FUNCTION__, __LINE__, cell->ptr_value));
+		ereport(LOG, errmsg_internal("%s ereport Line %d : List Cell ptr: %s\n", __FUNCTION__, __LINE__, cell->ptr_value));
 
 		/* Ignore pseudoconstants, they are dealt with elsewhere */
 		if (rinfo->pseudoconstant)
@@ -875,7 +875,7 @@ static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 {
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
-	/*
+	
 	Relation rel;
 	AttInMetadata  *attinmeta;
 	HeapTuple tuple;
@@ -883,23 +883,23 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	int i;
 	int natts;
 	char **values;
-	*/
+	
 	
 	DEBUGPOINT;
 	
-	/*
+	
 
 	// ldap fetch result
 	rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &timeout_struct, &res );
 
-	if( hestate->rownum != 0 ){
+	/*if( hestate->rownum != 0 ){
 		ExecClearTuple(slot);
 		return slot;
-	}
+	}*/
 	rel = node->ss.ss_currentRelation;
-	attinmeta = TupleDescGetAttInMetadata(rel->rd_att);
+	//attinmeta = TupleDescGetAttInMetadata(rel->rd_att);
 
-	natts = rel->rd_att->natts;
+	//natts = rel->rd_att->natts;
 	values = (char **) palloc(sizeof(char *) * natts);
 
 	for(i = 0; i < natts; i++ ){
@@ -909,8 +909,8 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	tuple = BuildTupleFromCStrings(attinmeta, values);
 	ExecStoreTuple(tuple, slot, InvalidBuffer, true);
 
-	hestate->rownum++;
-	*/
+	//hestate->rownum++;
+	
 	return slot;
 
 }
