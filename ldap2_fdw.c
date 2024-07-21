@@ -725,7 +725,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 
 		Assert(IsA(rinfo, RestrictInfo));
 		
-		ereport(LOG, errmsg_internal("%s ereport Line %d : List Cell ptr: %s\n", __FUNCTION__, __LINE__, cell->ptr_value));
+		ereport(LOG, errmsg_internal("%s ereport Line %d : List Cell ptr: %s\n", __FUNCTION__, __LINE__, (char*)cell->ptr_value));
 
 		/* Ignore pseudoconstants, they are dealt with elsewhere */
 		if (rinfo->pseudoconstant)
@@ -886,28 +886,41 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	
 	
 	DEBUGPOINT;
+	if( hestate->ntuples != 0 ){
+		ExecClearTuple(slot);
+		return slot;
+	}
 	
-	
+	DEBUGPOINT;
 
 	// ldap fetch result
 	rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &timeout_struct, &res );
+	DEBUGPOINT;
 
 	/*if( hestate->rownum != 0 ){
 		ExecClearTuple(slot);
 		return slot;
 	}*/
-	rel = node->ss.ss_currentRelation;
+	//rel = node->ss.ss_currentRelation;
 	//attinmeta = TupleDescGetAttInMetadata(rel->rd_att);
 
 	//natts = rel->rd_att->natts;
-	values = (char **) palloc(sizeof(char *) * natts);
-
+	natts = 3;
+	//values = (char **) palloc(sizeof(char *) * natts);
+	DEBUGPOINT;
+	
 	for(i = 0; i < natts; i++ ){
-		values[i] = "Hello,World";
+	DEBUGPOINT;
+		slot->tts_isnull[i] = false;
+		slot->tts_values[i] = CStringGetDatum("Hello,World");
+		ExecStoreVirtualTuple(slot);
+	DEBUGPOINT;
+
+		//values[i] = "Hello,World";
 	}
 
-	tuple = BuildTupleFromCStrings(attinmeta, values);
-	ExecStoreTuple(tuple, slot, InvalidBuffer, true);
+	//tuple = BuildTupleFromCStrings(attinmeta, values);
+	//ExecStoreTuple(tuple, slot, InvalidBuffer, true);
 
 	//hestate->rownum++;
 	
