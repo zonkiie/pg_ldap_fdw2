@@ -887,10 +887,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &timeout_struct, &res );
 	DEBUGPOINT;
 
-	/*if( hestate->rownum != 0 ){
-		ExecClearTuple(slot);
-		return slot;
-	}*/
 	//rel = node->ss.ss_currentRelation;
 	//attinmeta = TupleDescGetAttInMetadata(rel->rd_att);
 
