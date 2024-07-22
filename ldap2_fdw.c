@@ -40,6 +40,7 @@
 
 
 #include "LdapFdwOptions.h"
+#include "LdapFdwPlanState.h"
 #include "helper_functions.h"
 #include "ldap_functions.h"
 
@@ -135,17 +136,6 @@ static int ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
 							  HeapTuple *rows, int targrows,
 							  double *totalrows,
 							  double *totaldeadrows);
-
-/*
- * FDW-specific information for RelOptInfo.fdw_private.
- */
-typedef struct LdapFdwPlanState
-{
-	BlockNumber pages;          /* estimate of file's physical size */
-	double      ntuples;        /* estimate of number of data rows  */
-	List	   *local_conds;
-	List	   *remote_conds;
-} LdapFdwPlanState;
 
 
 /* magic */
