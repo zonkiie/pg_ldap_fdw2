@@ -893,6 +893,8 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	//natts = rel->rd_att->natts;
 	natts = 3;
 	//values = (char **) palloc(sizeof(char *) * natts);
+	slot->tts_isnull = (bool*)palloc(sizeof(bool) * natts);
+	slot->tts_values = (char**)palloc(sizeof(char*) * natts);
 	DEBUGPOINT;
 	
 	for(i = 0; i < natts; i++ ){
@@ -900,6 +902,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 		slot->tts_isnull[i] = false;
 		slot->tts_values[i] = CStringGetDatum("Hello,World");
 		ExecStoreVirtualTuple(slot);
+		ereport(LOG, errmsg_internal("%s ereport Line %d : i: %d\n", __FUNCTION__, __LINE__, i));
 	DEBUGPOINT;
 
 		//values[i] = "Hello,World";
