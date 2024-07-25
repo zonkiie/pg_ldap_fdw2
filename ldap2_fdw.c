@@ -875,17 +875,17 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	char **values;
 	
 	
-	DEBUGPOINT;
+	//DEBUGPOINT;
 	if( hestate->ntuples != 0 ){
 		ExecClearTuple(slot);
 		return slot;
 	}
 	
-	DEBUGPOINT;
+	//DEBUGPOINT;
 
 	// ldap fetch result
 	rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &timeout_struct, &res );
-	DEBUGPOINT;
+	//DEBUGPOINT;
 
 	//rel = node->ss.ss_currentRelation;
 	//attinmeta = TupleDescGetAttInMetadata(rel->rd_att);
@@ -895,24 +895,25 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	//values = (char **) palloc(sizeof(char *) * natts);
 	slot->tts_isnull = (bool*)palloc(sizeof(bool) * natts);
 	slot->tts_values = (char**)palloc(sizeof(char*) * natts);
-	DEBUGPOINT;
+	//DEBUGPOINT;
 	
 	for(i = 0; i < natts; i++ ){
-	DEBUGPOINT;
+	//DEBUGPOINT;
 		slot->tts_isnull[i] = false;
 		slot->tts_values[i] = CStringGetDatum("Hello,World");
-		ExecStoreVirtualTuple(slot);
-		ereport(LOG, errmsg_internal("%s ereport Line %d : i: %d\n", __FUNCTION__, __LINE__, i));
-	DEBUGPOINT;
-
+		//ereport(LOG, errmsg_internal("%s ereport Line %d : i: %d\n", __FUNCTION__, __LINE__, i));
+	//DEBUGPOINT;
 		//values[i] = "Hello,World";
 	}
+	
+	ExecStoreVirtualTuple(slot);
 
 	//tuple = BuildTupleFromCStrings(attinmeta, values);
 	//ExecStoreTuple(tuple, slot, InvalidBuffer, true);
 
 	//hestate->rownum++;
 	
+	//DEBUGPOINT;
 	return slot;
 
 }
@@ -937,6 +938,11 @@ ldap2_fdw_EndForeignScan(ForeignScanState *node)
 	DEBUGPOINT;
 	// cleanup
 	free_ldap_message(&res);
+	LdapFdwPlanState *hestate = (LdapFdwPlanState *) node->fdw_state;
+
+	/* if festate is NULL, we are in EXPLAIN; nothing to do */
+	if (hestate)
+		EndCopyFrom(hestate->cstate);
 }
 
 
