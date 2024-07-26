@@ -937,12 +937,11 @@ ldap2_fdw_EndForeignScan(ForeignScanState *node)
 {
 	DEBUGPOINT;
 	// cleanup
-	free_ldap_message(&res);
 	LdapFdwPlanState *hestate = (LdapFdwPlanState *) node->fdw_state;
 
 	/* if festate is NULL, we are in EXPLAIN; nothing to do */
 	if (hestate)
-		EndCopyFrom(hestate->cstate);
+		free_ldap_message(&res);
 }
 
 
