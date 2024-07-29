@@ -12,6 +12,6 @@ typedef struct LdapFdwConn
 	LDAP *ld;
 	LDAPControl **serverctrls;
 	LDAPControl **clientctrls;
-}
+} LdapFdwConn;
 
 #endif
