@@ -39,6 +39,7 @@
 #include <syslog.h>
 
 
+#include "LdapFdwConn.h"
 #include "LdapFdwOptions.h"
 #include "LdapFdwPlanState.h"
 #include "helper_functions.h"
