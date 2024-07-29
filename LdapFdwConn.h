@@ -12,6 +12,7 @@ typedef struct LdapFdwConn
 	LDAP *ld;
 	LDAPControl **serverctrls;
 	LDAPControl **clientctrls;
+	LdapFdwOptions *options;
 } LdapFdwConn;
 
 #endif
