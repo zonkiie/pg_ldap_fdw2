@@ -838,6 +838,8 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	
 	DEBUGPOINT;
 	
+	fsstate->ntuples = 3;
+	
 	fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	DEBUGPOINT;
 	node->fdw_state = (void *) fsstate;
@@ -865,19 +867,19 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 {
-	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
+	//TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
+	TupleTableSlot *slot = node->ss.ps.ps_ResultTupleSlot;
 	
 	Relation rel;
 	AttInMetadata  *attinmeta;
 	HeapTuple tuple;
-	LdapFdwPlanState *hestate = (LdapFdwPlanState *) node->fdw_state;
+	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
 	int i;
 	int natts;
-	char **values;
 	
 	
 	//DEBUGPOINT;
-	if( hestate->ntuples != 0 ){
+	if( fsstate->ntuples != 0 ){
 		ExecClearTuple(slot);
 		return slot;
 	}
@@ -890,24 +892,32 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 
 	//rel = node->ss.ss_currentRelation;
 	//attinmeta = TupleDescGetAttInMetadata(rel->rd_att);
+	
 
 	//natts = rel->rd_att->natts;
 	natts = 3;
 	//values = (char **) palloc(sizeof(char *) * natts);
-	slot->tts_isnull = (bool*)palloc(sizeof(bool) * natts);
-	slot->tts_values = (char**)palloc(sizeof(char*) * natts);
+	//slot->tts_isnull = (bool*)palloc(sizeof(bool) * natts);
+	//slot->tts_values = (char**)palloc(sizeof(char*) * natts);
 	//DEBUGPOINT;
 	
-	for(i = 0; i < natts; i++ ){
+	for(i = 0; i < fsstate->ntuples; i++ ){
 	//DEBUGPOINT;
-		slot->tts_isnull[i] = false;
-		slot->tts_values[i] = CStringGetDatum("Hello,World");
+		Datum values[2];
+		bool nulls[2] = {false, false};
+		values[0] = CStringGetTextDatum("Dies ist ein Test!");
+		values[1] = CStringGetTextDatum("Wir testen!");
+		ExecStoreTuple(slot, values, nulls, false);
+		
+		
+		//slot->tts_isnull[i] = false;
+		//slot->tts_values[i] = CStringGetDatum("Hello,World");
 		//ereport(LOG, errmsg_internal("%s ereport Line %d : i: %d\n", __FUNCTION__, __LINE__, i));
 	//DEBUGPOINT;
 		//values[i] = "Hello,World";
 	}
 	
-	ExecStoreVirtualTuple(slot);
+	//ExecStoreVirtualTuple(slot);
 
 	//tuple = BuildTupleFromCStrings(attinmeta, values);
 	//ExecStoreTuple(tuple, slot, InvalidBuffer, true);
@@ -942,7 +952,10 @@ ldap2_fdw_EndForeignScan(ForeignScanState *node)
 
 	/* if festate is NULL, we are in EXPLAIN; nothing to do */
 	if (hestate)
+	{
 		free_ldap_message(&res);
+		pfree(hestate);
+	}
 }
 
 
