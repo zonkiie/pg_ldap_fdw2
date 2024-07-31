@@ -177,7 +177,7 @@ LDAPControl **serverctrls = NULL;
 LDAPControl **clientctrls = NULL;
 char ** attributes_array = NULL;
 //_cleanup_ldap_message_ LDAPMessage *res = NULL;
-LDAPMessage *res = NULL;
+
 char *dn, *matched_msg = NULL, *error_msg = NULL;
 struct timeval timeout_struct = {.tv_sec = 10L, .tv_usec = 0L};
 int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0;
@@ -214,11 +214,11 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 	{
 		DefElem *def = lfirst_node(DefElem, cell);
 		
-		ereport(LOG, errmsg_internal("ereport Func %s, Line %d, def: %s\n", __FUNCTION__, __LINE__, def->defname));
+		//ereport(LOG, errmsg_internal("ereport Func %s, Line %d, def: %s\n", __FUNCTION__, __LINE__, def->defname));
 		char * value = NULL;
 		if(nodeTag(def->arg) == T_String)
 		{
-			DEBUGPOINT;
+			//DEBUGPOINT;
 			value = defGetString(def);
 		}
 		
@@ -306,7 +306,7 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 {
 	int rows = 0;
 	finished = 0;
-	DEBUGPOINT;
+	LDAPMessage   *res;
 	if(options == NULL)
 	{
 		ereport(ERROR,
@@ -316,7 +316,6 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 		);
 	}
 	
-	DEBUGPOINT;
 	if(options->basedn == NULL || !strcmp(options->basedn, ""))
 	{
 		ereport(ERROR,
@@ -326,18 +325,13 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 		);
 	}
 	
-	DEBUGPOINT;
 	ereport(LOG, errmsg_internal("%s ereport Line %d : basedn: %s\n", __FUNCTION__, __LINE__, options->basedn));
-	DEBUGPOINT;
 	if(options->filter != NULL)
 	{
-		DEBUGPOINT;
 		ereport(LOG, errmsg_internal("%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter));
 	}
-	DEBUGPOINT;
 	//rc = ldap_search_ext( ld, options->basedn, options->scope, options->filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	rc = ldap_search_ext( ld, options->basedn, options->scope, NULL, (char *[]){NULL}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
-	DEBUGPOINT;
 	if ( rc != LDAP_SUCCESS )
 	{
 		if ( error_msg != NULL && *error_msg != '\0' )
@@ -350,7 +344,6 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 			);
 		}
 	}
-	DEBUGPOINT;
 	while(!finished)
 	{
 		rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &zerotime, &res );
@@ -367,7 +360,6 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 		res = NULL;
 	}
 	ereport(LOG, errmsg_internal("%s ereport Line %d : rows: %d\n", __FUNCTION__, __LINE__, rows));
-	DEBUGPOINT;
 	return rows;
 }
 
@@ -376,19 +368,13 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 			   Cost *startup_cost, Cost *total_cost)
 {
 	if(fdw_private == NULL) {
-		DEBUGPOINT;
 		*total_cost = 1;
 		return;
 	}
-	DEBUGPOINT;
 	BlockNumber pages = fdw_private->pages;
-	DEBUGPOINT;
 	double		ntuples = fdw_private->ntuples;
-	DEBUGPOINT;
 	Cost		run_cost = 0;
-	DEBUGPOINT;
 	Cost		cpu_per_tuple;
-	DEBUGPOINT;
 
 	/*
 	 * We estimate costs almost the same way as cost_seqscan(), thus assuming
@@ -539,8 +525,6 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   RelOptInfo *baserel,
 						   Oid foreigntableid)
 {
-	DEBUGPOINT;
-	
 	LdapFdwPlanState *fpinfo;
 	fpinfo = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	baserel->fdw_private = (void *) fpinfo;
@@ -549,11 +533,9 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
-	DEBUGPOINT;
 
 	//baserel->rows = estimate_size(ld, option_params->basedn, option_params->filter, option_params->scope);
 	baserel->rows = estimate_size(ld, option_params);
-	DEBUGPOINT;
 }
 
 /*
@@ -571,7 +553,6 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	Cost		startup_cost;
 	Cost		total_cost;
 	
-	DEBUGPOINT;
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
@@ -600,7 +581,6 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 
 	/* Estimate costs */
 	estimate_costs(root, baserel, fdw_private, &startup_cost, &total_cost);
-	DEBUGPOINT;
 	/* Create a ForeignPath node and add it as only possible path */
 	add_path(baserel, (Path *) create_foreignscan_path(root, baserel,
 							NULL,		/* default pathtarget */
@@ -611,7 +591,6 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 							NULL,		/* no outer rel either */
 							NULL,      /* no extra plan */
 							NIL));		/* no fdw_private data */
-	DEBUGPOINT;
 	
 	// Eliminate Compiler warning
 	if(path)
@@ -631,8 +610,6 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						List *tlist,
 						List *scan_clauses)
 {
-	DEBUGPOINT;
-
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
@@ -682,14 +659,14 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	
 	
-	DEBUGPOINT;
+	//DEBUGPOINT;
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
-	DEBUGPOINT;
+	//DEBUGPOINT;
 
 	scan_relid = baserel->relid;
-	DEBUGPOINT;
+	//DEBUGPOINT;
 	/*foreach(cell, scan_clauses) {
 		DefElem *def = lfirst_node(DefElem, cell);
 		ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
@@ -716,7 +693,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 
 		Assert(IsA(rinfo, RestrictInfo));
 		
-		ereport(LOG, errmsg_internal("%s ereport Line %d : List Cell ptr: %s\n", __FUNCTION__, __LINE__, (char*)cell->ptr_value));
+		//ereport(LOG, errmsg_internal("%s ereport Line %d : List Cell ptr: %s\n", __FUNCTION__, __LINE__, (char*)cell->ptr_value));
 
 		/* Ignore pseudoconstants, they are dealt with elsewhere */
 		if (rinfo->pseudoconstant)
@@ -734,29 +711,29 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
 	
 	//print_list(stderr, scan_clauses);
-	DEBUGPOINT;
+	//DEBUGPOINT;
 	if(scan_clauses == NULL)
 	{
-		DEBUGPOINT;
+		//DEBUGPOINT;
 	}
 	else
 	{
-		DEBUGPOINT;
+		//DEBUGPOINT;
 	}
 	
-	ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
+	//ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
 	
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
 
-	ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
+	//ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
 	
-	DEBUGPOINT;
+	//DEBUGPOINT;
 	
 	//char * values = NameListToString(scan_clauses);
 	//char * values = ListToString(scan_clauses, ", ");
 	
 	//ereport(LOG, errmsg_internal("%s ereport Line %d : Raw Values: %s\n", __FUNCTION__, __LINE__, values));
-	DEBUGPOINT;
+	//DEBUGPOINT;
 
 	
 	/*
@@ -802,7 +779,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		}
 	}*/
 	
-	DEBUGPOINT;
+	//DEBUGPOINT;
 	
 	return make_foreignscan(tlist,
 			scan_clauses,
@@ -836,17 +813,12 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	ForeignScan *fsplan = (ForeignScan *) node->ss.ps.plan;
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
 	
-	DEBUGPOINT;
-	
-	fsstate->ntuples = 3;
-	
 	fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
-	DEBUGPOINT;
+	fsstate->ntuples = 3;
+	fsstate->row = 0;
+	
 	fsstate->attinmeta = TupleDescGetAttInMetadata(node->ss.ss_currentRelation->rd_att);
 	node->fdw_state = (void *) fsstate;
-	
-	DEBUGPOINT;
-	
 	//fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
 	//fsstate->retrieved_attrs = list_nth(fsplan->fdw_private, FdwScanPrivateRetrievedAttrs);
 	// Todo: Convert plan to ldap filter
@@ -868,8 +840,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 {
-	//TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
-	TupleTableSlot *slot = node->ss.ps.ps_ResultTupleSlot;
+	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
 	
 	Relation rel;
 	AttInMetadata  *attinmeta;
@@ -878,18 +849,33 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	int i;
 	int natts;
 	char **s_values;
+	fsstate->res = NULL;
 	
 	
-	//DEBUGPOINT;
-	if( fsstate->ntuples != 0 ){
-		ExecClearTuple(slot);
-		return slot;
+	ExecClearTuple(slot);
+	
+	/*
+	rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &timeout_struct, &(fsstate->res) );
+	switch(rc)
+	{
+		case LDAP_RES_SEARCH_RESULT:
+			return slot;
+		case LDAP_RES_SEARCH_ENTRY:
+			
+			break;
+	
 	}
+	*/
 	
-	//DEBUGPOINT;
-
+	
+	// Number of results reached, no more results - we return an empty slot.
+	
+	
+	if(fsstate->row >= fsstate->ntuples) return slot;
 	// ldap fetch result
-	rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &timeout_struct, &res );
+	
+	
+	
 	//DEBUGPOINT;
 
 	//rel = node->ss.ss_currentRelation;
@@ -901,16 +887,19 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	s_values = (char **) palloc(sizeof(char *) * natts);
 	//slot->tts_isnull = (bool*)palloc(sizeof(bool) * natts);
 	//slot->tts_values = (char**)palloc(sizeof(char*) * natts);
-	//DEBUGPOINT;
-	s_values[0] = "Dies ist ein Test";
-	s_values[1] = "Wir testen!";
 	
-	for(i = 0; i < fsstate->ntuples; i++ ){
-	//DEBUGPOINT;
+	s_values[0] = "54d98418-de32-4732-a907-ad6cd56ad593";
+	s_values[1] = "Hans";
+	s_values[2] = "Schmidt";
+	
+	fsstate->row++;
+	
+	//for(i = 0; i < fsstate->ntuples; i++ ){
+		
 		//Datum values[2];
 		//bool nulls[2] = {false, false};
-		//values[0] = CStringGetTextDatum("Dies ist ein Test!");
-		//values[1] = CStringGetTextDatum("Wir testen!");
+		//values[0] = CStringGetTextDatum(s_values[1]);
+		//values[1] = CStringGetTextDatum(s_values[2]);
 		
 		tuple = BuildTupleFromCStrings(fsstate->attinmeta, s_values);
 		ExecStoreHeapTuple(tuple, slot, false);
@@ -921,10 +910,9 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 		//slot->tts_isnull[i] = false;
 		//slot->tts_values[i] = CStringGetDatum("Hello,World");
 		//ereport(LOG, errmsg_internal("%s ereport Line %d : i: %d\n", __FUNCTION__, __LINE__, i));
-	//DEBUGPOINT;
-		//values[i] = "Hello,World";
-	}
+	//}
 	
+	//DEBUGPOINT;
 	//ExecStoreVirtualTuple(slot);
 
 	//tuple = BuildTupleFromCStrings(attinmeta, values);
@@ -932,7 +920,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 
 	//hestate->rownum++;
 	
-	//DEBUGPOINT;
 	return slot;
 
 }
@@ -956,13 +943,13 @@ ldap2_fdw_EndForeignScan(ForeignScanState *node)
 {
 	DEBUGPOINT;
 	// cleanup
-	LdapFdwPlanState *hestate = (LdapFdwPlanState *) node->fdw_state;
+	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
 
 	/* if festate is NULL, we are in EXPLAIN; nothing to do */
-	if (hestate)
+	if (fsstate)
 	{
-		free_ldap_message(&res);
-		pfree(hestate);
+		free_ldap_message(&(fsstate->res));
+		pfree(fsstate);
 	}
 }
 
