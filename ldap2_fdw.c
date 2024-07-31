@@ -827,6 +827,43 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	//rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
 }
 
+/**
+ * Minimal Variant of IterateForeignScan for learning reason
+ */
+static TupleTableSlot *
+ldap2_fdw_IterateForeignScanMinimal(ForeignScanState *node)
+{
+	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
+	
+	Relation rel;
+	AttInMetadata  *attinmeta;
+	HeapTuple tuple;
+	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
+	int i;
+	int natts;
+	char **s_values;
+	fsstate->res = NULL;
+	
+	ExecClearTuple(slot);
+	
+	// Number of results reached, no more results - we return an empty slot.
+	if(fsstate->row >= fsstate->ntuples) return slot;
+	
+	//natts = rel->rd_att->natts;
+	natts = 3;
+	s_values = (char **) palloc(sizeof(char *) * natts);
+	
+	s_values[0] = "54d98418-de32-4732-a907-ad6cd56ad593";
+	s_values[1] = "Hans";
+	s_values[2] = "Schmidt";
+	
+	fsstate->row++;
+	
+	tuple = BuildTupleFromCStrings(fsstate->attinmeta, s_values);
+	ExecStoreHeapTuple(tuple, slot, false);
+		
+	return slot;
+}
 
 
 /*
@@ -884,10 +921,8 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 
 	//natts = rel->rd_att->natts;
 	natts = 3;
-	s_values = (char **) palloc(sizeof(char *) * natts);
-	//slot->tts_isnull = (bool*)palloc(sizeof(bool) * natts);
-	//slot->tts_values = (char**)palloc(sizeof(char*) * natts);
 	
+	s_values = (char **) palloc(sizeof(char *) * natts);
 	s_values[0] = "54d98418-de32-4732-a907-ad6cd56ad593";
 	s_values[1] = "Hans";
 	s_values[2] = "Schmidt";
