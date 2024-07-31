@@ -34,7 +34,7 @@
 #include "utils/guc.h"
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
-
+#include "utils/rel.h"
 
 #include <syslog.h>
 
@@ -842,6 +842,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	
 	fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	DEBUGPOINT;
+	fsstate->attinmeta = TupleDescGetAttInMetadata(node->ss.ss_currentRelation->rd_att);
 	node->fdw_state = (void *) fsstate;
 	
 	DEBUGPOINT;
@@ -876,6 +877,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
 	int i;
 	int natts;
+	char **s_values;
 	
 	
 	//DEBUGPOINT;
@@ -896,18 +898,24 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 
 	//natts = rel->rd_att->natts;
 	natts = 3;
-	//values = (char **) palloc(sizeof(char *) * natts);
+	s_values = (char **) palloc(sizeof(char *) * natts);
 	//slot->tts_isnull = (bool*)palloc(sizeof(bool) * natts);
 	//slot->tts_values = (char**)palloc(sizeof(char*) * natts);
 	//DEBUGPOINT;
+	s_values[0] = "Dies ist ein Test";
+	s_values[1] = "Wir testen!";
 	
 	for(i = 0; i < fsstate->ntuples; i++ ){
 	//DEBUGPOINT;
-		Datum values[2];
-		bool nulls[2] = {false, false};
-		values[0] = CStringGetTextDatum("Dies ist ein Test!");
-		values[1] = CStringGetTextDatum("Wir testen!");
-		ExecStoreTuple(slot, values, nulls, false);
+		//Datum values[2];
+		//bool nulls[2] = {false, false};
+		//values[0] = CStringGetTextDatum("Dies ist ein Test!");
+		//values[1] = CStringGetTextDatum("Wir testen!");
+		
+		tuple = BuildTupleFromCStrings(fsstate->attinmeta, s_values);
+		ExecStoreHeapTuple(tuple, slot, false);
+		
+		//ExecStoreTuple(slot, values, nulls, false);
 		
 		
 		//slot->tts_isnull[i] = false;

@@ -10,6 +10,7 @@ typedef struct LdapFdwPlanState
 	int         ntuples;        /* estimate of number of data rows  */
 	List	   *local_conds;
 	List	   *remote_conds;
+	AttInMetadata *attinmeta;
 } LdapFdwPlanState;
 
 #endif
