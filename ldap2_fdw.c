@@ -941,8 +941,10 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	{
 		case -1:
 		case LDAP_RES_SEARCH_RESULT:
+			elog(INFO, "LDAP_RES_SEARCH_RESULT");
 			return slot;
 		case LDAP_RES_SEARCH_ENTRY:
+			elog(INFO, "LDAP_RES_SEARCH_ENTRY");
 			entrydn = ldap_get_dn(ld, fsstate->res);
 			i = 0;
 			for(a = fsstate->columns; *a != NULL; *a++) {
