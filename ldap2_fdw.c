@@ -13,11 +13,12 @@
 #include "catalog/pg_foreign_server.h"
 #include "catalog/pg_foreign_table.h"
 #include "catalog/pg_type.h"
-#include "foreign/fdwapi.h"
-#include "foreign/foreign.h"
 #include "commands/defrem.h"
 #include "commands/explain.h"
 #include "commands/vacuum.h"
+#include "executor/executor.h"
+#include "foreign/fdwapi.h"
+#include "foreign/foreign.h"
 #include "optimizer/cost.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/paths.h"
@@ -397,6 +398,16 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 	run_cost += cpu_per_tuple * ntuples;
 	*total_cost = *startup_cost + run_cost;
 }
+
+/**
+ * @see https://www.postgresql.org/message-id/bv3rrk$2uv1$1@news.hub.org
+ */
+/*static char* getTupleDescDatum(Oid oid)
+{
+	TupleDesc tupleDesc = TypeGetTupleDesc(oid, NIL);
+	TupleTableSlot* slot = TupleDescGetSlot(tupleDesc);
+	return TupleGetDatum(slot, tuple);
+}*/
 
 
 /**
@@ -835,8 +846,6 @@ ldap2_fdw_IterateForeignScanMinimal(ForeignScanState *node)
 {
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
 	
-	Relation rel;
-	AttInMetadata  *attinmeta;
 	HeapTuple tuple;
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
 	int i;
@@ -882,9 +891,11 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	Relation rel;
 	AttInMetadata  *attinmeta;
 	HeapTuple tuple;
+	TupleDesc tupdesc;
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
 	int i;
 	int natts;
+	int attnum;
 	char **s_values;
 	fsstate->res = NULL;
 	
@@ -915,7 +926,22 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	
 	//DEBUGPOINT;
 
-	//rel = node->ss.ss_currentRelation;
+	rel = node->ss.ss_currentRelation;
+	
+	tupdesc = RelationGetDescr(rel);
+	
+	// Beispiel für die Schleife über die Spalten
+	for (attnum = 1; attnum <= tupdesc->natts; attnum++)
+	{
+		// Ignoriere eventuell ausgeblendete Spalten
+		//if (!att_is_hidden(tupdesc, attnum))
+		if(!tupdesc->attrs[attnum - 1].attisdropped)
+		{
+			// Hole den Spaltennamen
+			char *colname = NameStr(tupdesc->attrs[attnum - 1].attname);
+			elog(INFO, "Spaltenname: %s", colname);
+		}
+	}
 	//attinmeta = TupleDescGetAttInMetadata(rel->rd_att);
 	
 
