@@ -57,7 +57,9 @@ PG_MODULE_MAGIC;
 
 #define LDAP2_FDW_LOGFILE "/dev/shm/ldap2_fdw.log"
 
-#define DEBUGPOINT ereport(LOG, errmsg_internal("ereport Func %s, Line %d\n", __FUNCTION__, __LINE__))
+// LOG: log to postgres log
+// INFO: write to stdout
+#define DEBUGPOINT ereport(INFO, errmsg_internal("ereport Func %s, Line %d\n", __FUNCTION__, __LINE__))
 
 extern Datum ldap2_fdw_handler(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ldap2_fdw_handler);
@@ -215,7 +217,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 	{
 		DefElem *def = lfirst_node(DefElem, cell);
 		
-		//ereport(LOG, errmsg_internal("ereport Func %s, Line %d, def: %s\n", __FUNCTION__, __LINE__, def->defname));
+		//ereport(INFO, errmsg_internal("ereport Func %s, Line %d, def: %s\n", __FUNCTION__, __LINE__, def->defname));
 		char * value = NULL;
 		if(nodeTag(def->arg) == T_String)
 		{
@@ -283,7 +285,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		}
 		else
 		{
-			ereport(LOG, errmsg_internal("%s ereport Line %d\n", __FUNCTION__, __LINE__));
+			ereport(INFO, errmsg_internal("%s ereport Line %d\n", __FUNCTION__, __LINE__));
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 				errmsg("invalid option \"%s\"", def->defname),
@@ -326,10 +328,10 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 		);
 	}
 	
-	ereport(LOG, errmsg_internal("%s ereport Line %d : basedn: %s\n", __FUNCTION__, __LINE__, options->basedn));
+	ereport(INFO, errmsg_internal("%s ereport Line %d : basedn: %s\n", __FUNCTION__, __LINE__, options->basedn));
 	if(options->filter != NULL)
 	{
-		ereport(LOG, errmsg_internal("%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter));
+		ereport(INFO, errmsg_internal("%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter));
 	}
 	//rc = ldap_search_ext( ld, options->basedn, options->scope, options->filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	rc = ldap_search_ext( ld, options->basedn, options->scope, NULL, (char *[]){NULL}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
@@ -360,7 +362,7 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 		ldap_msgfree(res);
 		res = NULL;
 	}
-	ereport(LOG, errmsg_internal("%s ereport Line %d : rows: %d\n", __FUNCTION__, __LINE__, rows));
+	ereport(INFO, errmsg_internal("%s ereport Line %d : rows: %d\n", __FUNCTION__, __LINE__, rows));
 	return rows;
 }
 
@@ -433,7 +435,7 @@ void initLdap()
 		return;
 	}
 	
-	//ereport(LOG, errmsg_internal("initLdap uri: %s, username: %s, password %s\n", option_params->uri, option_params->username, option_params->password));
+	//ereport(INFO, errmsg_internal("initLdap uri: %s, username: %s, password %s\n", option_params->uri, option_params->username, option_params->password));
 
 	
 	//option_params = (LdapFdwOptions *)malloc(sizeof(LdapFdwOptions *));
@@ -471,7 +473,7 @@ void initLdap()
 void bindLdap()
 {
 	int rc;
-	//ereport(LOG, errmsg_internal("bindLdap username: %s, password %s\n", option_params->username, option_params->password));
+	//ereport(INFO, errmsg_internal("bindLdap username: %s, password %s\n", option_params->username, option_params->password));
 	
 	if ( ( rc = common_ldap_bind( ld, option_params->username, option_params->password, option_params->use_sasl) ) != LDAP_SUCCESS)
 	{
@@ -681,11 +683,11 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	//DEBUGPOINT;
 	/*foreach(cell, scan_clauses) {
 		DefElem *def = lfirst_node(DefElem, cell);
-		ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
+		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
 		char * value = NULL;
 		DEBUGPOINT;
 		value = defGetString(def);
-		ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
+		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
 	}*/
 	
 	/*
@@ -705,7 +707,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 
 		Assert(IsA(rinfo, RestrictInfo));
 		
-		//ereport(LOG, errmsg_internal("%s ereport Line %d : List Cell ptr: %s\n", __FUNCTION__, __LINE__, (char*)cell->ptr_value));
+		//ereport(INFO, errmsg_internal("%s ereport Line %d : List Cell ptr: %s\n", __FUNCTION__, __LINE__, (char*)cell->ptr_value));
 
 		/* Ignore pseudoconstants, they are dealt with elsewhere */
 		if (rinfo->pseudoconstant)
@@ -733,25 +735,25 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		//DEBUGPOINT;
 	}
 	
-	//ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
+	//ereport(INFO, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
 	
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
 
-	//ereport(LOG, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
+	//ereport(INFO, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
 	
 	//DEBUGPOINT;
 	
 	//char * values = NameListToString(scan_clauses);
 	//char * values = ListToString(scan_clauses, ", ");
 	
-	//ereport(LOG, errmsg_internal("%s ereport Line %d : Raw Values: %s\n", __FUNCTION__, __LINE__, values));
+	//ereport(INFO, errmsg_internal("%s ereport Line %d : Raw Values: %s\n", __FUNCTION__, __LINE__, values));
 	//DEBUGPOINT;
 
 	
 	/*
 	foreach(cell, scan_clauses) {
 		DefElem *def = lfirst_node(DefElem, cell);
-		ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
+		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
 		char * value = NULL;
 		DEBUGPOINT;
 		if(def == NULL)
@@ -787,7 +789,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 				
 			}
 			DEBUGPOINT;
-			ereport(LOG, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
+			ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
 		}
 	}*/
 	
@@ -852,12 +854,13 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 			// Hole den Spaltennamen
 			char *colname = NameStr(tupdesc->attrs[attnum - 1].attname);
 			fsstate->columns[attnum - 1] = pstrdup(colname);
-			//elog(INFO, "Spaltenname: %s", colname);
 		}
 	}
+	fsstate->columns[tupdesc->natts] = NULL;
 
 	node->fdw_state = (void *) fsstate;
 	option_params->filter = NULL;
+	
 	//fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
 	//fsstate->retrieved_attrs = list_nth(fsplan->fdw_private, FdwScanPrivateRetrievedAttrs);
 	// Todo: Convert plan to ldap filter
@@ -865,6 +868,11 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	// LDAP search
 	//rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
 	fsstate->rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, option_params->filter, fsstate->columns, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &(fsstate->msgid) );
+	if ( fsstate->rc != LDAP_SUCCESS ) {
+
+		elog(INFO, "ldap_search_ext_s: %s\n", ldap_err2string( fsstate->rc ) );
+	}
+	DEBUGPOINT;
 }
 
 /**
@@ -879,7 +887,7 @@ ldap2_fdw_IterateForeignScanMinimal(ForeignScanState *node)
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
 	int natts;
 	char **s_values;
-	fsstate->res = NULL;
+	fsstate->ldap_message_result = NULL;
 	
 	ExecClearTuple(slot);
 	
@@ -925,7 +933,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	char **s_values;
 	char ** a = NULL;
 	char *entrydn = NULL;
-	fsstate->res = NULL;
+	fsstate->ldap_message_result = NULL;
 	struct berval **vals = NULL;
 	bool first_in_array = true;
 	char array_delimiter = '|';
@@ -935,7 +943,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	
 	ExecClearTuple(slot);
 	
-	fsstate->rc = ldap_result( ld, fsstate->msgid, LDAP_MSG_ONE, &timeout_struct, &(fsstate->res) );
+	fsstate->rc = ldap_result( ld, fsstate->msgid, LDAP_MSG_ONE, &timeout_struct, &(fsstate->ldap_message_result) );
 	elog(INFO, "RC : %d", fsstate->rc);
 	switch(fsstate->rc)
 	{
@@ -945,7 +953,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			return slot;
 		case LDAP_RES_SEARCH_ENTRY:
 			elog(INFO, "LDAP_RES_SEARCH_ENTRY");
-			entrydn = ldap_get_dn(ld, fsstate->res);
+			entrydn = ldap_get_dn(ld, fsstate->ldap_message_result);
 			i = 0;
 			for(a = fsstate->columns; *a != NULL; *a++) {
 				elog(INFO, "Rufe Spaltenname %s ab", *a);
@@ -954,7 +962,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					s_values[i++] = pstrdup(entrydn);
 					continue;
 				}
-				if((vals = ldap_get_values_len(ld, fsstate->res, *a)) != NULL)
+				if((vals = ldap_get_values_len(ld, fsstate->ldap_message_result, *a)) != NULL)
 				{
 					first_in_array = true;
 					if(ldap_count_values_len(vals) == 0)
@@ -1028,7 +1036,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 		
 		//slot->tts_isnull[i] = false;
 		//slot->tts_values[i] = CStringGetDatum("Hello,World");
-		//ereport(LOG, errmsg_internal("%s ereport Line %d : i: %d\n", __FUNCTION__, __LINE__, i));
+		//ereport(INFO, errmsg_internal("%s ereport Line %d : i: %d\n", __FUNCTION__, __LINE__, i));
 	//}
 	
 	//DEBUGPOINT;
@@ -1067,7 +1075,7 @@ ldap2_fdw_EndForeignScan(ForeignScanState *node)
 	/* if festate is NULL, we are in EXPLAIN; nothing to do */
 	if (fsstate)
 	{
-		free_ldap_message(&(fsstate->res));
+		free_ldap_message(&(fsstate->ldap_message_result));
 		pfree(fsstate);
 	}
 }

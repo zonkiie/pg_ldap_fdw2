@@ -16,7 +16,8 @@ typedef struct LdapFdwPlanState
 	List	   *remote_conds;
 	char       **columns;
 	AttInMetadata *attinmeta;
-	LDAPMessage   *res;
+	LDAPMessage   *ldap_message_result;
+	LDAPMessage	  *msg;
 } LdapFdwPlanState;
 
 #endif
