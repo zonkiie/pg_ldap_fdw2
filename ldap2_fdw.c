@@ -960,6 +960,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 				if(!strcasecmp(*a, "dn"))
 				{
 					s_values[i++] = pstrdup(entrydn);
+					ldap_memfree(entrydn);
 					continue;
 				}
 				if((vals = ldap_get_values_len(ld, fsstate->ldap_message_result, *a)) != NULL)
