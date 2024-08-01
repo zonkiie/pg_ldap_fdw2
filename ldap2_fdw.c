@@ -995,6 +995,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 				else
 				{
 					elog(INFO, "No data found in line %d", __LINE__);
+					s_values[i] = NULL;
 				}
 				i++;
 			}
