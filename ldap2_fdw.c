@@ -181,7 +181,7 @@ char ** attributes_array = NULL;
 
 char *dn, *matched_msg = NULL, *error_msg = NULL;
 struct timeval timeout_struct = {.tv_sec = 10L, .tv_usec = 0L};
-int version, msgid, rc, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0;
+int version, parse_rc, finished = 0, msgtype, num_entries = 0, num_refs = 0;
 
 void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 {
@@ -305,7 +305,7 @@ void print_list(FILE *out_channel, List *list)
 
 static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 {
-	int rows = 0;
+	int rows = 0, rc = 0, msgid = 0;
 	finished = 0;
 	LDAPMessage   *res;
 	if(options == NULL)
@@ -421,7 +421,7 @@ static bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Exp
 
 void initLdap()
 {
-	int version = LDAP_VERSION3;
+	int version = LDAP_VERSION3, rc = 0;
 	
 	if(option_params == NULL)
 	{
@@ -470,6 +470,7 @@ void initLdap()
 
 void bindLdap()
 {
+	int rc;
 	//ereport(LOG, errmsg_internal("bindLdap username: %s, password %s\n", option_params->username, option_params->password));
 	
 	if ( ( rc = common_ldap_bind( ld, option_params->username, option_params->password, option_params->use_sasl) ) != LDAP_SUCCESS)
@@ -823,19 +824,47 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 {
 	ForeignScan *fsplan = (ForeignScan *) node->ss.ps.plan;
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
-	
+	Relation rel;
+	TupleDesc tupdesc;
+	int attnum;
+
 	fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
-	fsstate->ntuples = 3;
+	//fsstate->ntuples = 3;
 	fsstate->row = 0;
-	
+
 	fsstate->attinmeta = TupleDescGetAttInMetadata(node->ss.ss_currentRelation->rd_att);
+
+	rel = node->ss.ss_currentRelation;
+	
+	tupdesc = RelationGetDescr(rel);
+	
+	fsstate->num_attrs = tupdesc->natts;
+	
+	fsstate->columns = (char**)palloc(sizeof(char*) * tupdesc->natts);
+	
+	// Beispiel für die Schleife über die Spalten
+	for (attnum = 1; attnum <= tupdesc->natts; attnum++)
+	{
+		// Ignoriere eventuell ausgeblendete Spalten
+		//if (!att_is_hidden(tupdesc, attnum))
+		if(!tupdesc->attrs[attnum - 1].attisdropped)
+		{
+			// Hole den Spaltennamen
+			char *colname = NameStr(tupdesc->attrs[attnum - 1].attname);
+			fsstate->columns[attnum - 1] = pstrdup(colname);
+			//elog(INFO, "Spaltenname: %s", colname);
+		}
+	}
+
 	node->fdw_state = (void *) fsstate;
+	option_params->filter = NULL;
 	//fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
 	//fsstate->retrieved_attrs = list_nth(fsplan->fdw_private, FdwScanPrivateRetrievedAttrs);
 	// Todo: Convert plan to ldap filter
 	// from:     dynamodb_fdw/dynamodb_impl.cpp line 800
 	// LDAP search
 	//rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
+	fsstate->rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, option_params->filter, fsstate->columns, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &(fsstate->msgid) );
 }
 
 /**
@@ -848,7 +877,6 @@ ldap2_fdw_IterateForeignScanMinimal(ForeignScanState *node)
 	
 	HeapTuple tuple;
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
-	int i;
 	int natts;
 	char **s_values;
 	fsstate->res = NULL;
@@ -888,70 +916,98 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 {
 	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
 	
-	Relation rel;
 	AttInMetadata  *attinmeta;
 	HeapTuple tuple;
-	TupleDesc tupdesc;
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
 	int i;
+	int vi;
 	int natts;
-	int attnum;
 	char **s_values;
+	char ** a = NULL;
+	char *entrydn = NULL;
 	fsstate->res = NULL;
+	struct berval **vals = NULL;
+	bool first_in_array = true;
+	char array_delimiter = '|';
+	char *tmp_str = NULL;
 	
+	s_values = (char **) palloc(sizeof(char *) * fsstate->num_attrs);
 	
 	ExecClearTuple(slot);
 	
-	/*
-	rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &timeout_struct, &(fsstate->res) );
-	switch(rc)
+	fsstate->rc = ldap_result( ld, fsstate->msgid, LDAP_MSG_ONE, &timeout_struct, &(fsstate->res) );
+	elog(INFO, "RC : %d", fsstate->rc);
+	switch(fsstate->rc)
 	{
+		case -1:
 		case LDAP_RES_SEARCH_RESULT:
 			return slot;
 		case LDAP_RES_SEARCH_ENTRY:
-			
+			entrydn = ldap_get_dn(ld, fsstate->res);
+			i = 0;
+			for(a = fsstate->columns; *a != NULL; *a++) {
+				elog(INFO, "Rufe Spaltenname %s ab", *a);
+				if(!strcasecmp(*a, "dn"))
+				{
+					s_values[i++] = pstrdup(entrydn);
+					continue;
+				}
+				if((vals = ldap_get_values_len(ld, fsstate->res, *a)) != NULL)
+				{
+					first_in_array = true;
+					if(ldap_count_values_len(vals) == 0)
+					{
+						s_values[i] = NULL;
+					}
+					else
+					{
+						tmp_str = NULL;
+						for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
+							if(first_in_array == true) first_in_array = false;
+							else{
+								tmp_str = realloc(tmp_str, strlen(tmp_str) + 1);
+								tmp_str[strlen(tmp_str)] = array_delimiter;
+							}
+							tmp_str = realloc(tmp_str, strlen(tmp_str) + strlen(vals[ vi ]->bv_val) + 1);
+							strcat(tmp_str, vals[ vi ]->bv_val);
+						}
+						s_values[i] = pstrdup(tmp_str);
+						elog(INFO, "tmp_str: %s", tmp_str);
+						free(tmp_str);
+					}
+				}
+				ber_bvecfree(vals);
+				i++;
+			}
+			ldap_memfree(entrydn);
 			break;
-	
+		case LDAP_RES_SEARCH_REFERENCE:
+			elog(INFO, "LDAP_RES_SEARCH_REFERENCE");
+			return slot;
 	}
-	*/
 	
 	
 	// Number of results reached, no more results - we return an empty slot.
 	
 	
-	if(fsstate->row >= fsstate->ntuples) return slot;
+	//if(fsstate->row >= fsstate->ntuples) return slot;
 	// ldap fetch result
 	
 	
 	
 	//DEBUGPOINT;
 
-	rel = node->ss.ss_currentRelation;
-	
-	tupdesc = RelationGetDescr(rel);
-	
-	// Beispiel für die Schleife über die Spalten
-	for (attnum = 1; attnum <= tupdesc->natts; attnum++)
-	{
-		// Ignoriere eventuell ausgeblendete Spalten
-		//if (!att_is_hidden(tupdesc, attnum))
-		if(!tupdesc->attrs[attnum - 1].attisdropped)
-		{
-			// Hole den Spaltennamen
-			char *colname = NameStr(tupdesc->attrs[attnum - 1].attname);
-			elog(INFO, "Spaltenname: %s", colname);
-		}
-	}
 	//attinmeta = TupleDescGetAttInMetadata(rel->rd_att);
+
 	
 
 	//natts = rel->rd_att->natts;
-	natts = 3;
+	//natts = 3;
 	
-	s_values = (char **) palloc(sizeof(char *) * natts);
-	s_values[0] = "54d98418-de32-4732-a907-ad6cd56ad593";
-	s_values[1] = "Hans";
-	s_values[2] = "Schmidt";
+	//s_values = (char **) palloc(sizeof(char *) * natts);
+	//s_values[0] = "54d98418-de32-4732-a907-ad6cd56ad593";
+	//s_values[1] = "Hans";
+	//s_values[2] = "Schmidt";
 	
 	fsstate->row++;
 	

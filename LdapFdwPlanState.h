@@ -9,8 +9,12 @@ typedef struct LdapFdwPlanState
 	BlockNumber pages;          /* estimate of file's physical size */
 	int         ntuples;        /* estimate of number of data rows  */
 	int         row;
+	int         rc;
+	int         msgid;
+	int         num_attrs;
 	List	   *local_conds;
 	List	   *remote_conds;
+	char       **columns;
 	AttInMetadata *attinmeta;
 	LDAPMessage   *res;
 } LdapFdwPlanState;
