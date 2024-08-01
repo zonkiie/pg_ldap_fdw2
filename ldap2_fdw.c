@@ -963,8 +963,10 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					ldap_memfree(entrydn);
 					continue;
 				}
+				DEBUGPOINT;
 				if((vals = ldap_get_values_len(ld, fsstate->ldap_message_result, *a)) != NULL)
 				{
+					DEBUGPOINT;
 					first_in_array = true;
 					if(ldap_count_values_len(vals) == 0)
 					{
@@ -972,6 +974,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					}
 					else
 					{
+						DEBUGPOINT;
 						tmp_str = NULL;
 						for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
 							if(first_in_array == true) first_in_array = false;
@@ -983,11 +986,16 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 							strcat(tmp_str, vals[ vi ]->bv_val);
 						}
 						s_values[i] = pstrdup(tmp_str);
+						DEBUGPOINT;
 						elog(INFO, "tmp_str: %s", tmp_str);
 						free(tmp_str);
 					}
+					ber_bvecfree(vals);
 				}
-				ber_bvecfree(vals);
+				else
+				{
+					elog(INFO, "No data found in line %d", __LINE__);
+				}
 				i++;
 			}
 			ldap_memfree(entrydn);
