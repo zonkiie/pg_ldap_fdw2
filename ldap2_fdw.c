@@ -561,6 +561,9 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	
 	Path	   *path;
 	LdapFdwPlanState *fdw_private;
+	
+	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
+	
 	Cost		startup_cost;
 	Cost		total_cost;
 	
@@ -621,6 +624,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						List *tlist,
 						List *scan_clauses)
 {
+	LdapFdwPlanState *fdw_private;
+	
+	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	/* Fetch options */
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
@@ -856,7 +862,10 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	fsstate->columns[tupdesc->natts] = NULL;
 
 	node->fdw_state = (void *) fsstate;
-	option_params->filter = NULL;
+	
+	elog(INFO, "basedn: %s",  option_params->basedn);
+	elog(INFO, "scope: %d",  option_params->scope);
+	elog(INFO, "filter: %s",  option_params->filter);
 	
 	//fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
 	//fsstate->retrieved_attrs = list_nth(fsplan->fdw_private, FdwScanPrivateRetrievedAttrs);
@@ -864,12 +873,11 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	// from:     dynamodb_fdw/dynamodb_impl.cpp line 800
 	// LDAP search
 	//rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
-	fsstate->rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, option_params->filter, fsstate->columns, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &(fsstate->msgid) );
+	fsstate->rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, option_params->filter, fsstate->columns, 0, serverctrls, clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fsstate->msgid) );
 	if ( fsstate->rc != LDAP_SUCCESS ) {
 
 		elog(INFO, "ldap_search_ext_s: %s\n", ldap_err2string( fsstate->rc ) );
 	}
-	DEBUGPOINT;
 }
 
 /**
@@ -892,12 +900,13 @@ ldap2_fdw_IterateForeignScanMinimal(ForeignScanState *node)
 	if(fsstate->row >= fsstate->ntuples) return slot;
 	
 	//natts = rel->rd_att->natts;
-	natts = 3;
+	natts = 4;
 	s_values = (char **) palloc(sizeof(char *) * natts);
 	
 	s_values[0] = "54d98418-de32-4732-a907-ad6cd56ad593";
-	s_values[1] = "Hans";
-	s_values[2] = "Schmidt";
+	s_values[1] = "cn=hs,dc=nodomain";
+	s_values[2] = "Hans";
+	s_values[3] = "Schmidt";
 	
 	fsstate->row++;
 	
@@ -927,6 +936,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	int i;
 	int vi;
 	int natts;
+	int err;
 	char **s_values;
 	//char ** a = NULL;
 	BerElement *ber;
@@ -938,53 +948,52 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	char *tmp_str = NULL;
 	LDAPMessage *tmpmsg = NULL;
 	
-	s_values = (char **) palloc(sizeof(char *) * fsstate->num_attrs);
+	s_values = (char **) palloc(sizeof(char *) * fsstate->num_attrs + 1);
+	memset(s_values, 0, (fsstate->num_attrs + 1 ) * sizeof(char*));
 	
 	ExecClearTuple(slot);
 	
 	fsstate->rc = ldap_result( ld, fsstate->msgid, LDAP_MSG_ONE, &timeout_struct, &(fsstate->ldap_message_result) );
-	elog(INFO, "RC : %d", fsstate->rc);
 	switch(fsstate->rc)
 	{
 		case -1:
 		case LDAP_RES_SEARCH_RESULT:
-			elog(INFO, "LDAP_RES_SEARCH_RESULT");
+			//elog(INFO, "LDAP_RES_SEARCH_RESULT");
 			return slot;
 		case LDAP_RES_SEARCH_ENTRY:
-			elog(INFO, "LDAP_RES_SEARCH_ENTRY");
+			//elog(INFO, "LDAP_RES_SEARCH_ENTRY");
 			entrydn = ldap_get_dn(ld, fsstate->ldap_message_result);
 			i = 0;
-			DEBUGPOINT;
+			ldap_get_option(ld, LDAP_OPT_ERROR_NUMBER, &err);
+			/*
 			for (char *a = ldap_first_attribute( ld, fsstate->ldap_message_result, &ber ); a != NULL; a = ldap_next_attribute( ld, fsstate->ldap_message_result, ber ) ) {
 				elog(INFO, "Spaltenname %s im Ergebnis gefunden.", a);
 			}
 			ber_free( ber, 0 );
-			if(ld_errno != 0) {
-				elog(INFO, "Fehler: %s", ldap_err2string( ld_errno ) );
+
+			if(err != 0) {
+				elog(INFO, "Fehler: %s", ldap_err2string( err ) );
 			}
-			DEBUGPOINT;
+			*/
 			
 			for(char **a = fsstate->columns; *a != NULL; *a++) {
-				elog(INFO, "Rufe Spaltenname %s ab", *a);
 				if(!strcasecmp(*a, "dn"))
 				{
 					s_values[i++] = pstrdup(entrydn);
 					ldap_memfree(entrydn);
+					entrydn = NULL;
 					continue;
 				}
-				DEBUGPOINT;
 				if((vals = ldap_get_values_len(ld, fsstate->ldap_message_result, *a)) != NULL)
 				{
-					DEBUGPOINT;
-					first_in_array = true;
 					if(ldap_count_values_len(vals) == 0)
 					{
 						s_values[i] = NULL;
 					}
 					else
 					{
-						DEBUGPOINT;
-						tmp_str = NULL;
+						tmp_str = strdup("");
+						first_in_array = true;
 						for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
 							if(first_in_array == true) first_in_array = false;
 							else{
@@ -995,77 +1004,28 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 							strcat(tmp_str, vals[ vi ]->bv_val);
 						}
 						s_values[i] = pstrdup(tmp_str);
-						DEBUGPOINT;
-						elog(INFO, "tmp_str: %s", tmp_str);
 						free(tmp_str);
 					}
 					ber_bvecfree(vals);
 				}
 				else
 				{
-					elog(INFO, "No data found in line %d", __LINE__);
-					s_values[i] = NULL;
 				}
 				i++;
 			}
-			ldap_memfree(entrydn);
+			if(entrydn != NULL) ldap_memfree(entrydn);
 			break;
 		case LDAP_RES_SEARCH_REFERENCE:
-			elog(INFO, "LDAP_RES_SEARCH_REFERENCE");
+			//elog(INFO, "LDAP_RES_SEARCH_REFERENCE");
 			return slot;
 	}
 	
 	
-	// Number of results reached, no more results - we return an empty slot.
-	
-	
-	//if(fsstate->row >= fsstate->ntuples) return slot;
-	// ldap fetch result
-	
-	
-	
-	//DEBUGPOINT;
-
-	//attinmeta = TupleDescGetAttInMetadata(rel->rd_att);
-
-	
-
-	//natts = rel->rd_att->natts;
-	//natts = 3;
-	
-	//s_values = (char **) palloc(sizeof(char *) * natts);
-	//s_values[0] = "54d98418-de32-4732-a907-ad6cd56ad593";
-	//s_values[1] = "Hans";
-	//s_values[2] = "Schmidt";
-	
 	fsstate->row++;
 	
-	//for(i = 0; i < fsstate->ntuples; i++ ){
+	tuple = BuildTupleFromCStrings(fsstate->attinmeta, s_values);
+	ExecStoreHeapTuple(tuple, slot, false);
 		
-		//Datum values[2];
-		//bool nulls[2] = {false, false};
-		//values[0] = CStringGetTextDatum(s_values[1]);
-		//values[1] = CStringGetTextDatum(s_values[2]);
-		
-		tuple = BuildTupleFromCStrings(fsstate->attinmeta, s_values);
-		ExecStoreHeapTuple(tuple, slot, false);
-		
-		//ExecStoreTuple(slot, values, nulls, false);
-		
-		
-		//slot->tts_isnull[i] = false;
-		//slot->tts_values[i] = CStringGetDatum("Hello,World");
-		//ereport(INFO, errmsg_internal("%s ereport Line %d : i: %d\n", __FUNCTION__, __LINE__, i));
-	//}
-	
-	//DEBUGPOINT;
-	//ExecStoreVirtualTuple(slot);
-
-	//tuple = BuildTupleFromCStrings(attinmeta, values);
-	//ExecStoreTuple(tuple, slot, InvalidBuffer, true);
-
-	//hestate->rownum++;
-	
 	return slot;
 
 }
@@ -1087,7 +1047,6 @@ ldap2_fdw_ReScanForeignScan(ForeignScanState *node)
 static void
 ldap2_fdw_EndForeignScan(ForeignScanState *node)
 {
-	DEBUGPOINT;
 	// cleanup
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
 
@@ -1096,6 +1055,7 @@ ldap2_fdw_EndForeignScan(ForeignScanState *node)
 	{
 		free_ldap_message(&(fsstate->ldap_message_result));
 		pfree(fsstate);
+		node->fdw_state = NULL;
 	}
 }
 
