@@ -965,23 +965,11 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			entrydn = ldap_get_dn(ld, fsstate->ldap_message_result);
 			i = 0;
 			ldap_get_option(ld, LDAP_OPT_ERROR_NUMBER, &err);
-			/*
-			for (char *a = ldap_first_attribute( ld, fsstate->ldap_message_result, &ber ); a != NULL; a = ldap_next_attribute( ld, fsstate->ldap_message_result, ber ) ) {
-				elog(INFO, "Spaltenname %s im Ergebnis gefunden.", a);
-			}
-			ber_free( ber, 0 );
-
-			if(err != 0) {
-				elog(INFO, "Fehler: %s", ldap_err2string( err ) );
-			}
-			*/
 			
 			for(char **a = fsstate->columns; *a != NULL; *a++) {
 				if(!strcasecmp(*a, "dn"))
 				{
 					s_values[i++] = pstrdup(entrydn);
-					ldap_memfree(entrydn);
-					entrydn = NULL;
 					continue;
 				}
 				if((vals = ldap_get_values_len(ld, fsstate->ldap_message_result, *a)) != NULL)
@@ -1013,7 +1001,10 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 				}
 				i++;
 			}
-			if(entrydn != NULL) ldap_memfree(entrydn);
+			if(entrydn != NULL) {
+				ldap_memfree(entrydn);
+				entrydn = NULL;
+			}
 			break;
 		case LDAP_RES_SEARCH_REFERENCE:
 			//elog(INFO, "LDAP_RES_SEARCH_REFERENCE");
@@ -1119,14 +1110,14 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 						  Index resultRelation,
 						  int subplan_index)
 {
-/*
 	CmdType		operation = plan->operation;
 	RangeTblEntry *rte = planner_rt_fetch(resultRelation, root);
 	Relation	rel;
-*/
 	List	   *targetAttrs = NIL;
 	List	   *returningList = NIL;
 	List	   *retrieved_attrs = NIL;
+	TupleDesc	tupdesc;
+	Oid			array_element_type = InvalidOid;
 
 	StringInfoData sql;
 	
@@ -1147,7 +1138,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	 * (We can't do that for INSERT since we would miss sending default values
 	 * for columns not listed in the source statement.)
 	 */
-/*
+
 	if (operation == CMD_INSERT)
 	{
 		TupleDesc	tupdesc = RelationGetDescr(rel);
@@ -1161,6 +1152,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	}
 	else if (operation == CMD_UPDATE)
 	{
+		RETURN NULL;
 		Bitmapset  *tmpset = bms_copy(rte->modifiedCols);
 		AttrNumber	col;
 		while ((col = bms_first_member(tmpset)) >= 0)
@@ -1171,20 +1163,17 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 			targetAttrs = lappend_int(targetAttrs, col);
 		}
 	}
-*/
+
 
 	/*
 	 * Extract the relevant RETURNING list if any.
 	 */
-/*
 	if (plan->returningLists)
 		returningList = (List *) list_nth(plan->returningLists, subplan_index);
-*/
 
 	/*
 	 * Construct the SQL command string.
 	 */
-/*
 	switch (operation)
 	{
 		case CMD_INSERT:
@@ -1207,7 +1196,6 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 			break;
 	}
 	heap_close(rel, NoLock);
-*/
 
 	/*
 	 * Build the fdw_private list that will be available to the executor.
@@ -1273,6 +1261,10 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 						  TupleTableSlot *planSlot)
 {
 	DEBUGPOINT;
+	char *dn = NULL;
+	int rc = 0;
+	rc = ldap_delete_s(ld, dn);
+	
 	return NULL;
 }
 
