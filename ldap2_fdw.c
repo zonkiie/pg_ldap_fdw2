@@ -37,9 +37,6 @@
 #include "utils/memutils.h"
 #include "utils/rel.h"
 
-#include <syslog.h>
-
-
 #include "LdapFdwConn.h"
 #include "LdapFdwOptions.h"
 #include "LdapFdwPlanState.h"
@@ -931,13 +928,15 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	int vi;
 	int natts;
 	char **s_values;
-	char ** a = NULL;
+	//char ** a = NULL;
+	BerElement *ber;
 	char *entrydn = NULL;
 	fsstate->ldap_message_result = NULL;
 	struct berval **vals = NULL;
 	bool first_in_array = true;
 	char array_delimiter = '|';
 	char *tmp_str = NULL;
+	LDAPMessage *tmpmsg = NULL;
 	
 	s_values = (char **) palloc(sizeof(char *) * fsstate->num_attrs);
 	
@@ -955,7 +954,17 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			elog(INFO, "LDAP_RES_SEARCH_ENTRY");
 			entrydn = ldap_get_dn(ld, fsstate->ldap_message_result);
 			i = 0;
-			for(a = fsstate->columns; *a != NULL; *a++) {
+			DEBUGPOINT;
+			for (char *a = ldap_first_attribute( ld, fsstate->ldap_message_result, &ber ); a != NULL; a = ldap_next_attribute( ld, fsstate->ldap_message_result, ber ) ) {
+				elog(INFO, "Spaltenname %s im Ergebnis gefunden.", a);
+			}
+			ber_free( ber, 0 );
+			/*if(ld->ld_errno != 0) {
+				elog(INFO, "Fehler: %s", ldap_err2string( ld->ld_errno ) );
+			}*/
+			DEBUGPOINT;
+			
+			for(char **a = fsstate->columns; *a != NULL; *a++) {
 				elog(INFO, "Rufe Spaltenname %s ab", *a);
 				if(!strcasecmp(*a, "dn"))
 				{
