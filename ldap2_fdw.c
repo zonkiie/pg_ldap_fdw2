@@ -959,9 +959,9 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 				elog(INFO, "Spaltenname %s im Ergebnis gefunden.", a);
 			}
 			ber_free( ber, 0 );
-			/*if(ld->ld_errno != 0) {
-				elog(INFO, "Fehler: %s", ldap_err2string( ld->ld_errno ) );
-			}*/
+			if(ld_errno != 0) {
+				elog(INFO, "Fehler: %s", ldap_err2string( ld_errno ) );
+			}
 			DEBUGPOINT;
 			
 			for(char **a = fsstate->columns; *a != NULL; *a++) {
