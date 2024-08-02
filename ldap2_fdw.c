@@ -1124,12 +1124,15 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	DEBUGPOINT;
 	
 	initStringInfo(&sql);
+	
+	elog(INFO, "SQL String: %s", sql.data);
 
 	/*
 	 * Core code already has some lock on each rel being planned, so we can
 	 * use NoLock here.
 	 */
-//	rel = heap_open(rte->relid, NoLock);
+	//rel = heap_open(rte->relid, NoLock);
+	rel = table_open(rte->relid, NoLock);
 
 	/*
 	 * In an INSERT, we transmit all columns that are defined in the foreign
@@ -1145,15 +1148,15 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 		int			attnum;
 		for (attnum = 1; attnum <= tupdesc->natts; attnum++)
 		{
-			Form_pg_attribute attr = tupdesc->attrs[attnum - 1];
+			Form_pg_attribute attr = &(tupdesc->attrs[attnum - 1]);
 			if (!attr->attisdropped)
 				targetAttrs = lappend_int(targetAttrs, attnum);
 		}
 	}
 	else if (operation == CMD_UPDATE)
 	{
-		RETURN NULL;
-		Bitmapset  *tmpset = bms_copy(rte->modifiedCols);
+		return NULL;
+		/*Bitmapset  *tmpset = bms_copy(rte->modifiedCols);
 		AttrNumber	col;
 		while ((col = bms_first_member(tmpset)) >= 0)
 		{
@@ -1161,7 +1164,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 			if (col <= InvalidAttrNumber)		// shouldn't happen
 				elog(ERROR, "system-column update is not supported");
 			targetAttrs = lappend_int(targetAttrs, col);
-		}
+		}*/
 	}
 
 
@@ -1174,7 +1177,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	/*
 	 * Construct the SQL command string.
 	 */
-	switch (operation)
+	/*switch (operation)
 	{
 		case CMD_INSERT:
 			deparseInsertSql(&sql, root, resultRelation, rel,
@@ -1195,7 +1198,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 			elog(ERROR, "unexpected operation: %d", (int) operation);
 			break;
 	}
-	heap_close(rel, NoLock);
+	heap_close(rel, NoLock);*/
 
 	/*
 	 * Build the fdw_private list that will be available to the executor.
