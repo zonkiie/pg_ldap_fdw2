@@ -7,6 +7,7 @@
 // #include "postgres_fdw.h"
 #include "access/sysattr.h"
 #include "access/htup_details.h"
+#include "access/table.h"
 #include "nodes/pg_list.h"
 #include "nodes/makefuncs.h"
 #include "nodes/nodeFuncs.h"
@@ -19,6 +20,10 @@
 #include "executor/executor.h"
 #include "foreign/fdwapi.h"
 #include "foreign/foreign.h"
+#include "funcapi.h"
+#include "miscadmin.h"
+#include "nodes/makefuncs.h"
+#include "nodes/nodeFuncs.h"
 #include "optimizer/cost.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/paths.h"
@@ -29,8 +34,6 @@
 #include "optimizer/optimizer.h"
 #include "parser/parsetree.h"
 #include "optimizer/restrictinfo.h"
-#include "funcapi.h"
-#include "miscadmin.h"
 #include "utils/builtins.h"
 #include "utils/guc.h"
 #include "utils/lsyscache.h"
@@ -1112,16 +1115,15 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 {
 	CmdType		operation = plan->operation;
 	RangeTblEntry *rte = planner_rt_fetch(resultRelation, root);
-	Relation	rel;
 	List	   *targetAttrs = NIL;
 	List	   *returningList = NIL;
 	List	   *retrieved_attrs = NIL;
 	TupleDesc	tupdesc;
 	Oid			array_element_type = InvalidOid;
-
+	Oid			foreignTableId;
 	StringInfoData sql;
+	Relation	rel = table_open(rte->relid, NoLock);;
 	
-	DEBUGPOINT;
 	
 	initStringInfo(&sql);
 	
@@ -1131,8 +1133,8 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	 * Core code already has some lock on each rel being planned, so we can
 	 * use NoLock here.
 	 */
-	//rel = heap_open(rte->relid, NoLock);
-	rel = table_open(rte->relid, NoLock);
+	foreignTableId = RelationGetRelid(rel);
+	tupdesc = RelationGetDescr(rel);
 
 	/*
 	 * In an INSERT, we transmit all columns that are defined in the foreign
@@ -1144,14 +1146,14 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 
 	if (operation == CMD_INSERT)
 	{
-		TupleDesc	tupdesc = RelationGetDescr(rel);
 		int			attnum;
-		for (attnum = 1; attnum <= tupdesc->natts; attnum++)
+		for(attnum = 0; attnum < tupdesc->natts; attnum++)
 		{
-			Form_pg_attribute attr = &(tupdesc->attrs[attnum - 1]);
+			Form_pg_attribute attr = TupleDescAttr(tupdesc, attnum);
 			if (!attr->attisdropped)
 				targetAttrs = lappend_int(targetAttrs, attnum);
 		}
+		
 	}
 	else if (operation == CMD_UPDATE)
 	{
@@ -1167,7 +1169,6 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 		}*/
 	}
 
-
 	/*
 	 * Extract the relevant RETURNING list if any.
 	 */
@@ -1177,7 +1178,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	/*
 	 * Construct the SQL command string.
 	 */
-	/*switch (operation)
+	switch (operation)
 	{
 		case CMD_INSERT:
 			deparseInsertSql(&sql, root, resultRelation, rel,
@@ -1198,7 +1199,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 			elog(ERROR, "unexpected operation: %d", (int) operation);
 			break;
 	}
-	heap_close(rel, NoLock);*/
+	table_close(rel, NoLock);
 
 	/*
 	 * Build the fdw_private list that will be available to the executor.
