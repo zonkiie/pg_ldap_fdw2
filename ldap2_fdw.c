@@ -43,6 +43,7 @@
 #include "LdapFdwConn.h"
 #include "LdapFdwOptions.h"
 #include "LdapFdwPlanState.h"
+#include "LdapFdwModifyState.h"
 #include "helper_functions.h"
 #include "ldap_functions.h"
 
@@ -1122,7 +1123,12 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	Oid			array_element_type = InvalidOid;
 	Oid			foreignTableId;
 	StringInfoData sql;
-	Relation	rel = table_open(rte->relid, NoLock);;
+	Relation	rel = NULL;
+#if PG_VERSION_NUM < 130000
+	rel = heap_open(rte->relid, NoLock);
+#else
+	rel = table_open(rte->relid, NoLock);
+#endif
 	
 	
 	initStringInfo(&sql);
@@ -1178,7 +1184,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	/*
 	 * Construct the SQL command string.
 	 */
-	switch (operation)
+/*	switch (operation)
 	{
 		case CMD_INSERT:
 			deparseInsertSql(&sql, root, resultRelation, rel,
@@ -1198,8 +1204,12 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 		default:
 			elog(ERROR, "unexpected operation: %d", (int) operation);
 			break;
-	}
+	}*/
+#if PG_VERSION_NUM < 130000
+	heap_close(rel, NoLock);
+#else
 	table_close(rel, NoLock);
+#endif
 
 	/*
 	 * Build the fdw_private list that will be available to the executor.
@@ -1214,6 +1224,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 /*
  * ldap2_fdw_BeginForeignModify
  *		Begin an insert/update/delete operation on a foreign table
+ *		From Mongo fdw
  */
 static void
 ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
@@ -1222,8 +1233,104 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 						   int subplan_index,
 						   int eflags)
 {
+	LdapFdwModifyState *fmstate;
+	Relation	rel = resultRelInfo->ri_RelationDesc;
+	AttrNumber	n_params;
+	Oid			typefnoid = InvalidOid;
+	bool		isvarlena = false;
+	ListCell   *lc;
+	Oid			foreignTableId;
+	Oid			userid;
+	ForeignServer *server;
+	UserMapping *user;
+	ForeignTable *table;
+#if PG_VERSION_NUM >= 160000
+	ForeignScan *fsplan = (ForeignScan *) mtstate->ps.plan;
+#else
+	EState	   *estate = mtstate->ps.state;
+	RangeTblEntry *rte;
+#endif
+
 	DEBUGPOINT;
+	/*
+	 * Do nothing in EXPLAIN (no ANALYZE) case.  resultRelInfo->ri_FdwState
+	 * stays NULL.
+	 */
+	if (eflags & EXEC_FLAG_EXPLAIN_ONLY)
 		return;
+
+#if PG_VERSION_NUM >= 160000
+	userid = fsplan->checkAsUser ? fsplan->checkAsUser : GetUserId();
+#else
+	rte = rt_fetch(resultRelInfo->ri_RangeTableIndex, estate->es_range_table);
+	userid = rte->checkAsUser ? rte->checkAsUser : GetUserId();
+#endif
+
+	DEBUGPOINT;
+	foreignTableId = RelationGetRelid(rel);
+
+	/* Get info about foreign table. */
+	table = GetForeignTable(foreignTableId);
+	server = GetForeignServer(table->serverid);
+	user = GetUserMapping(userid, server->serverid);
+	DEBUGPOINT;
+
+	/* Begin constructing LdapFdwModifyState. */
+	fmstate = (LdapFdwModifyState *) palloc0(sizeof(LdapFdwModifyState));
+
+	fmstate->rel = rel;
+	GetOptionStructr(&(fmstate->options), foreignTableId);
+
+	DEBUGPOINT;
+	/*
+	 * Get connection to the foreign server.  Connection manager will
+	 * establish new connection if necessary.
+	 */
+	fmstate->ldap = ld;
+
+	fmstate->target_attrs = (List *) list_nth(fdw_private, 0);
+
+	n_params = list_length(fmstate->target_attrs) + 1;
+	fmstate->p_flinfo = (FmgrInfo *) palloc(sizeof(FmgrInfo) * n_params);
+	fmstate->p_nums = 0;
+
+	if (mtstate->operation == CMD_UPDATE)
+	{
+		Form_pg_attribute attr;
+#if PG_VERSION_NUM >= 140000
+		Plan	   *subplan = outerPlanState(mtstate)->plan;
+#else
+		Plan	   *subplan = mtstate->mt_plans[subplan_index]->plan;
+#endif
+
+		Assert(subplan != NULL);
+
+		attr = TupleDescAttr(RelationGetDescr(rel), 0);
+
+		/* Find the rowid resjunk column in the subplan's result */
+		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist,
+														   NameStr(attr->attname));
+		if (!AttributeNumberIsValid(fmstate->rowidAttno))
+			elog(ERROR, "could not find junk row identifier column");
+	}
+
+	/* Set up for remaining transmittable parameters */
+	foreach(lc, fmstate->target_attrs)
+	{
+		int			attnum = lfirst_int(lc);
+		Form_pg_attribute attr = TupleDescAttr(RelationGetDescr(rel),
+											   attnum - 1);
+
+		Assert(!attr->attisdropped);
+
+		getTypeOutputInfo(attr->atttypid, &typefnoid, &isvarlena);
+		fmgr_info(typefnoid, &fmstate->p_flinfo[fmstate->p_nums]);
+		fmstate->p_nums++;
+	}
+	Assert(fmstate->p_nums <= n_params);
+
+	resultRelInfo->ri_FdwState = fmstate;
+	DEBUGPOINT;
 }
 
 /*
@@ -1236,7 +1343,14 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
+	LdapFdwModifyState *fmstate = NULL;
+	
 	DEBUGPOINT;
+	fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;
+	if (slot != NULL && fmstate->target_attrs != NIL)
+	{
+		ListCell   *lc;
+	}
 	return NULL;
 }
 
@@ -1265,9 +1379,34 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 						  TupleTableSlot *planSlot)
 {
 	DEBUGPOINT;
+	LdapFdwModifyState *fmstate = NULL;
+	Datum		datum;
+	bool		isNull = false;
+	Oid			foreignTableId;
+	char	   *columnName = NULL;
+	Oid			typoid;
 	char *dn = NULL;
 	int rc = 0;
-	rc = ldap_delete_s(ld, dn);
+	fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;
+
+	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
+
+	/* Get the id that was passed up as a resjunk column */
+	datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
+
+	columnName = get_attname(foreignTableId, 1, false);
+	elog(INFO, "Column Name: %s\n", columnName);
+	
+	
+	typoid = get_atttype(foreignTableId, 1);
+
+	/* The type of first column of MongoDB's foreign table must be NAME */
+	/*if (typoid != NAMEOID)
+		elog(ERROR, "type of first column of MongoDB's foreign table must be \"NAME\"");*/
+	
+	
+	
+	//rc = ldap_delete_s(ld, dn);
 	
 	return NULL;
 }
