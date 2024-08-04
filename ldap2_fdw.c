@@ -46,6 +46,7 @@
 #include "LdapFdwModifyState.h"
 #include "helper_functions.h"
 #include "ldap_functions.h"
+#include "deparse.h"
 
 void GetOptionStructr(LdapFdwOptions *, Oid);
 void print_list(FILE *, List *);
@@ -195,11 +196,7 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 	List * all_options = NULL;
 	
 	if(options == NULL) {
-		ereport(ERROR,
-			(errcode(ERRCODE_FDW_INVALID_USE_OF_NULL_POINTER),
-			errmsg("options is null!"),
-			errhint("options is null - variable is not initialized!"))
-		);
+		elog(ERROR, "options is null - variable is not initialized! Line: %d", __LINE__);
 		return;
 	}
 
@@ -1107,6 +1104,7 @@ ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
  * UPDATE/DELETE commands.  If there are no local conditions or joins
  * needed, it'd be better to let the scan node do UPDATE/DELETE RETURNING
  * and then do nothing at ModifyTable.  Room for future optimization ...
+ * @source from https://github.com/heimir-sverrisson/jdbc2_fdw
  */
 static List *
 ldap2_fdw_PlanForeignModify(PlannerInfo *root,
@@ -1184,27 +1182,41 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	/*
 	 * Construct the SQL command string.
 	 */
-/*	switch (operation)
+	switch (operation)
 	{
 		case CMD_INSERT:
-			deparseInsertSql(&sql, root, resultRelation, rel,
+/*			deparseInsertSql(&sql, root, resultRelation, rel,
 							 targetAttrs, returningList,
-							 &retrieved_attrs);
+							 &retrieved_attrs);*/
 			break;
 		case CMD_UPDATE:
-			deparseUpdateSql(&sql, root, resultRelation, rel,
+			/*deparseUpdateSql(&sql, root, resultRelation, rel,
 							 targetAttrs, returningList,
-							 &retrieved_attrs);
+							 &retrieved_attrs);*/
 			break;
 		case CMD_DELETE:
 			deparseDeleteSql(&sql, root, resultRelation, rel,
 							 returningList,
 							 &retrieved_attrs);
 			break;
+#if PG_VERSION_NUM >= 150000
+		case CMD_MERGE:
+			elog(ERROR, "CMD_MERGE not supported");
+			break;
+#endif
+		case CMD_UTILITY:
+			elog(ERROR, "CMD_UTILITY not supported");
+			break;
+		case CMD_NOTHING:
+			elog(ERROR, "CMD_NOTHING not supported");
+			break;
+		case CMD_UNKNOWN:
+			elog(ERROR, "CMD_UNKNOWN not supported");
+			break;
 		default:
 			elog(ERROR, "unexpected operation: %d", (int) operation);
 			break;
-	}*/
+	}
 #if PG_VERSION_NUM < 130000
 	heap_close(rel, NoLock);
 #else
@@ -1279,7 +1291,8 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	fmstate = (LdapFdwModifyState *) palloc0(sizeof(LdapFdwModifyState));
 
 	fmstate->rel = rel;
-	GetOptionStructr(&(fmstate->options), foreignTableId);
+	//GetOptionStructr((fmstate->options), foreignTableId);
+	GetOptionStructr(&option_params, foreignTableId);
 
 	DEBUGPOINT;
 	/*
