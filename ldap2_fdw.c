@@ -1248,6 +1248,7 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	LdapFdwModifyState *fmstate;
 	Relation	rel = resultRelInfo->ri_RelationDesc;
 	AttrNumber	n_params;
+	Form_pg_attribute attr;
 	Oid			typefnoid = InvalidOid;
 	bool		isvarlena = false;
 	ListCell   *lc;
@@ -1309,7 +1310,6 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 
 	if (mtstate->operation == CMD_UPDATE)
 	{
-		Form_pg_attribute attr;
 #if PG_VERSION_NUM >= 140000
 		Plan	   *subplan = outerPlanState(mtstate)->plan;
 #else
@@ -1331,7 +1331,7 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	foreach(lc, fmstate->target_attrs)
 	{
 		int			attnum = lfirst_int(lc);
-		Form_pg_attribute attr = TupleDescAttr(RelationGetDescr(rel),
+		attr = TupleDescAttr(RelationGetDescr(rel),
 											   attnum - 1);
 
 		Assert(!attr->attisdropped);
