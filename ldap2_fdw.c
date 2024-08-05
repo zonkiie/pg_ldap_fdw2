@@ -1366,7 +1366,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
-	LdapFdwModifyState *fmstate = NULL;
+	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Oid			foreignTableId;
     const char **p_values;
 	char	   *columnName = NULL;
@@ -1375,10 +1375,13 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 
 	
 	DEBUGPOINT;
-	fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;
 	if (slot != NULL && fmstate->target_attrs != NIL)
 	{
 		ListCell   *lc;
+		foreach(lc, fmstate->target_attrs)
+		{
+			DEBUGPOINT;
+		}
 	}
 	return NULL;
 }
