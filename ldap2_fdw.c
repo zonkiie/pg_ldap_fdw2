@@ -143,7 +143,6 @@ static int ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
 							  double *totalrows,
 							  double *totaldeadrows);
 
-
 /* magic */
 enum FdwScanPrivateIndex
 {
@@ -1195,6 +1194,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 							 &retrieved_attrs);*/
 			break;
 		case CMD_DELETE:
+			DEBUGPOINT;
 			deparseDeleteSql(&sql, root, resultRelation, rel,
 							 returningList,
 							 &retrieved_attrs);
@@ -1257,6 +1257,7 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	ForeignServer *server;
 	UserMapping *user;
 	ForeignTable *table;
+	int nrattrs = 0;
 #if PG_VERSION_NUM >= 160000
 	ForeignScan *fsplan = (ForeignScan *) mtstate->ps.plan;
 #else
@@ -1293,7 +1294,7 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 
 	fmstate->rel = rel;
 	//GetOptionStructr((fmstate->options), foreignTableId);
-	GetOptionStructr(&option_params, foreignTableId);
+	GetOptionStructr(option_params, foreignTableId);
 
 	DEBUGPOINT;
 	/*
@@ -1302,12 +1303,16 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	 */
 	fmstate->ldap = ld;
 
-	fmstate->target_attrs = (List *) list_nth(fdw_private, 0);
+	fmstate->target_attrs = (List *) list_nth(fdw_private, 1);
+	fmstate->retrieved_attrs = (List *) list_nth(fdw_private,
+                                             3);
 
 	n_params = list_length(fmstate->target_attrs) + 1;
 	fmstate->p_flinfo = (FmgrInfo *) palloc(sizeof(FmgrInfo) * n_params);
 	fmstate->p_nums = 0;
 
+	DEBUGPOINT;
+	
 	if (mtstate->operation == CMD_UPDATE)
 	{
 #if PG_VERSION_NUM >= 140000
@@ -1317,8 +1322,11 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 #endif
 
 		Assert(subplan != NULL);
+		
+		DEBUGPOINT;
 
 		attr = TupleDescAttr(RelationGetDescr(rel), 0);
+		elog(INFO, "Function: %s, Attribute Name: %s", __FUNCTION__, NameStr(attr->attname));
 
 		/* Find the rowid resjunk column in the subplan's result */
 		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist,
@@ -1326,16 +1334,18 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 		if (!AttributeNumberIsValid(fmstate->rowidAttno))
 			elog(ERROR, "could not find junk row identifier column");
 	}
-
+	
+	DEBUGPOINT;
 	/* Set up for remaining transmittable parameters */
 	foreach(lc, fmstate->target_attrs)
 	{
+		DEBUGPOINT;
 		int			attnum = lfirst_int(lc);
-		attr = TupleDescAttr(RelationGetDescr(rel),
-											   attnum - 1);
+		attr = TupleDescAttr(RelationGetDescr(rel), attnum - 1);
+		elog(INFO, "Function: %s, Attribute Name: %s", __FUNCTION__, NameStr(attr->attname));
 
 		Assert(!attr->attisdropped);
-
+			
 		getTypeOutputInfo(attr->atttypid, &typefnoid, &isvarlena);
 		fmgr_info(typefnoid, &fmstate->p_flinfo[fmstate->p_nums]);
 		fmstate->p_nums++;
@@ -1357,6 +1367,12 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 						  TupleTableSlot *planSlot)
 {
 	LdapFdwModifyState *fmstate = NULL;
+	Oid			foreignTableId;
+    const char **p_values;
+	char	   *columnName = NULL;
+	char *dn = NULL;
+    int         n_rows;
+
 	
 	DEBUGPOINT;
 	fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;
@@ -1523,3 +1539,6 @@ ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
   totaldeadrows = 0;
 	return 0;
 }
+
+
+
