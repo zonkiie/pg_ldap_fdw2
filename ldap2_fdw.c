@@ -24,6 +24,7 @@
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
 #include "nodes/nodeFuncs.h"
+#include "nodes/value.h"
 #include "optimizer/cost.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/paths.h"
@@ -1227,10 +1228,12 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	 * Build the fdw_private list that will be available to the executor.
 	 * Items in the list must match enum FdwModifyPrivateIndex, above.
 	 */
-	return list_make4(makeString(sql.data),
+	/*return list_make4(makeString(sql.data),
 					  targetAttrs,
 					  makeInteger((returningList != NIL)),
-					  retrieved_attrs);
+					  retrieved_attrs);*/
+	return list_make1(targetAttrs);
+	//return list_make1(makeInteger(__LINE__));
 }
 
 /*
@@ -1303,11 +1306,11 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	 */
 	fmstate->ldap = ld;
 
-	fmstate->target_attrs = (List *) list_nth(fdw_private, 1);
-	fmstate->retrieved_attrs = (List *) list_nth(fdw_private,
-                                             3);
+	fmstate->target_attrs = (List *) list_nth(fdw_private, 0);
+	//fmstate->retrieved_attrs = (List *) list_nth(fdw_private, 3);
 
-	n_params = list_length(fmstate->target_attrs) + 1;
+	//n_params = list_length(fmstate->target_attrs) + 1;
+	//elog(INFO, "n_params: %d", n_params);
 	fmstate->p_flinfo = (FmgrInfo *) palloc(sizeof(FmgrInfo) * n_params);
 	fmstate->p_nums = 0;
 
@@ -1326,11 +1329,11 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 		DEBUGPOINT;
 
 		attr = TupleDescAttr(RelationGetDescr(rel), 0);
-		elog(INFO, "Function: %s, Attribute Name: %s", __FUNCTION__, NameStr(attr->attname));
+		elog(INFO, "Function: %s, Attribute Name: %s, Line: %d", __FUNCTION__, NameStr(attr->attname), __LINE__);
 
 		/* Find the rowid resjunk column in the subplan's result */
-		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist,
-														   NameStr(attr->attname));
+		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist, NameStr(attr->attname));
+		
 		if (!AttributeNumberIsValid(fmstate->rowidAttno))
 			elog(ERROR, "could not find junk row identifier column");
 	}
