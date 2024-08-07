@@ -1233,7 +1233,6 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 					  makeInteger((returningList != NIL)),
 					  retrieved_attrs);*/
 	return list_make1(targetAttrs);
-	//return list_make1(makeInteger(__LINE__));
 }
 
 /*
@@ -1254,6 +1253,7 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	Form_pg_attribute attr;
 	Oid			typefnoid = InvalidOid;
 	bool		isvarlena = false;
+	List		*attrs_list;
 	ListCell   *lc;
 	Oid			foreignTableId;
 	Oid			userid;
@@ -1299,14 +1299,15 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	//GetOptionStructr((fmstate->options), foreignTableId);
 	GetOptionStructr(option_params, foreignTableId);
 
-	DEBUGPOINT;
 	/*
 	 * Get connection to the foreign server.  Connection manager will
 	 * establish new connection if necessary.
 	 */
 	fmstate->ldap = ld;
-
+	DEBUGPOINT;
+	
 	fmstate->target_attrs = (List *) list_nth(fdw_private, 0);
+	
 	//fmstate->retrieved_attrs = (List *) list_nth(fdw_private, 3);
 
 	//n_params = list_length(fmstate->target_attrs) + 1;
@@ -1338,13 +1339,11 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 			elog(ERROR, "could not find junk row identifier column");
 	}
 	
-	DEBUGPOINT;
 	/* Set up for remaining transmittable parameters */
 	foreach(lc, fmstate->target_attrs)
 	{
-		DEBUGPOINT;
 		int			attnum = lfirst_int(lc);
-		attr = TupleDescAttr(RelationGetDescr(rel), attnum - 1);
+		attr = TupleDescAttr(RelationGetDescr(rel), attnum);
 		elog(INFO, "Function: %s, Attribute Name: %s", __FUNCTION__, NameStr(attr->attname));
 
 		Assert(!attr->attisdropped);
@@ -1374,7 +1373,10 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
     const char **p_values;
 	char	   *columnName = NULL;
 	char *dn = NULL;
+	LDAPMod		**insert_data;
     int         n_rows;
+	Form_pg_attribute attr;
+	Relation rel = resultRelInfo->ri_RelationDesc;
 
 	
 	DEBUGPOINT;
@@ -1383,8 +1385,17 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 		ListCell   *lc;
 		foreach(lc, fmstate->target_attrs)
 		{
+			int			attnum = lfirst_int(lc);
+			bool isnull;
+			Datum value;
+			attr = TupleDescAttr(RelationGetDescr(rel), attnum);
+			value = slot_getattr(slot, attnum, &isnull);
+			char * c_value = DatumGetCString(value);
+			
 			DEBUGPOINT;
+			elog(INFO, "%s %s %s", __FUNCTION__, NameStr(attr->attname), c_value);
 		}
+		//ldap_add_ext(ld, dn, NULL, NULL, NULL);
 	}
 	return NULL;
 }
