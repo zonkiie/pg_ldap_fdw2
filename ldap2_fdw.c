@@ -1388,7 +1388,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	tupdesc = RelationGetDescr(rel);
 
 	
-	p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
+	//p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
 	
 	DEBUGPOINT;
     Datum       attr_value;
@@ -1420,7 +1420,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
             char *value_str = DatumGetCString(DirectFunctionCall1(textout, attr_value));
 			if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
             elog(INFO, "Attribut: %s, Wert: %s", att_name, value_str);
-			p_values[i] = pstrdup(value_str);
+			//p_values[i] = pstrdup(value_str);
 			insert_data[i]->mod_op = 0;
 			insert_data[i]->mod_type = pstrdup(att_name);
 			insert_data[i]->mod_values = (char**)palloc(1);
