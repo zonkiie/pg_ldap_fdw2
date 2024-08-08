@@ -25,6 +25,7 @@ typedef struct LdapFdwModifyState
 	uint32		relType;		/* relation type.  Base, Join, Upper, or Upper
 								 * on join */
 	char	   *outerRelName;	/* Outer relation name */
+	MemoryContext	temp_cxt;
 } LdapFdwModifyState;
 
 #endif

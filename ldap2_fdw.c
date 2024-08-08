@@ -1329,14 +1329,18 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 		
 		DEBUGPOINT;
 
-		attr = TupleDescAttr(RelationGetDescr(rel), 0);
-		elog(INFO, "Function: %s, Attribute Name: %s, Line: %d", __FUNCTION__, NameStr(attr->attname), __LINE__);
-
-		/* Find the rowid resjunk column in the subplan's result */
-		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist, NameStr(attr->attname));
-		
-		if (!AttributeNumberIsValid(fmstate->rowidAttno))
-			elog(ERROR, "could not find junk row identifier column");
+// 		attr = TupleDescAttr(RelationGetDescr(rel), 0);
+// 		elog(INFO, "Function: %s, Attribute Name: %s, Line: %d", __FUNCTION__, NameStr(attr->attname), __LINE__);
+// 
+// 		/* Find the rowid resjunk column in the subplan's result */
+// 		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist, NameStr(attr->attname));
+// 		
+//         getTypeOutputInfo(TIDOID, &typefnoid, &isvarlena);
+//         fmgr_info(typefnoid, &fmstate->p_flinfo[fmstate->p_nums]);
+//         fmstate->p_nums++;
+// 		
+// 		if (!AttributeNumberIsValid(fmstate->rowidAttno))
+// 			elog(ERROR, "could not find junk row identifier column");
 	}
 	
 	/* Set up for remaining transmittable parameters */
@@ -1375,9 +1379,12 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	char *dn = NULL;
 	LDAPMod		**insert_data;
     int         n_rows;
+	int 		i;
+	int			p_index;
 	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
-
+	
+	p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
 	
 	DEBUGPOINT;
 	if (slot != NULL && fmstate->target_attrs != NIL)
@@ -1387,13 +1394,15 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 		{
 			int			attnum = lfirst_int(lc);
 			bool isnull;
-			Datum value;
 			attr = TupleDescAttr(RelationGetDescr(rel), attnum);
-			value = slot_getattr(slot, attnum, &isnull);
-			char * c_value = DatumGetCString(value);
+			Datum value = slot_getattr(slot, attnum, &isnull);
+			char * c_name = NameStr(attr->attname);
+			//char * c_value = DatumGetCString(value);
+			char * c_value = OutputFunctionCall(&fmstate->p_flinfo[p_index], value);
 			
-			DEBUGPOINT;
-			elog(INFO, "%s %s %s", __FUNCTION__, NameStr(attr->attname), c_value);
+			elog(INFO, "%s AttrNum: %u, Name: %s, Value: %s, Null: %d", __FUNCTION__, attnum, c_name, c_value, isnull);
+			p_values[p_index] = c_value;
+			p_index++;
 		}
 		//ldap_add_ext(ld, dn, NULL, NULL, NULL);
 	}
