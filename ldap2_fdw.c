@@ -1374,9 +1374,11 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 {
 	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Oid			foreignTableId;
+	Oid			userid;
     const char **p_values;
 	char	   *columnName = NULL;
 	char *dn = NULL;
+	UserMapping *user;
 	LDAPMod		**insert_data;
 	TupleDesc	tupdesc;
     int         n_rows;
@@ -1386,13 +1388,30 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	tupdesc = RelationGetDescr(rel);
+    Datum       attr_value;
+	ForeignServer *server;
+	ForeignTable *table;
+    bool        isnull;
 
+	foreignTableId = RelationGetRelid(rel);
+
+	/* Get info about foreign table. */
+	table = GetForeignTable(foreignTableId);
+	server = GetForeignServer(table->serverid);
+	user = GetUserMapping(userid, server->serverid);
+	DEBUGPOINT;
+
+	/* Begin constructing LdapFdwModifyState. */
+	fmstate = (LdapFdwModifyState *) palloc0(sizeof(LdapFdwModifyState));
+
+	fmstate->rel = rel;
+	//GetOptionStructr((fmstate->options), foreignTableId);
+	GetOptionStructr(option_params, foreignTableId);
 	
 	//p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
 	
+	
 	DEBUGPOINT;
-    Datum       attr_value;
-    bool        isnull;
 	
 	insert_data = ( LDAPMod ** ) palloc(( fmstate->p_nums + 1 ) * sizeof( LDAPMod * ));
 	for ( i = 0; i < fmstate->p_nums; i++ ) {
@@ -1401,6 +1420,8 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 			elog(ERROR, "Could not allocate Memory for accocating ldap mods!");
 		}
 	}
+	
+	DEBUGPOINT;
 
     // Durchlaufe alle Attribute des Tuples
     for (i = 0; i < tupdesc->natts; i++) {
@@ -1423,8 +1444,9 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 			//p_values[i] = pstrdup(value_str);
 			insert_data[i]->mod_op = 0;
 			insert_data[i]->mod_type = pstrdup(att_name);
-			insert_data[i]->mod_values = (char**)palloc(1);
+			insert_data[i]->mod_values = (char**)palloc(2);
 			insert_data[i]->mod_values[0] = pstrdup(value_str);
+			insert_data[i]->mod_values[1] = NULL;
             pfree(value_str);  // Freigeben des String-Puffers
         }
     }
@@ -1449,8 +1471,10 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 		}
 		//ldap_add_ext(ld, dn, NULL, NULL, NULL);
 	}*/
+	DEBUGPOINT;
 	rc = ldap_add_ext_s( ld, dn, insert_data, NULL, NULL );
 
+	DEBUGPOINT;
 	if ( rc != LDAP_SUCCESS ) {
 		elog( ERROR, "ldap_add_ext_s: %s\n", ldap_err2string( rc ) );
 
