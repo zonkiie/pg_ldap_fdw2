@@ -1392,14 +1392,26 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	ForeignServer *server;
 	ForeignTable *table;
     bool        isnull;
+#if PG_VERSION_NUM >= 160000
+	ForeignScan *fsplan = (ForeignScan *) mtstate->ps.plan;
+#else
+	//EState	   *estate = mtstate->ps.state;
+	RangeTblEntry *rte;
+#endif
 
 	foreignTableId = RelationGetRelid(rel);
+	
+#if PG_VERSION_NUM >= 160000
+	userid = fsplan->checkAsUser ? fsplan->checkAsUser : GetUserId();
+#else
+	rte = rt_fetch(resultRelInfo->ri_RangeTableIndex, estate->es_range_table);
+	userid = rte->checkAsUser ? rte->checkAsUser : GetUserId();
+#endif
 
 	/* Get info about foreign table. */
 	table = GetForeignTable(foreignTableId);
 	server = GetForeignServer(table->serverid);
 	user = GetUserMapping(userid, server->serverid);
-	DEBUGPOINT;
 
 	/* Begin constructing LdapFdwModifyState. */
 	fmstate = (LdapFdwModifyState *) palloc0(sizeof(LdapFdwModifyState));
@@ -1410,17 +1422,14 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	
 	//p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
 	
-	
-	DEBUGPOINT;
-	
 	insert_data = ( LDAPMod ** ) palloc(( fmstate->p_nums + 1 ) * sizeof( LDAPMod * ));
+	insert_data[fmstate->p_nums] = NULL;
 	for ( i = 0; i < fmstate->p_nums; i++ ) {
 
 		if (( insert_data[ i ] = ( LDAPMod * ) palloc( sizeof( LDAPMod ))) == NULL ) {
 			elog(ERROR, "Could not allocate Memory for accocating ldap mods!");
 		}
 	}
-	
 	DEBUGPOINT;
 
     // Durchlaufe alle Attribute des Tuples
@@ -1472,6 +1481,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 		//ldap_add_ext(ld, dn, NULL, NULL, NULL);
 	}*/
 	DEBUGPOINT;
+	elog(INFO, "ldap add: dn: %s", dn);
 	rc = ldap_add_ext_s( ld, dn, insert_data, NULL, NULL );
 
 	DEBUGPOINT;
@@ -1487,6 +1497,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	}
 
 	pfree( insert_data );
+	pfree(dn);
 	return NULL;
 }
 
