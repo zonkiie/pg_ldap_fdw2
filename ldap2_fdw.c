@@ -1378,16 +1378,57 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	char	   *columnName = NULL;
 	char *dn = NULL;
 	LDAPMod		**insert_data;
+	TupleDesc	tupdesc;
     int         n_rows;
 	int 		i;
 	int			p_index;
+	int			rc;
 	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
+	tupdesc = RelationGetDescr(rel);
+
 	
 	p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
 	
 	DEBUGPOINT;
-	if (slot != NULL && fmstate->target_attrs != NIL)
+    Datum       attr_value;
+    bool        isnull;
+	
+	insert_data = ( LDAPMod ** ) palloc(( fmstate->p_nums + 1 ) * sizeof( LDAPMod * ));
+	for ( i = 0; i < fmstate->p_nums; i++ ) {
+
+		if (( insert_data[ i ] = ( LDAPMod * ) palloc( sizeof( LDAPMod ))) == NULL ) {
+			elog(ERROR, "Could not allocate Memory for accocating ldap mods!");
+		}
+	}
+
+    // Durchlaufe alle Attribute des Tuples
+    for (i = 0; i < tupdesc->natts; i++) {
+        if (slot->tts_isnull[i]) {
+            // Attribut ist NULL
+            elog(INFO, "Attribut %s ist NULL", NameStr(tupdesc->attrs[i].attname));
+            continue;
+        }
+
+        // Hole den Wert des Attributs
+        attr_value = slot_getattr(slot, i + 1, &isnull);
+
+        if (!isnull) {
+            // Eindeutigen Namen des Attributs erhalten
+            char *att_name = NameStr(tupdesc->attrs[i].attname);
+            // Wert des Attributs formatieren (z.B. für Logging)
+            char *value_str = DatumGetCString(DirectFunctionCall1(textout, attr_value));
+			if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
+            elog(INFO, "Attribut: %s, Wert: %s", att_name, value_str);
+			p_values[i] = pstrdup(value_str);
+			insert_data[i]->mod_op = 0;
+			insert_data[i]->mod_type = pstrdup(att_name);
+			insert_data[i]->mod_values = (char**)palloc(1);
+			insert_data[i]->mod_values[0] = pstrdup(value_str);
+            pfree(value_str);  // Freigeben des String-Puffers
+        }
+    }
+	/*if (slot != NULL && fmstate->target_attrs != NIL)
 	{
 		ListCell   *lc;
 		foreach(lc, fmstate->target_attrs)
@@ -1395,17 +1436,33 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 			int			attnum = lfirst_int(lc);
 			bool isnull;
 			attr = TupleDescAttr(RelationGetDescr(rel), attnum);
-			Datum value = slot_getattr(slot, attnum, &isnull);
+			Datum value = slot_getattr(slot, attnum + 1, &isnull);
 			char * c_name = NameStr(attr->attname);
 			//char * c_value = DatumGetCString(value);
-			char * c_value = OutputFunctionCall(&fmstate->p_flinfo[p_index], value);
+			//char * c_value = OutputFunctionCall(&fmstate->p_flinfo[p_index], value);
+			//char * c_value = OutputFunctionCall(textout, value);
+			char *c_value = DatumGetCString(DirectFunctionCall1(textout, value));
 			
 			elog(INFO, "%s AttrNum: %u, Name: %s, Value: %s, Null: %d", __FUNCTION__, attnum, c_name, c_value, isnull);
 			p_values[p_index] = c_value;
 			p_index++;
 		}
 		//ldap_add_ext(ld, dn, NULL, NULL, NULL);
+	}*/
+	rc = ldap_add_ext_s( ld, dn, insert_data, NULL, NULL );
+
+	if ( rc != LDAP_SUCCESS ) {
+		elog( ERROR, "ldap_add_ext_s: %s\n", ldap_err2string( rc ) );
+
 	}
+	
+	for ( i = 0; i < fmstate->p_nums; i++ ) {
+
+		pfree( insert_data[ i ] );
+
+	}
+
+	pfree( insert_data );
 	return NULL;
 }
 
@@ -1434,26 +1491,49 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 						  TupleTableSlot *planSlot)
 {
 	DEBUGPOINT;
-	LdapFdwModifyState *fmstate = NULL;
-	Datum		datum;
+	LdapFdwModifyState *fmstate = fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
+	Datum       attr_value;
 	bool		isNull = false;
 	Oid			foreignTableId;
-	char	   *columnName = NULL;
 	Oid			typoid;
 	char *dn = NULL;
 	int rc = 0;
-	fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;
+	int i = 0;
+	Form_pg_attribute attr;
+	Relation rel = resultRelInfo->ri_RelationDesc;
+	TupleDesc tupdesc = RelationGetDescr(rel);
 
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
 
 	/* Get the id that was passed up as a resjunk column */
-	datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
+	//datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
 
-	columnName = get_attname(foreignTableId, 1, false);
-	elog(INFO, "Column Name: %s\n", columnName);
+	//columnName = get_attname(foreignTableId, 1, false);
+	//elog(INFO, "Column Name: %s\n", columnName);
 	
 	
 	typoid = get_atttype(foreignTableId, 1);
+	for (i = 0; i < tupdesc->natts; i++) {
+		if (slot->tts_isnull[i]) {
+			// Attribut ist NULL
+			continue;
+		}
+
+		// Hole den Wert des Attributs
+		attr_value = slot_getattr(slot, i + 1, &isNull);
+
+		if (!isNull) {
+			// Eindeutigen Namen des Attributs erhalten
+			char *att_name = NameStr(tupdesc->attrs[i].attname);
+			// Wert des Attributs formatieren (z.B. für Logging)
+			if(strcmp(att_name, "dn")) continue;
+			char *dn = DatumGetCString(DirectFunctionCall1(textout, attr_value));
+			elog(INFO, "Attribut: %s, Wert: %s", att_name, dn);
+			//rc = ldap_delete_s(ld, dn);
+			pfree(dn);  // Freigeben des String-Puffers
+		}
+	}
+
 
 	/* The type of first column of MongoDB's foreign table must be NAME */
 	/*if (typoid != NAMEOID)
@@ -1461,7 +1541,6 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	
 	
 	
-	//rc = ldap_delete_s(ld, dn);
 	
 	return NULL;
 }
