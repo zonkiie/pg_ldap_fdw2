@@ -1419,18 +1419,21 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	fmstate->rel = rel;
 	//GetOptionStructr((fmstate->options), foreignTableId);
 	GetOptionStructr(option_params, foreignTableId);
+	initLdap();
 	
 	//p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
 	
 	insert_data = ( LDAPMod ** ) palloc(( fmstate->p_nums + 1 ) * sizeof( LDAPMod * ));
 	insert_data[fmstate->p_nums] = NULL;
-	for ( i = 0; i < fmstate->p_nums; i++ ) {
+	for ( i = 0; i < tupdesc->natts; i++ ) {
 
 		if (( insert_data[ i ] = ( LDAPMod * ) palloc( sizeof( LDAPMod ))) == NULL ) {
 			elog(ERROR, "Could not allocate Memory for accocating ldap mods!");
 		}
+		insert_data[i]->mod_op = LDAP_MOD_ADD;
 	}
-	DEBUGPOINT;
+	
+	elog(INFO, "fmstate->p_nums: %d, tupdesc->natts:%d", fmstate->p_nums, tupdesc->natts);
 
     // Durchlaufe alle Attribute des Tuples
     for (i = 0; i < tupdesc->natts; i++) {
@@ -1449,13 +1452,16 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
             // Wert des Attributs formatieren (z.B. für Logging)
             char *value_str = DatumGetCString(DirectFunctionCall1(textout, attr_value));
 			if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
-            elog(INFO, "Attribut: %s, Wert: %s", att_name, value_str);
-			//p_values[i] = pstrdup(value_str);
-			insert_data[i]->mod_op = LDAP_MOD_ADD;
-			insert_data[i]->mod_type = pstrdup(att_name);
-			insert_data[i]->mod_values = (char**)palloc(2);
-			insert_data[i]->mod_values[0] = pstrdup(value_str);
-			insert_data[i]->mod_values[1] = NULL;
+			else
+			{
+				elog(INFO, "i: %d, Attribut: %s, Wert: %s", i, att_name, value_str);
+				//p_values[i] = pstrdup(value_str);
+				insert_data[i]->mod_type = pstrdup(att_name);
+				insert_data[i]->mod_values = (char**)palloc(2);
+				memset(insert_data[i]->mod_values, 0, sizeof(char**)*2);
+				insert_data[i]->mod_values[0] = pstrdup(value_str);
+				insert_data[i]->mod_values[1] = NULL;
+			}
             pfree(value_str);  // Freigeben des String-Puffers
         }
     }
