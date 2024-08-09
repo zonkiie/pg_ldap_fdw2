@@ -1451,7 +1451,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 			if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
             elog(INFO, "Attribut: %s, Wert: %s", att_name, value_str);
 			//p_values[i] = pstrdup(value_str);
-			insert_data[i]->mod_op = 0;
+			insert_data[i]->mod_op = LDAP_MOD_ADD;
 			insert_data[i]->mod_type = pstrdup(att_name);
 			insert_data[i]->mod_values = (char**)palloc(2);
 			insert_data[i]->mod_values[0] = pstrdup(value_str);
