@@ -1448,7 +1448,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 
         if (!isnull) {
             // Eindeutigen Namen des Attributs erhalten
-            char *att_name = NameStr(tupdesc->attrs[i].attname);
+            char *att_name = pstrdup(NameStr(tupdesc->attrs[i].attname));
             // Wert des Attributs formatieren (z.B. für Logging)
             char *value_str = DatumGetCString(DirectFunctionCall1(textout, attr_value));
 			if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
@@ -1463,6 +1463,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 				insert_data[i]->mod_values[1] = NULL;
 			}
             pfree(value_str);  // Freigeben des String-Puffers
+			pfree(att_name);
         }
     }
 	/*if (slot != NULL && fmstate->target_attrs != NIL)
