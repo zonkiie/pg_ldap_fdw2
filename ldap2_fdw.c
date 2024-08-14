@@ -422,6 +422,7 @@ static bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Exp
 void initLdap()
 {
 	int version = LDAP_VERSION3, rc = 0;
+	//int debug_level = LDAP_DEBUG_TRACE;
 	
 	if(option_params == NULL)
 	{
@@ -464,6 +465,16 @@ void initLdap()
 				errhint("Could not set ldap version option. Does ldap server accept the correct ldap version 3?")));
 		return;
 	}
+
+	/*if ( ( rc = ldap_set_option( ld, LDAP_OPT_DEBUG_LEVEL, &debug_level ) ) != LDAP_SUCCESS )
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_ERROR),
+				errmsg("Could not set ldap debug level option!"),
+				errhint("Could not set ldap debug level option.")));
+		return;
+	}*/
+	
 	// removed ldap bind - call bind from another function
 	bindLdap();
 }
@@ -1422,9 +1433,11 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	initLdap();
 	
 	//p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
+	//insert_data = ( LDAPMod ** ) palloc(( fmstate->p_nums + 1 ) * sizeof( LDAPMod * ));
 	
-	insert_data = ( LDAPMod ** ) palloc(( fmstate->p_nums + 1 ) * sizeof( LDAPMod * ));
-	insert_data[fmstate->p_nums] = NULL;
+	insert_data = ( LDAPMod ** ) palloc(( tupdesc->natts + 1 ) * sizeof( LDAPMod * ));
+	memset(insert_data, 0, sizeof(LDAPMod **)*(tupdesc->natts + 1));
+	
 	for ( i = 0; i < tupdesc->natts; i++ ) {
 
 		if (( insert_data[ i ] = ( LDAPMod * ) palloc( sizeof( LDAPMod ))) == NULL ) {
@@ -1457,8 +1470,8 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 				elog(INFO, "i: %d, Attribut: %s, Wert: %s", i, att_name, value_str);
 				//p_values[i] = pstrdup(value_str);
 				insert_data[i]->mod_type = pstrdup(att_name);
-				insert_data[i]->mod_values = (char**)palloc(2);
-				memset(insert_data[i]->mod_values, 0, sizeof(char**)*2);
+				insert_data[i]->mod_values = (char**)palloc( sizeof(char*)*2);
+				memset(insert_data[i]->mod_values, 0, sizeof(char*)*2);
 				insert_data[i]->mod_values[0] = pstrdup(value_str);
 				insert_data[i]->mod_values[1] = NULL;
 			}
