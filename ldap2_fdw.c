@@ -1394,6 +1394,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	TupleDesc	tupdesc;
     int         n_rows;
 	int 		i;
+	int 		j;
 	int			p_index;
 	int			rc;
 	Form_pg_attribute attr;
@@ -1448,6 +1449,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	
 	elog(INFO, "fmstate->p_nums: %d, tupdesc->natts:%d", fmstate->p_nums, tupdesc->natts);
 
+	j = 0;
     // Durchlaufe alle Attribute des Tuples
     for (i = 0; i < tupdesc->natts; i++) {
         if (slot->tts_isnull[i]) {
@@ -1474,6 +1476,13 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 				memset(insert_data[i]->mod_values, 0, sizeof(char*)*2);
 				insert_data[i]->mod_values[0] = pstrdup(value_str);
 				insert_data[i]->mod_values[1] = NULL;
+				
+				/*insert_data[j]->mod_type = pstrdup(att_name);
+				insert_data[j]->mod_values = (char**)palloc( sizeof(char*)*2);
+				memset(insert_data[j]->mod_values, 0, sizeof(char*)*2);
+				insert_data[j]->mod_values[0] = pstrdup(value_str);
+				insert_data[j]->mod_values[1] = NULL;*/
+				j++;
 			}
             pfree(value_str);  // Freigeben des String-Puffers
 			pfree(att_name);
