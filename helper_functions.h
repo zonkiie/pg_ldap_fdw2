@@ -11,7 +11,7 @@
 #include <search.h>
 #include <stddef.h>
 #include "LdapFdwOptions.h"
-#include "postgres.h"
+//#include "postgres.h"
 
 extern struct         timeval  zerotime;
 
@@ -21,15 +21,16 @@ extern struct         timeval  zerotime;
 #define _cleanup_pstr_ __attribute((cleanup(free_pstr)))
 #define _cleanup_options_ __attribute((cleanup(free_options)))
 
+
 int str_split(char ***, char *, char *);
 int str_join(char **, char **, char *);
 char * str_replace(const char *, const char *, const char *);
 char *trim(char *, char *);
 bool char_charlist(char , char *);
 int substr_count(char *, char *);
+char ** array_copy(char **);
 void free_cstr(char ** );
 void free_pstr(char ** );
-void free_options(LdapFdwOptions *);
 void reassign_cstr(char **, const char * );
 int get_carr_size(char ** );
 void free_carr_n(char ***);

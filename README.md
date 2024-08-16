@@ -38,3 +38,8 @@ I will try to implement a Read AND Write FDW.
 [https://github.com/munakoiso/logerrors/blob/master/constants.h](https://github.com/munakoiso/logerrors/blob/master/constants.h)
 
 [https://www.openldap.com/lists/openldap-devel/200108/msg00006.html](https://www.openldap.com/lists/openldap-devel/200108/msg00006.html)
+
+
+# dump ldap packages
+    tcpdump -i lo -q -A port 389
+

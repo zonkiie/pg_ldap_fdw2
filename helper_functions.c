@@ -115,6 +115,18 @@ int substr_count(char *str, char *substr)
 	return count;
 }
 
+char ** array_copy(char ** input)
+{
+	int count = get_carr_size(input), i = 0;
+	char ** output = (char**)malloc(sizeof(char*) * (count + 1));
+	memset(output, 0, sizeof(char*) * (count + 1));
+	for(; input[i] != NULL; i++)
+	{
+		output[i] = strdup(input[i]);
+	}
+	return output;
+}
+
 void free_cstr(char ** str)
 {
 	if(*str == NULL) return;
@@ -127,18 +139,6 @@ void free_pstr(char ** str)
 	if(*str == NULL) return;
 	pfree(*str);
 	*str = NULL;
-}
-
-void free_options(LdapFdwOptions * options)
-{
-	free_pstr(&(options->uri));
-	free_pstr(&(options->username));
-	free_pstr(&(options->password));
-	free_pstr(&(options->basedn));
-	free_pstr(&(options->filter));
-	free_pstr(&(options->objectclass));
-	free_pstr(&(options->schemadn));
-
 }
 
 void reassign_cstr(char **str, const char * value)

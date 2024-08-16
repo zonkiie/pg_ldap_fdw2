@@ -1390,7 +1390,8 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	char	   *columnName = NULL;
 	char *dn = NULL;
 	UserMapping *user;
-	LDAPMod		**insert_data;
+	LDAPMod		**insert_data = NULL;
+	LDAPMod		* single_ldap_mod = NULL;
 	TupleDesc	tupdesc;
     int         n_rows;
 	int 		i;
@@ -1436,28 +1437,33 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	//p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
 	//insert_data = ( LDAPMod ** ) palloc(( fmstate->p_nums + 1 ) * sizeof( LDAPMod * ));
 
-	insert_data = ( LDAPMod ** ) palloc(( tupdesc->natts + 2 ) * sizeof( LDAPMod * ));
-	memset(insert_data, 0, sizeof(LDAPMod **)*(tupdesc->natts + 2));
-	
-	for ( i = 0; i < tupdesc->natts + 1; i++ ) {
-
-		if (( insert_data[ i ] = ( LDAPMod * ) palloc( sizeof( LDAPMod ))) == NULL ) {
-			elog(ERROR, "Could not allocate Memory for accocating ldap mods!");
-		}
-		insert_data[i]->mod_op = LDAP_MOD_ADD;
-	}
-	
-	elog(INFO, "fmstate->p_nums: %d, tupdesc->natts:%d", fmstate->p_nums, tupdesc->natts);
-
-	j = 0;
-	
-	// Attribute für objectClass erstellen
+// 	insert_data = ( LDAPMod ** ) palloc(( tupdesc->natts + 2 ) * sizeof( LDAPMod * ));
+// 	memset(insert_data, 0, sizeof(LDAPMod **)*(tupdesc->natts + 2));
+// 	
+// 	for ( i = 0; i < tupdesc->natts + 1; i++ ) {
+// 
+// 		if (( insert_data[ i ] = ( LDAPMod * ) palloc( sizeof( LDAPMod ))) == NULL ) {
+// 			elog(ERROR, "Could not allocate Memory for accocating ldap mods!");
+// 		}
+// 		insert_data[i]->mod_op = LDAP_MOD_ADD;
+// 	}
+// 	
+// 	elog(INFO, "fmstate->p_nums: %d, tupdesc->natts:%d", fmstate->p_nums, tupdesc->natts);
+// 
+// 	j = 0;
+// 	
+// 	// Attribute für objectClass erstellen
 	char *objectclass_values[] = { "inetOrgPerson", NULL };
-	
-    insert_data[j]->mod_type = "objectClass";
-    insert_data[j]->mod_values = objectclass_values;
+// 	
+//     insert_data[j]->mod_type = "objectClass";
+//     insert_data[j]->mod_values = objectclass_values;
 	
 	j++;
+	
+	single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, "objectClass", objectclass_values);
+	append_ldap_mod(&insert_data, single_ldap_mod);
+	free_ldap_mod(single_ldap_mod);
+	single_ldap_mod = NULL;
 	
     // Durchlaufe alle Attribute des Tuples
     for (i = 0; i < tupdesc->natts; i++) {
@@ -1488,12 +1494,21 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 				insert_data[i]->mod_values[1] = NULL;
 				*/
 				
+				/*
 				insert_data[j]->mod_type = pstrdup(att_name);
 				insert_data[j]->mod_values = (char**)palloc( sizeof(char*)*2);
 				memset(insert_data[j]->mod_values, 0, sizeof(char*)*2);
 				insert_data[j]->mod_values[0] = pstrdup(value_str);
 				insert_data[j]->mod_values[1] = NULL;
 				j++;
+				*/
+				
+				single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, att_name, (char*[]){value_str, NULL});
+				append_ldap_mod(&insert_data, single_ldap_mod);
+				//ldap_mods_free(&single_ldap_mod, true);
+				free_ldap_mod(single_ldap_mod);
+				single_ldap_mod = NULL;
+
 			}
             pfree(value_str);  // Freigeben des String-Puffers
 			pfree(att_name);

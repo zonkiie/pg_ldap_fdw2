@@ -2,6 +2,7 @@
 #define __ldapfdwoptions__
 
 #include <unistd.h>
+#include "helper_functions.h"
 
 
 typedef struct LdapFdwOptions
@@ -18,5 +19,6 @@ typedef struct LdapFdwOptions
 } LdapFdwOptions;
 
 void initLdapFdwOptions(LdapFdwOptions*);
+void free_options(LdapFdwOptions *);
 
 #endif

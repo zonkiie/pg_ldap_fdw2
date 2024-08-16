@@ -3,7 +3,8 @@
 
 int common_ldap_bind(LDAP *ld, const char *username, const char *password, int use_sasl)
 {
-	_cleanup_berval_ struct berval *berval_password = NULL;
+	//_cleanup_berval_ 
+	struct berval *berval_password = NULL;
 	if(password != NULL) berval_password = ber_bvstrdup(password);
 	if(!use_sasl) return ldap_simple_bind_s( ld, username, password);
 	else if(use_sasl) return ldap_sasl_bind_s( ld, username, LDAP_SASL_SIMPLE, berval_password , NULL, NULL, NULL);
@@ -39,80 +40,65 @@ void free_berval(struct berval **bval)
 	*bval = NULL;
 }
 
-size_t fetch_objectclass(char ***attributes, LDAP *ld, char * object_class)
+int append_ldap_mod(LDAPMod ***insert_data_all, LDAPMod *insert_data_entry)
 {
-	size_t size = 0;
-	char *a = NULL;
-	char *base_dn = option_params->basedn;
-	int rc = 0;
-	LDAPMessage *schema = NULL, *entry = NULL;
-	BerElement *ber;
-	rc = ldap_search_ext_s(
-		ld,
-		base_dn,
-		LDAP_SCOPE_BASE,
-		/*schema_filter, */ "(objectClass=*)",
-		(char*[]){ "objectClasses", NULL }, // (char*[]){ "attributeTypes", "objectClasses", NULL },   //(char*[]){ NULL },
-		0,
-		NULL,
-		NULL,
-		&timeout_struct,
-		1000000,
-		&schema );
-	
-	if (rc != LDAP_SUCCESS) {
-		if (rc == LDAP_NO_SUCH_OBJECT) {
-            fprintf(stderr, "Das Schema-Objekt '%s' wurde nicht gefunden.\n", base_dn);
-        }
-		fprintf(stderr, "Fehler beim Suchen des Schemas: %s\n", ldap_err2string(rc));
-		return -1;
+	if(insert_data_entry == NULL) return -1;
+	int current_count = 0;
+	if(*insert_data_all == NULL) *insert_data_all = (LDAPMod**)calloc(sizeof(LDAPMod*), 2);
+	else
+	{
+		current_count = LDAPMod_count(*insert_data_all);
+		*insert_data_all = (LDAPMod**)realloc(*insert_data_all, sizeof(LDAPMod*) * (current_count + 2));
+		(*insert_data_all)[current_count] = NULL;
 	}
+	(*insert_data_all)[current_count] = copy_ldap_mod(insert_data_entry);
+	(*insert_data_all)[current_count + 1] = NULL;
+	
+	return current_count + 1;
+	
+}
 
-    for (entry = ldap_first_entry(ld, schema); entry != NULL; entry = ldap_next_entry(ld, entry)) {
-		char* schema_entry_str = ldap_get_dn(ld, entry);
-		ldap_memfree(schema_entry_str);
-		for ( a = ldap_first_attribute( ld, entry, &ber ); a != NULL; a = ldap_next_attribute( ld, entry, ber ) ) {
-			struct berval **vals = NULL;
-			if ((vals = ldap_get_values_len( ld, entry, a)) != NULL ) {
-				for (int i = 0; vals[i] != NULL; i++ ) {
-					if(!strcmp(a, "objectClasses")) {
-						int oclass_error = 0;
-						const char * oclass_error_text;
-						LDAPObjectClass *oclass = ldap_str2objectclass(vals[i]->bv_val, &oclass_error, &oclass_error_text, LDAP_SCHEMA_ALLOW_ALL);
-						char **names = oclass->oc_names;
-						if(in_array(names, object_class)) {
-							
-							*attributes = (char**)malloc(1);
+int LDAPMod_count(LDAPMod ** array)
+{
+	int count = 0;
+	if(array != NULL)
+	{
+		for(;array[count] != NULL; count++);
+	}
+	return count;
+}
 
-							for(int attributes_must_size = 0; oclass->oc_at_oids_must[attributes_must_size] != NULL; attributes_must_size++) {
-								*attributes = realloc(*attributes, size + 1);
-								*attributes[size] = strdup(oclass->oc_at_oids_must[attributes_must_size]);
-								size++;
-							}
+LDAPMod * create_new_ldap_mod()
+{
+	return (LDAPMod*)malloc(sizeof(LDAPMod));
+}
 
-							for(int attributes_may_size = 0; oclass->oc_at_oids_may[attributes_may_size] != NULL; attributes_may_size++) {
-								*attributes = realloc(*attributes, size + 1);
-								*attributes[size] = strdup(oclass->oc_at_oids_may[attributes_may_size]);
-								size++;
-							}
-						}
-						ldap_objectclass_free(oclass);
-					}
-				}
+LDAPMod * copy_ldap_mod(LDAPMod * ldap_mod)
+{
+	LDAPMod * new_value = create_new_ldap_mod();
+	new_value->mod_op = ldap_mod->mod_op;
+	new_value->mod_type = strdup(ldap_mod->mod_type);
+	//struct berval *value = ber_bvdup(*(ldap_mod->mod_bvalues));
+	//new_value->mod_bvalues = &value;
+	new_value->mod_values = array_copy(ldap_mod->mod_values);
+	return new_value;
+}
 
-				ber_bvecfree(vals);
-			}
-			ldap_memfree( a );
-		}
-		if ( ber != NULL ) {
+LDAPMod * construct_new_ldap_mod(int mod_op, char * type, char ** values)
+{
+	LDAPMod * new_value = create_new_ldap_mod();
+	new_value->mod_op = mod_op;
+	new_value->mod_type = strdup(type);
+	new_value->mod_values = array_copy(values);
+	return new_value;
+}
 
-			ber_free( ber, 0 );
-
-		}
-    }
-	// Aufräumen
-	ldap_msgfree(schema);
-	return size;
+void free_ldap_mod(LDAPMod * ldap_mod)
+{
+	free(ldap_mod->mod_type);
+	//ber_bvfree(*(ldap_mod->mod_bvalues));
+	free_carr_n(&(ldap_mod->mod_values));
+	free(ldap_mod);
 }
 
 int fetch_attribute_type()
