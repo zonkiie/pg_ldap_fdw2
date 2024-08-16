@@ -1591,10 +1591,15 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	int rc = 0;
 	int i = 0;
 	Form_pg_attribute attr;
+	DEBUGPOINT;
 	Relation rel = resultRelInfo->ri_RelationDesc;
+	DEBUGPOINT;
 	TupleDesc tupdesc = RelationGetDescr(rel);
+	DEBUGPOINT;
 
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
+	
+	DEBUGPOINT;
 
 	/* Get the id that was passed up as a resjunk column */
 	//datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
@@ -1604,6 +1609,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	
 	
 	typoid = get_atttype(foreignTableId, 1);
+	DEBUGPOINT;
 	for (i = 0; i < tupdesc->natts; i++) {
 		if (slot->tts_isnull[i]) {
 			// Attribut ist NULL
@@ -1620,7 +1626,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 			if(strcmp(att_name, "dn")) continue;
 			char *dn = DatumGetCString(DirectFunctionCall1(textout, attr_value));
 			elog(INFO, "Attribut: %s, Wert: %s", att_name, dn);
-			//rc = ldap_delete_s(ld, dn);
+			rc = ldap_delete_s(ld, dn);
 			pfree(dn);  // Freigeben des String-Puffers
 		}
 	}
