@@ -1581,7 +1581,6 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
-	DEBUGPOINT;
 	LdapFdwModifyState *fmstate = fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Datum       attr_value;
 	bool		isNull = false;
@@ -1591,15 +1590,9 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	int rc = 0;
 	int i = 0;
 	Form_pg_attribute attr;
-	DEBUGPOINT;
 	Relation rel = resultRelInfo->ri_RelationDesc;
-	DEBUGPOINT;
 	TupleDesc tupdesc = RelationGetDescr(rel);
-	DEBUGPOINT;
-
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
-	
-	DEBUGPOINT;
 
 	/* Get the id that was passed up as a resjunk column */
 	//datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
@@ -1615,18 +1608,25 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 			// Attribut ist NULL
 			continue;
 		}
+		DEBUGPOINT;
 
 		// Hole den Wert des Attributs
 		attr_value = slot_getattr(slot, i + 1, &isNull);
+		DEBUGPOINT;
 
 		if (!isNull) {
+			DEBUGPOINT;
 			// Eindeutigen Namen des Attributs erhalten
 			char *att_name = NameStr(tupdesc->attrs[i].attname);
+			DEBUGPOINT;
 			// Wert des Attributs formatieren (z.B. für Logging)
 			if(strcmp(att_name, "dn")) continue;
+			DEBUGPOINT;
 			char *dn = DatumGetCString(DirectFunctionCall1(textout, attr_value));
+			DEBUGPOINT;
 			elog(INFO, "Attribut: %s, Wert: %s", att_name, dn);
 			rc = ldap_delete_s(ld, dn);
+			DEBUGPOINT;
 			pfree(dn);  // Freigeben des String-Puffers
 		}
 	}
