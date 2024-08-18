@@ -1340,8 +1340,8 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 		
 		DEBUGPOINT;
 
-// 		attr = TupleDescAttr(RelationGetDescr(rel), 0);
-// 		elog(INFO, "Function: %s, Attribute Name: %s, Line: %d", __FUNCTION__, NameStr(attr->attname), __LINE__);
+		attr = TupleDescAttr(RelationGetDescr(rel), 0);
+		elog(INFO, "Function: %s, Attribute Name: %s, Line: %d", __FUNCTION__, NameStr(attr->attname), __LINE__);
 // 
 // 		/* Find the rowid resjunk column in the subplan's result */
 // 		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist, NameStr(attr->attname));
@@ -1582,26 +1582,32 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 						  TupleTableSlot *planSlot)
 {
 	LdapFdwModifyState *fmstate = fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
-	Datum       attr_value;
+	Datum       attr_value, datum;
 	bool		isNull = false;
 	Oid			foreignTableId;
 	Oid			typoid;
 	char *dn = NULL;
 	int rc = 0;
 	int i = 0;
+	ForeignTable *table;
 	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	TupleDesc tupdesc = RelationGetDescr(rel);
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
-
+	
+	DEBUGPOINT;
 	/* Get the id that was passed up as a resjunk column */
-	//datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
+	datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
+	DEBUGPOINT;
+	char *value_str = DatumGetCString(DirectFunctionCall1(textout, datum));
+	elog(INFO, "Value: %s", value_str);
 
 	//columnName = get_attname(foreignTableId, 1, false);
 	//elog(INFO, "Column Name: %s\n", columnName);
 	
 	
 	typoid = get_atttype(foreignTableId, 1);
+	table = GetForeignTable(foreignTableId);
 	DEBUGPOINT;
 	for (i = 0; i < tupdesc->natts; i++) {
 		if (slot->tts_isnull[i]) {
@@ -1612,6 +1618,8 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 
 		// Hole den Wert des Attributs
 		attr_value = slot_getattr(slot, i + 1, &isNull);
+		char *value_str = DatumGetCString(DirectFunctionCall1(textout, attr_value));
+		elog(ERROR, "Attr Value: %s", value_str);
 		DEBUGPOINT;
 
 		if (!isNull) {
