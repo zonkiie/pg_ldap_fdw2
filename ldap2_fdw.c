@@ -25,6 +25,7 @@
 #include "nodes/makefuncs.h"
 #include "nodes/nodeFuncs.h"
 #include "nodes/value.h"
+#include "optimizer/appendinfo.h"
 #include "optimizer/cost.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/paths.h"
@@ -102,9 +103,16 @@ static void ldap2_fdw_EndForeignScan(ForeignScanState *node);
 /*
  * FDW callback routines
  */
+#if PG_VERSION_NUM >= 140000
+static void ldap2_fdw_AddForeignUpdateTargets(PlannerInfo *root,
+										 Index rtindex,
+										 RangeTblEntry *target_rte,
+										 Relation target_relation);
+#else
 static void ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
-								RangeTblEntry *target_rte,
-								Relation target_relation);
+										 RangeTblEntry *target_rte,
+										 Relation target_relation);
+#endif
 static List *ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 						  ModifyTable *plan,
 						  Index resultRelation,
@@ -1064,42 +1072,62 @@ ldap2_fdw_EndForeignScan(ForeignScanState *node)
 
 
 /*
- * postgresAddForeignUpdateTargets
+ * From mongdo db fdw
  *    Add resjunk column(s) needed for update/delete on a foreign table
  */
+
+#if PG_VERSION_NUM >= 140000
+static void
+ldap2_fdw_AddForeignUpdateTargets(PlannerInfo *root,
+							 Index rtindex,
+							 RangeTblEntry *target_rte,
+							 Relation target_relation)
+#else
 static void
 ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
-								RangeTblEntry *target_rte,
-								Relation target_relation)
+							 RangeTblEntry *target_rte,
+							 Relation target_relation)
+#endif
 {
 	Var      *var;
 	const char *attrname;
+#if PG_VERSION_NUM < 140000
 	TargetEntry *tle;
-	
-	DEBUGPOINT;
+#endif
 
-/*
- * In postgres_fdw, what we need is the ctid, same as for a regular table.
- */
+	/* assumes that this isn't attisdropped */
+	Form_pg_attribute attr =
+		TupleDescAttr(RelationGetDescr(target_relation), 0);
 
-  /* Make a Var representing the desired value */
-  var = makeVar(parsetree->resultRelation,
-          SelfItemPointerAttributeNumber,
-          TIDOID,
-          -1,
-          InvalidOid,
-          0);
+	/* Make a Var representing the desired value */
+#if PG_VERSION_NUM >= 140000
+	var = makeVar(rtindex,
+#else
+	var = makeVar(parsetree->resultRelation,
+#endif
+				  1,
+				  attr->atttypid,
+				  attr->atttypmod,
+				  InvalidOid,
+				  0);
 
-  /* Wrap it in a resjunk TLE with the right name ... */
-  attrname = "ctid";
 
-  tle = makeTargetEntry((Expr *) var,
-              list_length(parsetree->targetList) + 1,
-              pstrdup(attrname),
-              true);
+	/* Get name of the row identifier column */
+	attrname = NameStr(attr->attname);
 
-  /* ... and add it to the query's targetlist */
-  parsetree->targetList = lappend(parsetree->targetList, tle);
+#if PG_VERSION_NUM >= 140000
+	/* Register it as a row-identity column needed by this target rel */
+	add_row_identity_var(root, var, rtindex, attrname);
+#else
+	/* Wrap it in a TLE with the right name ... */
+	tle = makeTargetEntry((Expr *) var,
+						  list_length(parsetree->targetList) + 1,
+						  pstrdup(attrname),
+						  true);
+
+	/* ... And add it to the query's targetlist */
+	parsetree->targetList = lappend(parsetree->targetList, tle);
+#endif
 }
 
 
