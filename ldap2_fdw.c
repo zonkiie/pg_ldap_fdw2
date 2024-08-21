@@ -900,43 +900,6 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	}
 }
 
-/**
- * Minimal Variant of IterateForeignScan for learning reason
- */
-static TupleTableSlot *
-ldap2_fdw_IterateForeignScanMinimal(ForeignScanState *node)
-{
-	TupleTableSlot *slot = node->ss.ss_ScanTupleSlot;
-	
-	HeapTuple tuple;
-	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
-	int natts;
-	char **s_values;
-	fsstate->ldap_message_result = NULL;
-	
-	ExecClearTuple(slot);
-	
-	// Number of results reached, no more results - we return an empty slot.
-	if(fsstate->row >= fsstate->ntuples) return slot;
-	
-	//natts = rel->rd_att->natts;
-	natts = 4;
-	s_values = (char **) palloc(sizeof(char *) * natts);
-	
-	s_values[0] = "54d98418-de32-4732-a907-ad6cd56ad593";
-	s_values[1] = "cn=hs,dc=nodomain";
-	s_values[2] = "Hans";
-	s_values[3] = "Schmidt";
-	
-	fsstate->row++;
-	
-	tuple = BuildTupleFromCStrings(fsstate->attinmeta, s_values);
-	ExecStoreHeapTuple(tuple, slot, false);
-		
-	return slot;
-}
-
-
 /*
  * IterateForeignScan
  *		Retrieve next row from the result set, or clear tuple slot to indicate
@@ -1128,6 +1091,7 @@ ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
 	/* ... And add it to the query's targetlist */
 	parsetree->targetList = lappend(parsetree->targetList, tle);
 #endif
+	DEBUGPOINT;
 }
 
 
@@ -1151,6 +1115,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 						  Index resultRelation,
 						  int subplan_index)
 {
+	DEBUGPOINT;
 	CmdType		operation = plan->operation;
 	RangeTblEntry *rte = planner_rt_fetch(resultRelation, root);
 	List	   *targetAttrs = NIL;
@@ -1161,6 +1126,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	Oid			foreignTableId;
 	StringInfoData sql;
 	Relation	rel = NULL;
+	DEBUGPOINT;
 #if PG_VERSION_NUM < 130000
 	rel = heap_open(rte->relid, NoLock);
 #else
@@ -1262,6 +1228,8 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 #else
 	table_close(rel, NoLock);
 #endif
+	
+	DEBUGPOINT;
 
 	/*
 	 * Build the fdw_private list that will be available to the executor.
@@ -1286,6 +1254,7 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 						   int subplan_index,
 						   int eflags)
 {
+	DEBUGPOINT;
 	LdapFdwModifyState *fmstate;
 	Relation	rel = resultRelInfo->ri_RelationDesc;
 	AttrNumber	n_params;
@@ -1609,6 +1578,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
+	DEBUGPOINT;
 	LdapFdwModifyState *fmstate = fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Datum       attr_value, datum;
 	bool		isNull = false;
@@ -1619,6 +1589,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	int i = 0;
 	ForeignTable *table;
 	Form_pg_attribute attr;
+	DEBUGPOINT;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	TupleDesc tupdesc = RelationGetDescr(rel);
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
