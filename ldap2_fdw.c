@@ -1076,7 +1076,7 @@ ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
 
 	/* Get name of the row identifier column */
 	//attrname = NameStr(attr->attname);
-	attrname = pstrdup("dn");
+	attrname = pstrdup(NameStr(attr->attname));
 
 #if PG_VERSION_NUM >= 140000
 	/* Register it as a row-identity column needed by this target rel */
