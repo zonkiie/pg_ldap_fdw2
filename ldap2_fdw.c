@@ -1059,8 +1059,7 @@ ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
 #endif
 
 	/* assumes that this isn't attisdropped */
-	Form_pg_attribute attr =
-		TupleDescAttr(RelationGetDescr(target_relation), 0);
+	Form_pg_attribute attr = TupleDescAttr(RelationGetDescr(target_relation), 0);
 
 	/* Make a Var representing the desired value */
 #if PG_VERSION_NUM >= 140000
@@ -1076,7 +1075,8 @@ ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
 
 
 	/* Get name of the row identifier column */
-	attrname = NameStr(attr->attname);
+	//attrname = NameStr(attr->attname);
+	attrname = pstrdup("dn");
 
 #if PG_VERSION_NUM >= 140000
 	/* Register it as a row-identity column needed by this target rel */
@@ -1315,6 +1315,7 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	DEBUGPOINT;
 	
 	fmstate->target_attrs = (List *) list_nth(fdw_private, 0);
+	fmstate->options = option_params;
 	
 	//fmstate->retrieved_attrs = (List *) list_nth(fdw_private, 3);
 
@@ -1578,33 +1579,34 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
-	DEBUGPOINT;
 	LdapFdwModifyState *fmstate = fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Datum       attr_value, datum;
 	bool		isNull = false;
 	Oid			foreignTableId;
 	Oid			typoid;
 	char *dn = NULL;
+	char *columnName = NULL;
 	int rc = 0;
 	int i = 0;
 	ForeignTable *table;
 	Form_pg_attribute attr;
-	DEBUGPOINT;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	TupleDesc tupdesc = RelationGetDescr(rel);
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
 	
-	DEBUGPOINT;
 	/* Get the id that was passed up as a resjunk column */
 	datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
-	DEBUGPOINT;
 	char *value_str = DatumGetCString(DirectFunctionCall1(textout, datum));
 	elog(INFO, "Value: %s", value_str);
 
-	//columnName = get_attname(foreignTableId, 1, false);
-	//elog(INFO, "Column Name: %s\n", columnName);
+	columnName = get_attname(foreignTableId, 1, false);
+	elog(INFO, "Column Name: %s\n", columnName);
+	elog(INFO, "Base DN to delete from: %s\n", fmstate->options->basedn);
+	asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->options->basedn);
+	rc = ldap_delete_s(ld, dn);
+	free(dn);
 	
-	
+	/*
 	typoid = get_atttype(foreignTableId, 1);
 	table = GetForeignTable(foreignTableId);
 	DEBUGPOINT;
@@ -1637,6 +1639,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 			pfree(dn);  // Freigeben des String-Puffers
 		}
 	}
+	*/
 
 
 	/* The type of first column of MongoDB's foreign table must be NAME */
@@ -1646,7 +1649,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	
 	
 	
-	return NULL;
+	return slot;
 }
 
 /*
@@ -1683,6 +1686,7 @@ ldap2_fdw_IsForeignRelUpdatable(Relation rel)
 static void
 ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
 {
+	DEBUGPOINT;
 /*
 	List	   *fdw_private;
 	char	   *sql;
