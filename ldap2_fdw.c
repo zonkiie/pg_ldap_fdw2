@@ -1340,7 +1340,10 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 
 		attr = TupleDescAttr(RelationGetDescr(rel), 0);
 		elog(INFO, "Function: %s, Attribute Name: %s, Line: %d", __FUNCTION__, NameStr(attr->attname), __LINE__);
-// 
+		
+		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist, NameStr(attr->attname));
+		DEBUGPOINT;
+	// 
 // 		/* Find the rowid resjunk column in the subplan's result */
 // 		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist, NameStr(attr->attname));
 // 		
@@ -1566,6 +1569,22 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 						  TupleTableSlot *planSlot)
 {
 	DEBUGPOINT;
+	LdapFdwModifyState *fmstate = fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
+	Datum       attr_value, datum;
+	bool		isNull = false;
+	Oid			foreignTableId;
+	Oid			typoid;
+	char *dn = NULL;
+	char *columnName = NULL;
+	int rc = 0;
+	int i = 0;
+	ForeignTable *table;
+	Form_pg_attribute attr;
+	Relation rel = resultRelInfo->ri_RelationDesc;
+	TupleDesc tupdesc = RelationGetDescr(rel);
+	ListCell   *lc = NULL;
+	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
+	datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
 	return NULL;
 }
 
@@ -1605,6 +1624,8 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->options->basedn);
 	rc = ldap_delete_s(ld, dn);
 	free(dn);
+	
+	if(rc != LDAP_SUCCESS) return NULL;
 	
 	/*
 	typoid = get_atttype(foreignTableId, 1);
