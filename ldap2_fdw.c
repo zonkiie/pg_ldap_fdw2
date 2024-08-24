@@ -1166,7 +1166,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	}
 	else if (operation == CMD_UPDATE)
 	{
-		Bitmapset  *tmpset = bms_copy(rte->modifiedCols);
+		/*Bitmapset  *tmpset = bms_copy(rte->modifiedCols);
 		AttrNumber	col;
 		while ((col = bms_first_member(tmpset)) >= 0)
 		{
@@ -1174,7 +1174,49 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 			if (col <= InvalidAttrNumber)		// shouldn't happen
 				elog(ERROR, "system-column update is not supported");
 			targetAttrs = lappend_int(targetAttrs, col);
+		}*/
+		
+		Bitmapset  *tmpset;
+#if PG_VERSION_NUM >= 160000
+		RTEPermissionInfo *perminfo;
+		int			attidx;
+#endif
+		AttrNumber	col;
+
+#if PG_VERSION_NUM >= 160000
+		perminfo = getRTEPermissionInfo(root->parse->rteperminfos, rte);
+		tmpset = bms_copy(perminfo->updatedCols);
+		attidx = -1;
+#else
+		tmpset = bms_copy(rte->updatedCols);
+#endif
+
+#if PG_VERSION_NUM >= 160000
+		while ((attidx = bms_next_member(tmpset, attidx)) >= 0)
+#else
+		while ((col = bms_first_member(tmpset)) >= 0)
+#endif
+		{
+#if PG_VERSION_NUM >= 160000
+			col = attidx + FirstLowInvalidHeapAttributeNumber;
+#else
+			col += FirstLowInvalidHeapAttributeNumber;
+#endif
+			if (col <= InvalidAttrNumber)	/* Shouldn't happen */
+				elog(ERROR, "system-column update is not supported");
+
+			/*
+			 * We also disallow updates to the first column which happens to
+			 * be the row identifier in MongoDb (_id)
+			 */
+			if (col == 1)		/* Shouldn't happen */
+				elog(ERROR, "row identifier column update is not supported");
+
+			targetAttrs = lappend_int(targetAttrs, col);
 		}
+		/* We also want the rowid column to be available for the update */
+		targetAttrs = lcons_int(1, targetAttrs);
+		
 	}
 
 	/*
@@ -1574,8 +1616,8 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	char *dn = NULL;
 	char *columnName = NULL;
 	int rc = 0;
-	int i = 0;
-	LDAPMod		**insert_data = NULL;
+	int i = 0, j = 0;
+	LDAPMod		**modify_data = NULL;
 	LDAPMod		* single_ldap_mod = NULL;
 	ForeignTable *table;
 	Form_pg_attribute attr;
@@ -1592,7 +1634,50 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
             elog(INFO, "Attribut %s ist NULL", NameStr(tupdesc->attrs[i].attname));
             continue;
         }
+        attr_value = slot_getattr(slot, i + 1, &isNull);
+
+        if (!isNull) {
+            // Eindeutigen Namen des Attributs erhalten
+            char *att_name = pstrdup(NameStr(tupdesc->attrs[i].attname));
+            // Wert des Attributs formatieren (z.B. für Logging)
+            char *value_str = DatumGetCString(DirectFunctionCall1(textout, attr_value));
+			if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
+			else
+			{
+				elog(INFO, "i: %d, j: %d, Attribut: %s, Wert: %s", i, j, att_name, value_str);
+				if(value_str == NULL || !strcmp(value_str, "")) {
+					single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){value_str, NULL});
+				} else {
+					single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, (char*[]){value_str, NULL});
+				}
+				append_ldap_mod(&modify_data, single_ldap_mod);
+				//ldap_mods_free(&single_ldap_mod, true);
+				free_ldap_mod(single_ldap_mod);
+				single_ldap_mod = NULL;
+				
+			}
+            pfree(value_str);  // Freigeben des String-Puffers
+			pfree(att_name);
+		}
 	}
+	
+	elog(INFO, "ldap mod: dn: %s", dn);
+	//rc = ldap_modify_ext_s( ld, dn, modify_data, NULL, NULL );
+	rc = LDAP_SUCCESS;
+
+	if ( rc != LDAP_SUCCESS ) {
+		elog( ERROR, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
+
+	}
+	
+	for ( i = 0; i < fmstate->p_nums; i++ ) {
+
+		free( modify_data[ i ] );
+
+	}
+	
+	pfree(dn);
+	free( modify_data );
 	
 	return NULL;
 }
