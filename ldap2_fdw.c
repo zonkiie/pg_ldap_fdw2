@@ -1400,16 +1400,26 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	foreach(lc, fmstate->target_attrs)
 	{
 		int			attnum = lfirst_int(lc);
+		DEBUGPOINT;
 		attr = TupleDescAttr(RelationGetDescr(rel), attnum);
+		DEBUGPOINT;
 		elog(INFO, "Function: %s, Attribute Name: %s", __FUNCTION__, NameStr(attr->attname));
+		DEBUGPOINT;
 
+		elog(INFO, "Function: %s, attr->atttypid: %d, attr->attisdropped: %d", __FUNCTION__, attr->atttypid, attr->attisdropped);
 		Assert(!attr->attisdropped);
-			
-		getTypeOutputInfo(attr->atttypid, &typefnoid, &isvarlena);
-		fmgr_info(typefnoid, &fmstate->p_flinfo[fmstate->p_nums]);
-		fmstate->p_nums++;
+		DEBUGPOINT;
+		if(attr->atttypid != 0 && !attr->attisdropped) {
+			getTypeOutputInfo(attr->atttypid, &typefnoid, &isvarlena);
+			DEBUGPOINT;
+			fmgr_info(typefnoid, &fmstate->p_flinfo[fmstate->p_nums]);
+			DEBUGPOINT;
+			fmstate->p_nums++;
+		}
 	}
+		DEBUGPOINT;
 	Assert(fmstate->p_nums <= n_params);
+		DEBUGPOINT;
 
 	resultRelInfo->ri_FdwState = fmstate;
 	DEBUGPOINT;
@@ -1662,7 +1672,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	}
 	
 	elog(INFO, "ldap mod: dn: %s", dn);
-	//rc = ldap_modify_ext_s( ld, dn, modify_data, NULL, NULL );
+	rc = ldap_modify_ext_s( ld, dn, modify_data, NULL, NULL );
 	rc = LDAP_SUCCESS;
 
 	if ( rc != LDAP_SUCCESS ) {
