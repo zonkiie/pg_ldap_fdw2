@@ -1166,8 +1166,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	}
 	else if (operation == CMD_UPDATE)
 	{
-		return NULL;
-		/*Bitmapset  *tmpset = bms_copy(rte->modifiedCols);
+		Bitmapset  *tmpset = bms_copy(rte->modifiedCols);
 		AttrNumber	col;
 		while ((col = bms_first_member(tmpset)) >= 0)
 		{
@@ -1175,7 +1174,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 			if (col <= InvalidAttrNumber)		// shouldn't happen
 				elog(ERROR, "system-column update is not supported");
 			targetAttrs = lappend_int(targetAttrs, col);
-		}*/
+		}
 	}
 
 	/*
@@ -1537,11 +1536,9 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 		//ldap_add_ext(ld, dn, NULL, NULL, NULL);
 	}*/
 	
-	DEBUGPOINT;
 	elog(INFO, "ldap add: dn: %s", dn);
 	rc = ldap_add_ext_s( ld, dn, insert_data, NULL, NULL );
 
-	DEBUGPOINT;
 	if ( rc != LDAP_SUCCESS ) {
 		elog( ERROR, "ldap_add_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
 
@@ -1549,12 +1546,12 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	
 	for ( i = 0; i < fmstate->p_nums; i++ ) {
 
-		pfree( insert_data[ i ] );
+		free( insert_data[ i ] );
 
 	}
-
-	pfree( insert_data );
+	
 	pfree(dn);
+	free( insert_data );
 	return slot;
 }
 
@@ -1578,13 +1575,25 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	char *columnName = NULL;
 	int rc = 0;
 	int i = 0;
+	LDAPMod		**insert_data = NULL;
+	LDAPMod		* single_ldap_mod = NULL;
 	ForeignTable *table;
 	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	TupleDesc tupdesc = RelationGetDescr(rel);
 	ListCell   *lc = NULL;
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
-	datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
+	datum = ExecGetJunkAttribute(planSlot, fmstate->rowidAttno, &isNull);
+	typoid = get_atttype(foreignTableId, 1);
+	// Durchlaufe alle Attribute des Tuples
+    for (i = 0; i < tupdesc->natts; i++) {
+        if (slot->tts_isnull[i]) {
+            // Attribut ist NULL
+            elog(INFO, "Attribut %s ist NULL", NameStr(tupdesc->attrs[i].attname));
+            continue;
+        }
+	}
+	
 	return NULL;
 }
 
