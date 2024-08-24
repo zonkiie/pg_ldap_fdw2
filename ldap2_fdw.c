@@ -1642,6 +1642,10 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
         if (slot->tts_isnull[i]) {
             // Attribut ist NULL
             elog(INFO, "Attribut %s ist NULL", NameStr(tupdesc->attrs[i].attname));
+			single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){value_str, NULL});
+			append_ldap_mod(&modify_data, single_ldap_mod);
+			free_ldap_mod(single_ldap_mod);
+			single_ldap_mod = NULL;
             continue;
         }
         attr_value = slot_getattr(slot, i + 1, &isNull);
