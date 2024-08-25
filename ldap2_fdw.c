@@ -902,10 +902,6 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 
 	node->fdw_state = (void *) fsstate;
 	
-	elog(INFO, "basedn: %s",  option_params->basedn);
-	elog(INFO, "scope: %d",  option_params->scope);
-	elog(INFO, "filter: %s",  option_params->filter);
-	
 	//fsstate->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
 	//fsstate->retrieved_attrs = list_nth(fsplan->fdw_private, FdwScanPrivateRetrievedAttrs);
 	// Todo: Convert plan to ldap filter
@@ -934,6 +930,8 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	
 	AttInMetadata  *attinmeta;
 	HeapTuple tuple;
+	Relation rel = node->ss.ss_currentRelation;
+	TupleDesc tupdesc;
 	LdapFdwPlanState *fsstate = (LdapFdwPlanState *) node->fdw_state;
 	int i;
 	int vi;
@@ -941,7 +939,8 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	int err;
 	bool column_type_is_array;
 	char **s_values;
-	//char ** a = NULL;
+	Datum *d_values;
+	bool *null_values;
 	BerElement *ber;
 	char *entrydn = NULL;
 	fsstate->ldap_message_result = NULL;
@@ -951,8 +950,17 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	char *tmp_str = NULL;
 	LDAPMessage *tmpmsg = NULL;
 	
+	tupdesc = RelationGetDescr(rel);
+	
 	s_values = (char **) palloc(sizeof(char *) * fsstate->num_attrs + 1);
 	memset(s_values, 0, (fsstate->num_attrs + 1 ) * sizeof(char*));
+	
+	null_values = (bool*)palloc(sizeof(bool) * fsstate->num_attrs + 1);
+	memset(null_values, 0, (fsstate->num_attrs + 1 ) * sizeof(bool));
+	
+	d_values = (Datum*)palloc(sizeof(Datum) * fsstate->num_attrs + 1);
+	memset(d_values, 0, (fsstate->num_attrs + 1 ) * sizeof(Datum*));
+	
 	
 	ExecClearTuple(slot);
 	
@@ -974,18 +982,27 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			for(char **a = fsstate->columns; *a != NULL; *a++) {
 				if(!strcasecmp(*a, "dn"))
 				{
-					s_values[i++] = pstrdup(entrydn);
+					null_values[i] = 0;
+					s_values[i] = pstrdup(entrydn);
+					//d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(entrydn));
+					i++;
 					continue;
 				}
 				if((vals = ldap_get_values_len(ld, fsstate->ldap_message_result, *a)) != NULL)
 				{
 					if(ldap_count_values_len(vals) == 0)
 					{
+						null_values[i] = 1;
 						s_values[i] = NULL;
+						//d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(""));;
 					}
 					else
 					{
-						//column_type_is_array = (fsstate->column_types[i])[0] == '_';
+						column_type_is_array = (fsstate->column_types[i])[0] == '_';
+						/*if(!column_type_is_array) {
+							null_values[i] = 0;
+							d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
+						}*/
 						
 						
 						tmp_str = strdup("");
@@ -1001,6 +1018,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 						}
 						s_values[i] = pstrdup(tmp_str);
 						free(tmp_str);
+						
 					}
 					ber_bvecfree(vals);
 				}
@@ -1019,6 +1037,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	
 	fsstate->row++;
 	
+	//tuple = heap_form_tuple(tupdesc, d_values, null_values);
 	tuple = BuildTupleFromCStrings(fsstate->attinmeta, s_values);
 	ExecStoreHeapTuple(tuple, slot, false);
 		
