@@ -946,7 +946,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	fsstate->ldap_message_result = NULL;
 	struct berval **vals = NULL;
 	bool first_in_array = true;
-	char array_delimiter = '|';
+	char array_delimiter = ',';
 	char *tmp_str = NULL;
 	LDAPMessage *tmpmsg = NULL;
 	
@@ -980,11 +980,14 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			ldap_get_option(ld, LDAP_OPT_ERROR_NUMBER, &err);
 			
 			for(char **a = fsstate->columns; *a != NULL; *a++) {
+				
+				column_type_is_array = (fsstate->column_types[i])[0] == '_';
+				
 				if(!strcasecmp(*a, "dn"))
 				{
-					null_values[i] = 0;
+					//null_values[i] = 0;
 					s_values[i] = pstrdup(entrydn);
-					//d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(entrydn));
+					//d_values[i] = DirectFunctionCall1(textin, entrydn);
 					i++;
 					continue;
 				}
@@ -992,21 +995,22 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 				{
 					if(ldap_count_values_len(vals) == 0)
 					{
-						null_values[i] = 1;
-						s_values[i] = NULL;
-						//d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(""));;
+						//null_values[i] = 1;
+						if(!column_type_is_array) s_values[i] = NULL;
+						else s_values[i] = "{}";
+						//d_values[i] = DirectFunctionCall1(textin, CStringGetDatum("Test"));
 					}
 					else
 					{
-						column_type_is_array = (fsstate->column_types[i])[0] == '_';
-						/*if(!column_type_is_array) {
-							null_values[i] = 0;
-							d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
-						}*/
-						
+						if(!column_type_is_array) {
+							//null_values[i] = strlen(vals[0]->bv_val) == 0;
+							//d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
+							
+						}
+						first_in_array = true;
 						
 						tmp_str = strdup("");
-						first_in_array = true;
+						
 						for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
 							if(first_in_array == true) first_in_array = false;
 							else{
@@ -1016,8 +1020,17 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 							tmp_str = realloc(tmp_str, strlen(tmp_str) + strlen(vals[ vi ]->bv_val) + 1);
 							strcat(tmp_str, vals[ vi ]->bv_val);
 						}
+						
+						if(column_type_is_array)
+						{
+							char * tmp_str2 = tmp_str;
+							asprintf(&tmp_str, "{%s}", tmp_str2);
+							free(tmp_str2);
+						}
+						
 						s_values[i] = pstrdup(tmp_str);
 						free(tmp_str);
+						
 						
 					}
 					ber_bvecfree(vals);
