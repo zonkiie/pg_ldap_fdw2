@@ -39,6 +39,7 @@
 #include "utils/builtins.h"
 #include "utils/guc.h"
 #include "utils/lsyscache.h"
+#include "utils/syscache.h"
 #include "utils/memutils.h"
 #include "utils/rel.h"
 
@@ -309,6 +310,23 @@ void print_list(FILE *out_channel, List *list)
 	{
 		fprintf(out_channel, "%s\n", (char*)list->elements[i].ptr_value);
 	}
+}
+
+static void get_column_type(char ** type, int * is_array, Form_pg_attribute att)
+{
+	// Zunächst den Typ der Spalte abfragen
+	Oid typid = att->atttypid;
+
+	HeapTuple tup = SearchSysCache1(TYPEOID, ObjectIdGetDatum(typid));
+	if (HeapTupleIsValid(tup))
+	{
+		Form_pg_type typeform = (Form_pg_type) GETSTRUCT(tup);
+		
+		*type = pstrdup(NameStr(typeform->typname));
+		*is_array = (*type[0]) == '_';
+		// Column Name: NameStr(att->attname)
+		ReleaseSysCache(tup);
+	}	
 }
 
 static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
@@ -651,16 +669,6 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
 
-	//FILE * log_channel = stderr;
-	_cleanup_file_ FILE * log_channel = fopen(LDAP2_FDW_LOGFILE, "a");
-
-	fprintf(log_channel, "tlist\n");
-	print_list(log_channel, tlist);
-
-	fprintf(log_channel, "scan_clauses\n");
-	print_list(log_channel, scan_clauses);
-	free_file(&log_channel);
-
 	Path	   *foreignPath;
 	Index		scan_relid = baserel->relid;
 	Datum    blob = 0;
@@ -852,6 +860,8 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	Relation rel;
 	TupleDesc tupdesc;
 	int attnum;
+	Oid typid;
+	bool is_array = false;
 
 	fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	//fsstate->ntuples = 3;
@@ -866,6 +876,9 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	fsstate->num_attrs = tupdesc->natts;
 	
 	fsstate->columns = (char**)palloc(sizeof(char*) * tupdesc->natts);
+	memset(fsstate->columns, 0, (tupdesc->natts) * sizeof(char*));
+	fsstate->column_types = (char**)palloc(sizeof(char*) * tupdesc->natts);
+	memset(fsstate->column_types, 0, (tupdesc->natts) * sizeof(char*));
 	
 	// Beispiel für die Schleife über die Spalten
 	for (attnum = 1; attnum <= tupdesc->natts; attnum++)
@@ -877,6 +890,12 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 			// Hole den Spaltennamen
 			char *colname = NameStr(tupdesc->attrs[attnum - 1].attname);
 			fsstate->columns[attnum - 1] = pstrdup(colname);
+			
+			//typid = tupdesc->attrs[attnum - 1].atttypid;
+			char * type;
+			int is_array;
+			get_column_type(&type, &is_array, &(tupdesc->attrs[attnum - 1]));
+			fsstate->column_types[attnum - 1] = pstrdup(type);
 		}
 	}
 	fsstate->columns[tupdesc->natts] = NULL;
@@ -920,6 +939,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	int vi;
 	int natts;
 	int err;
+	bool column_type_is_array;
 	char **s_values;
 	//char ** a = NULL;
 	BerElement *ber;
@@ -942,6 +962,8 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 		case -1:
 		case LDAP_RES_SEARCH_RESULT:
 			//elog(INFO, "LDAP_RES_SEARCH_RESULT");
+		case LDAP_RES_SEARCH_REFERENCE:
+			//elog(INFO, "LDAP_RES_SEARCH_REFERENCE");
 			return slot;
 		case LDAP_RES_SEARCH_ENTRY:
 			//elog(INFO, "LDAP_RES_SEARCH_ENTRY");
@@ -963,6 +985,9 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					}
 					else
 					{
+						//column_type_is_array = (fsstate->column_types[i])[0] == '_';
+						
+						
 						tmp_str = strdup("");
 						first_in_array = true;
 						for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
@@ -989,9 +1014,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 				entrydn = NULL;
 			}
 			break;
-		case LDAP_RES_SEARCH_REFERENCE:
-			//elog(INFO, "LDAP_RES_SEARCH_REFERENCE");
-			return slot;
 	}
 	
 	
