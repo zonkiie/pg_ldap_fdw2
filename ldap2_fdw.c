@@ -922,6 +922,9 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
  *   Fetch one row from the foreign source, returning it in a tuple table slot
  *    (the node's ScanTupleSlot should be used for this purpose).
  *  Return NULL if no more rows are available.
+ * @see https://stackoverflow.com/questions/51127189/how-to-return-array-into-array-with-custom-type-in-postgres-c-function
+ * @see https://stackoverflow.com/questions/61604650/create-integer-array-in-postgresql-c-function
+ * @see https://github.com/postgres/postgres/blob/master/src/backend/utils/adt/arrayfuncs.c
  */
 static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
@@ -949,6 +952,10 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	char array_delimiter = ',';
 	char *tmp_str = NULL;
 	LDAPMessage *tmpmsg = NULL;
+	
+	
+    // Use the SysCache to get the OID of varchar
+    Oid varchar_oid = GetSysCacheOid(TYPENAME, CStringGetDatum("varchar"), 0, 0, 0);
 	
 	tupdesc = RelationGetDescr(rel);
 	
@@ -1006,6 +1013,15 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 							null_values[i] = strlen(vals[0]->bv_val) == 0;
 							d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
 							//s_values[i] = pstrdup(vals[0]->bv_val);
+						} else {
+							Datum* item_values = (Datum*)palloc(sizeof(Datum) * ldap_count_values_len(vals) + 1);
+							memset(item_values, 0, (ldap_count_values_len(vals) + 1 ) * sizeof(Datum));
+							for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
+								item_values[vi] = vals[ vi ]->bv_val;
+							}
+							
+							ArrayType* array_values = construct_array(item_values, ldap_count_values_len(vals), varchar_oid, 1, 1, 0);
+							d_values[i] = PointerGetDatum(array_values);
 						}
 						
 						/*
