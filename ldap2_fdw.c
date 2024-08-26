@@ -952,8 +952,8 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	
 	tupdesc = RelationGetDescr(rel);
 	
-	s_values = (char **) palloc(sizeof(char *) * fsstate->num_attrs + 1);
-	memset(s_values, 0, (fsstate->num_attrs + 1 ) * sizeof(char*));
+	//s_values = (char **) palloc(sizeof(char *) * fsstate->num_attrs + 1);
+	//memset(s_values, 0, (fsstate->num_attrs + 1 ) * sizeof(char*));
 	
 	null_values = (bool*)palloc(sizeof(bool) * fsstate->num_attrs + 1);
 	memset(null_values, 0, (fsstate->num_attrs + 1 ) * sizeof(bool));
@@ -985,9 +985,9 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 				
 				if(!strcasecmp(*a, "dn"))
 				{
-					//null_values[i] = 0;
-					s_values[i] = pstrdup(entrydn);
-					//d_values[i] = DirectFunctionCall1(textin, entrydn);
+					null_values[i] = 0;
+					d_values[i] = DirectFunctionCall1(textin, entrydn);
+					//s_values[i] = pstrdup(entrydn);
 					i++;
 					continue;
 				}
@@ -995,18 +995,20 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 				{
 					if(ldap_count_values_len(vals) == 0)
 					{
-						//null_values[i] = 1;
-						if(!column_type_is_array) s_values[i] = NULL;
-						else s_values[i] = "{}";
-						//d_values[i] = DirectFunctionCall1(textin, CStringGetDatum("Test"));
+						null_values[i] = true;
+						d_values[i] = PointerGetDatum(NULL);
+						//if(!column_type_is_array) s_values[i] = NULL;
+						//else s_values[i] = "{}";
 					}
 					else
 					{
 						if(!column_type_is_array) {
-							//null_values[i] = strlen(vals[0]->bv_val) == 0;
-							//d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
-							
+							null_values[i] = strlen(vals[0]->bv_val) == 0;
+							d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
+							//s_values[i] = pstrdup(vals[0]->bv_val);
 						}
+						
+						/*
 						first_in_array = true;
 						
 						tmp_str = strdup("");
@@ -1030,7 +1032,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 						
 						s_values[i] = pstrdup(tmp_str);
 						free(tmp_str);
-						
+						*/
 						
 					}
 					ber_bvecfree(vals);
@@ -1050,8 +1052,8 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	
 	fsstate->row++;
 	
-	//tuple = heap_form_tuple(tupdesc, d_values, null_values);
-	tuple = BuildTupleFromCStrings(fsstate->attinmeta, s_values);
+	tuple = heap_form_tuple(tupdesc, d_values, null_values);
+	//tuple = BuildTupleFromCStrings(fsstate->attinmeta, s_values);
 	ExecStoreHeapTuple(tuple, slot, false);
 		
 	return slot;
