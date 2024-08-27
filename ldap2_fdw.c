@@ -347,8 +347,10 @@ static Oid get_type_oid(char * typename)
     //Oid varchar_oid = GetSysCacheOid(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum("character varying"), 0, 0, 0);
     //Oid varchar_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum("character varying"), ObjectIdGetDatum(relnamespace));
 	//Oid type_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum(typename), ObjectIdGetDatum(relnamespace));
-	Oid type_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, PointerGetDatum(typename), ObjectIdGetDatum(relnamespace));
+	//Oid type_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, PointerGetDatum(typename), ObjectIdGetDatum(relnamespace));
 	//Oid type_oid = get_type_oid_ns(typename, relnamespace);
+	/* @see https://github.com/pgspider/jdbc_fdw/blob/main/jdbc_fdw.c , method jdbc_convert_type_name */
+	Oid type_oid = DatumGetObjectId(DirectFunctionCall1(regtypein, CStringGetDatum(typename)));
 	return type_oid;
 }
 
@@ -952,6 +954,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
  * @see https://stackoverflow.com/questions/61604650/create-integer-array-in-postgresql-c-function
  * @see https://github.com/postgres/postgres/blob/master/src/backend/utils/adt/arrayfuncs.c
  * @see https://stackoverflow.com/questions/39870443/whats-the-correct-oid-for-an-array-of-composite-type-in-postgresql
+ * @see https://github.com/EnterpriseDB/mongo_fdw/blob/master/mongo_fdw.c, method column_value_array
  */
 static TupleTableSlot *
 ldap2_fdw_IterateForeignScan(ForeignScanState *node)
@@ -967,6 +970,10 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	int vi;
 	int natts;
 	int err;
+	bool		typeByValue;
+	char		typeAlignment;
+	int16		typeLength;
+	
 	bool column_type_is_array;
 	char **s_values;
 	Datum *d_values;
@@ -982,11 +989,8 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	LDAPMessage *tmpmsg = NULL;
 	
 	Oid varchar_oid = get_type_oid("character varying");
-	elog(INFO, "oid of character varying: %d", varchar_oid);
 	
-	varchar_oid = 1043;
-	
-	elog(INFO, "oid of varchar: %d - Warning: Static value, lookup doesn't work", varchar_oid);
+	get_typlenbyvalalign(varchar_oid, &typeLength, &typeByValue, &typeAlignment);
 	
 	tupdesc = RelationGetDescr(rel);
 	
@@ -1049,20 +1053,19 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 						} else {
 							//Datum* item_values = (Datum*)palloc(sizeof(Datum) * ldap_count_values_len(vals) + 1);
 							//memset(item_values, 0, (ldap_count_values_len(vals) + 1 ) * sizeof(Datum));
-	DEBUGPOINT;
 	
-							Datum* item_values = (Datum*)palloc(sizeof(Datum) * values_length + 1);
+							Datum* item_values = (Datum*)palloc(sizeof(Datum) * values_length + 2);
 							memset(item_values, 0, (values_length + 1 ) * sizeof(Datum));
-	DEBUGPOINT;
 	
 							for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
 								item_values[vi] = vals[ vi ]->bv_val;
 								elog(INFO, "array: val=%s", vals[ vi ]->bv_val);
 							}
-							
 							//ArrayType* array_values = construct_array(item_values, ldap_count_values_len(vals), varchar_oid, 1, 1, 0);
-							ArrayType* array_values = construct_array(item_values, values_length, varchar_oid, 1, 1, 0);
+							ArrayType* array_values = construct_array(item_values, values_length, varchar_oid, typeLength, typeByValue, typeAlignment);
+	DEBUGPOINT;
 							d_values[i] = PointerGetDatum(array_values);
+	DEBUGPOINT;
 						}
 						
 						/*
