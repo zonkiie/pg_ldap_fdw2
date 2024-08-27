@@ -1053,14 +1053,16 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 						} else {
 							//Datum* item_values = (Datum*)palloc(sizeof(Datum) * ldap_count_values_len(vals) + 1);
 							//memset(item_values, 0, (ldap_count_values_len(vals) + 1 ) * sizeof(Datum));
+							//ArrayType* array_values = construct_empty_array(varchar_oid);
 	
 							Datum* item_values = (Datum*)palloc(sizeof(Datum) * values_length + 2);
 							memset(item_values, 0, (values_length + 1 ) * sizeof(Datum));
 	
 							for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
-								item_values[vi] = vals[ vi ]->bv_val;
+								item_values[vi] = DirectFunctionCall1(textin, CStringGetDatum(vals[ vi ]->bv_val));
 								elog(INFO, "array: val=%s", vals[ vi ]->bv_val);
 							}
+	DEBUGPOINT;
 							//ArrayType* array_values = construct_array(item_values, ldap_count_values_len(vals), varchar_oid, 1, 1, 0);
 							ArrayType* array_values = construct_array(item_values, values_length, varchar_oid, typeLength, typeByValue, typeAlignment);
 	DEBUGPOINT;
