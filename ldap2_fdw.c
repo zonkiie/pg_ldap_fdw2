@@ -328,6 +328,29 @@ static void get_column_type(char ** type, int * is_array, Form_pg_attribute att)
 		ReleaseSysCache(tup);
 	}	
 }
+/**
+ * @see https://postgrespro.com/list/thread-id/2520489
+ */
+static Oid get_type_oid_ns(char * typename, char * schemaname)
+{
+	bool missing_ok = false;
+	Oid namespaceId = LookupExplicitNamespace(schemaname, missing_ok);
+	elog(INFO, "namespace id: %d", namespaceId);
+	Oid type_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, PointerGetDatum(typename), ObjectIdGetDatum(namespaceId));
+	return type_oid;
+}
+
+static Oid get_type_oid(char * typename)
+{
+	Datum relnamespace = PG_PUBLIC_NAMESPACE;
+   // Use the SysCache to get the OID of varchar
+    //Oid varchar_oid = GetSysCacheOid(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum("character varying"), 0, 0, 0);
+    //Oid varchar_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum("character varying"), ObjectIdGetDatum(relnamespace));
+	//Oid type_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum(typename), ObjectIdGetDatum(relnamespace));
+	Oid type_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, PointerGetDatum(typename), ObjectIdGetDatum(relnamespace));
+	//Oid type_oid = get_type_oid_ns(typename, relnamespace);
+	return type_oid;
+}
 
 static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 {
@@ -352,10 +375,10 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 		);
 	}
 	
-	ereport(INFO, errmsg_internal("%s ereport Line %d : basedn: %s\n", __FUNCTION__, __LINE__, options->basedn));
+	elog(INFO, "%s ereport Line %d : basedn: %s\n", __FUNCTION__, __LINE__, options->basedn);
 	if(options->filter != NULL)
 	{
-		ereport(INFO, errmsg_internal("%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter));
+		elog(INFO, "%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter);
 	}
 	//rc = ldap_search_ext( ld, options->basedn, options->scope, options->filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	rc = ldap_search_ext( ld, options->basedn, options->scope, NULL, (char *[]){NULL}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
@@ -386,7 +409,7 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 		ldap_msgfree(res);
 		res = NULL;
 	}
-	ereport(INFO, errmsg_internal("%s ereport Line %d : rows: %d\n", __FUNCTION__, __LINE__, rows));
+	elog(INFO, "%s ereport Line %d : rows: %d\n", __FUNCTION__, __LINE__, rows);
 	return rows;
 }
 
@@ -862,7 +885,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	int attnum;
 	Oid typid;
 	bool is_array = false;
-
+	
 	fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	//fsstate->ntuples = 3;
 	fsstate->row = 0;
@@ -879,6 +902,8 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	memset(fsstate->columns, 0, (tupdesc->natts) * sizeof(char*));
 	fsstate->column_types = (char**)palloc(sizeof(char*) * tupdesc->natts);
 	memset(fsstate->column_types, 0, (tupdesc->natts) * sizeof(char*));
+	fsstate->column_type_ids = (Oid*)palloc(sizeof(Oid) * tupdesc->natts);
+	memset(fsstate->column_type_ids, 0, (tupdesc->natts) * sizeof(Oid));
 	
 	// Beispiel für die Schleife über die Spalten
 	for (attnum = 1; attnum <= tupdesc->natts; attnum++)
@@ -896,6 +921,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 			int is_array;
 			get_column_type(&type, &is_array, &(tupdesc->attrs[attnum - 1]));
 			fsstate->column_types[attnum - 1] = pstrdup(type);
+			fsstate->column_type_ids[attnum - 1] = tupdesc->attrs[attnum - 1].atttypid;
 		}
 	}
 	fsstate->columns[tupdesc->natts] = NULL;
@@ -948,7 +974,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	BerElement *ber;
 	char *entrydn = NULL;
 	//Datum relnamespace = rel->rd_rel->relnamespace;
-	Datum relnamespace = PG_PUBLIC_NAMESPACE;
 	fsstate->ldap_message_result = NULL;
 	struct berval **vals = NULL;
 	bool first_in_array = true;
@@ -956,11 +981,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	char *tmp_str = NULL;
 	LDAPMessage *tmpmsg = NULL;
 	
-	
-    // Use the SysCache to get the OID of varchar
-    //Oid varchar_oid = GetSysCacheOid(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum("character varying"), 0, 0, 0);
-    //Oid varchar_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum("character varying"), ObjectIdGetDatum(relnamespace));
-	Oid varchar_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum("character varying"), ObjectIdGetDatum(relnamespace));
+	Oid varchar_oid = get_type_oid("character varying");
 	elog(INFO, "oid of character varying: %d", varchar_oid);
 	
 	varchar_oid = 1043;
@@ -1011,7 +1032,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 				if((vals = ldap_get_values_len(ld, fsstate->ldap_message_result, *a)) != NULL)
 				{
 					int values_length = ldap_count_values_len(vals);
-					elog(INFO, "values length(%s): %d", *a, values_length);
 					//if(ldap_count_values_len(vals) == 0)
 					if(values_length == 0)
 					{
@@ -1029,8 +1049,12 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 						} else {
 							//Datum* item_values = (Datum*)palloc(sizeof(Datum) * ldap_count_values_len(vals) + 1);
 							//memset(item_values, 0, (ldap_count_values_len(vals) + 1 ) * sizeof(Datum));
+	DEBUGPOINT;
+	
 							Datum* item_values = (Datum*)palloc(sizeof(Datum) * values_length + 1);
 							memset(item_values, 0, (values_length + 1 ) * sizeof(Datum));
+	DEBUGPOINT;
+	
 							for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
 								item_values[vi] = vals[ vi ]->bv_val;
 								elog(INFO, "array: val=%s", vals[ vi ]->bv_val);
