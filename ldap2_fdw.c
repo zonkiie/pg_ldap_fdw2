@@ -62,6 +62,9 @@ PG_MODULE_MAGIC;
 
 #define LDAP2_FDW_LOGFILE "/dev/shm/ldap2_fdw.log"
 
+/** @see https://jdbc.postgresql.org/documentation/publicapi/constant-values.html */
+#define VARCHARARRAYOID 1015
+
 // LOG: log to postgres log
 // INFO: write to stdout
 #define DEBUGPOINT ereport(INFO, errmsg_internal("ereport Func %s, Line %d\n", __FUNCTION__, __LINE__))
@@ -343,15 +346,63 @@ static Oid get_type_oid_ns(char * typename, char * schemaname)
 static Oid get_type_oid(char * typename)
 {
 	Datum relnamespace = PG_PUBLIC_NAMESPACE;
-   // Use the SysCache to get the OID of varchar
-    //Oid varchar_oid = GetSysCacheOid(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum("character varying"), 0, 0, 0);
-    //Oid varchar_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum("character varying"), ObjectIdGetDatum(relnamespace));
-	//Oid type_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, CStringGetDatum(typename), ObjectIdGetDatum(relnamespace));
-	//Oid type_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, PointerGetDatum(typename), ObjectIdGetDatum(relnamespace));
-	//Oid type_oid = get_type_oid_ns(typename, relnamespace);
 	/* @see https://github.com/pgspider/jdbc_fdw/blob/main/jdbc_fdw.c , method jdbc_convert_type_name */
 	Oid type_oid = DatumGetObjectId(DirectFunctionCall1(regtypein, CStringGetDatum(typename)));
 	return type_oid;
+}
+
+/**
+ * @see https://github.com/EnterpriseDB/mongo_fdw/blob/master/mongo_query.c , function append_mongo_value
+ */
+static char ** extract_array_from_datum(Datum datum, Oid oid)
+{
+	char ** retval = NULL;
+	elog(INFO, "oid: %d", oid);
+	switch(oid)
+	{
+		case VARCHARARRAYOID:
+		case TEXTARRAYOID:
+		{
+			ArrayType  *array;
+			Oid			elmtype;
+			int16		elmlen;
+			bool		elmbyval;
+			char		elmalign;
+			int			num_elems;
+			Datum	   *elem_values;
+			bool	   *elem_nulls;
+			int			i;
+			array = DatumGetArrayTypeP(datum);
+			elmtype = ARR_ELEMTYPE(array);
+			get_typlenbyvalalign(elmtype, &elmlen, &elmbyval, &elmalign);
+
+			deconstruct_array(array, elmtype, elmlen, elmbyval, elmalign, &elem_values, &elem_nulls, &num_elems);
+			
+			retval = (char**)palloc(sizeof(char*) * (num_elems + 1));
+			memset(retval, 0, sizeof(char*) * (num_elems + 1));
+			
+			for (i = 0; i < num_elems; i++)
+			{
+				char	   *valueString;
+				Oid			outputFunctionId;
+				bool		typeVarLength;
+				getTypeOutputInfo(TEXTOID, &outputFunctionId, &typeVarLength);
+				valueString = OidOutputFunctionCall(outputFunctionId, elem_values[i]);
+				elog(INFO, "%s - value String(%d): %s", __FUNCTION__, i, valueString);
+				retval[i] = pstrdup(valueString);
+			}
+		}
+			break;
+		default:
+		{
+			retval = (char**)palloc(sizeof(char*) * (2));
+			memset(retval, 0, sizeof(char*) * (2));
+			retval[0] = DatumGetCString(DirectFunctionCall1(textout, datum));
+		}
+			break;
+	}
+	
+	return retval;
 }
 
 static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
@@ -550,7 +601,7 @@ void _PG_init()
 {
 	option_params = (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions *));
 	initLdapFdwOptions(option_params);
-	DEBUGPOINT;
+	//DEBUGPOINT;
 }
 
 void _PG_fini()
@@ -604,6 +655,8 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	baserel->fdw_private = (void *) fpinfo;
 	
 	
+	//LdapFdwOptions *option_params = (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions *));
+	//initLdapFdwOptions(option_params);
 	
 	GetOptionStructr(option_params, foreigntableid);
 	initLdap();
@@ -1053,21 +1106,16 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 						} else {
 							//Datum* item_values = (Datum*)palloc(sizeof(Datum) * ldap_count_values_len(vals) + 1);
 							//memset(item_values, 0, (ldap_count_values_len(vals) + 1 ) * sizeof(Datum));
-							//ArrayType* array_values = construct_empty_array(varchar_oid);
 	
 							Datum* item_values = (Datum*)palloc(sizeof(Datum) * values_length + 2);
 							memset(item_values, 0, (values_length + 1 ) * sizeof(Datum));
 	
 							for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
 								item_values[vi] = DirectFunctionCall1(textin, CStringGetDatum(vals[ vi ]->bv_val));
-								elog(INFO, "array: val=%s", vals[ vi ]->bv_val);
 							}
-	DEBUGPOINT;
 							//ArrayType* array_values = construct_array(item_values, ldap_count_values_len(vals), varchar_oid, 1, 1, 0);
 							ArrayType* array_values = construct_array(item_values, values_length, varchar_oid, typeLength, typeByValue, typeAlignment);
-	DEBUGPOINT;
 							d_values[i] = PointerGetDatum(array_values);
-	DEBUGPOINT;
 						}
 						
 						/*
@@ -1450,7 +1498,6 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	userid = rte->checkAsUser ? rte->checkAsUser : GetUserId();
 #endif
 
-	DEBUGPOINT;
 	foreignTableId = RelationGetRelid(rel);
 
 	/* Get info about foreign table. */
@@ -1471,7 +1518,6 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	 * establish new connection if necessary.
 	 */
 	fmstate->ldap = ld;
-	DEBUGPOINT;
 	
 	fmstate->target_attrs = (List *) list_nth(fdw_private, 0);
 	fmstate->options = option_params;
@@ -1483,8 +1529,6 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	fmstate->p_flinfo = (FmgrInfo *) palloc(sizeof(FmgrInfo) * n_params);
 	fmstate->p_nums = 0;
 
-	DEBUGPOINT;
-	
 	if (mtstate->operation == CMD_UPDATE)
 	{
 #if PG_VERSION_NUM >= 140000
@@ -1495,13 +1539,11 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 
 		Assert(subplan != NULL);
 		
-		DEBUGPOINT;
-
 		attr = TupleDescAttr(RelationGetDescr(rel), 0);
 		elog(INFO, "Function: %s, Attribute Name: %s, Line: %d", __FUNCTION__, NameStr(attr->attname), __LINE__);
 		
 		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist, NameStr(attr->attname));
-		DEBUGPOINT;
+		
 	// 
 // 		/* Find the rowid resjunk column in the subplan's result */
 // 		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist, NameStr(attr->attname));
@@ -1518,29 +1560,20 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	foreach(lc, fmstate->target_attrs)
 	{
 		int			attnum = lfirst_int(lc);
-		DEBUGPOINT;
 		attr = TupleDescAttr(RelationGetDescr(rel), attnum);
-		DEBUGPOINT;
 		elog(INFO, "Function: %s, Attribute Name: %s", __FUNCTION__, NameStr(attr->attname));
-		DEBUGPOINT;
 
 		elog(INFO, "Function: %s, attr->atttypid: %d, attr->attisdropped: %d", __FUNCTION__, attr->atttypid, attr->attisdropped);
 		Assert(!attr->attisdropped);
-		DEBUGPOINT;
 		if(attr->atttypid != 0 && !attr->attisdropped) {
 			getTypeOutputInfo(attr->atttypid, &typefnoid, &isvarlena);
-			DEBUGPOINT;
 			fmgr_info(typefnoid, &fmstate->p_flinfo[fmstate->p_nums]);
-			DEBUGPOINT;
 			fmstate->p_nums++;
 		}
 	}
-		DEBUGPOINT;
 	Assert(fmstate->p_nums <= n_params);
-		DEBUGPOINT;
 
 	resultRelInfo->ri_FdwState = fmstate;
-	DEBUGPOINT;
 }
 
 /*
@@ -1651,10 +1684,12 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
             char *att_name = pstrdup(NameStr(tupdesc->attrs[i].attname));
             // Wert des Attributs formatieren (z.B. für Logging)
             char *value_str = DatumGetCString(DirectFunctionCall1(textout, attr_value));
-			if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
+			//if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
+			if(!strcmp(att_name, "dn")) dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
 			else
 			{
-				elog(INFO, "i: %d, j: %d, Attribut: %s, Wert: %s", i, j, att_name, value_str);
+				elog(INFO, "Func: %s, i: %d, j: %d, Attribut: %s, Wert: %s", __FUNCTION__, i, j, att_name, value_str);
+				DEBUGPOINT;
 				//p_values[i] = pstrdup(value_str);
 				/*
 				insert_data[i]->mod_type = pstrdup(att_name);
@@ -1673,11 +1708,19 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 				j++;
 				*/
 				
-				single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, att_name, (char*[]){value_str, NULL});
+				char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
+				DEBUGPOINT;
+				
+				//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, att_name, (char*[]){value_str, NULL});
+				single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, att_name, values_array);
+				DEBUGPOINT;
 				append_ldap_mod(&insert_data, single_ldap_mod);
+				DEBUGPOINT;
 				//ldap_mods_free(&single_ldap_mod, true);
 				free_ldap_mod(single_ldap_mod);
+				DEBUGPOINT;
 				single_ldap_mod = NULL;
+				DEBUGPOINT;
 
 			}
             pfree(value_str);  // Freigeben des String-Puffers
@@ -1781,8 +1824,14 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 				if(value_str == NULL || !strcmp(value_str, "")) {
 					single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){value_str, NULL});
 				} else {
-					single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, (char*[]){value_str, NULL});
+					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, (char*[]){value_str, NULL});
+				DEBUGPOINT;
+					char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
+				DEBUGPOINT;
+					single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, values_array);
+				DEBUGPOINT;
 				}
+				DEBUGPOINT;
 				append_ldap_mod(&modify_data, single_ldap_mod);
 				//ldap_mods_free(&single_ldap_mod, true);
 				free_ldap_mod(single_ldap_mod);
