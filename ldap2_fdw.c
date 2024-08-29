@@ -1831,6 +1831,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 				//if(value_str == NULL || !strcmp(value_str, "")) {
 				if(values_array == NULL)
 				{
+					elog(INFO, "Function %s, Line: %d: values array = NULL!", __FUNCTION__, __LINE__);
 					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){value_str, NULL});
 					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){NULL});
 				} else {
