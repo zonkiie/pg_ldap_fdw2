@@ -89,7 +89,8 @@ LDAPMod * construct_new_ldap_mod(int mod_op, char * type, char ** values)
 	LDAPMod * new_value = create_new_ldap_mod();
 	new_value->mod_op = mod_op;
 	new_value->mod_type = strdup(type);
-	new_value->mod_values = array_copy(values);
+	if(values != NULL) new_value->mod_values = array_copy(values);
+	else new_value->mod_values = NULL;
 	return new_value;
 }
 
@@ -97,7 +98,11 @@ void free_ldap_mod(LDAPMod * ldap_mod)
 {
 	free(ldap_mod->mod_type);
 	//ber_bvfree(*(ldap_mod->mod_bvalues));
-	free_carr_n(&(ldap_mod->mod_values));
+	if(ldap_mod->mod_values != NULL) 
+	{
+		free_carr_n(&(ldap_mod->mod_values));
+		ldap_mod->mod_values = NULL;
+	}
 	free(ldap_mod);
 }
 

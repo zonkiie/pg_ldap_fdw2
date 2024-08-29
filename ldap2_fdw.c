@@ -1790,6 +1790,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	int i = 0, j = 0;
 	LDAPMod		**modify_data = NULL;
 	LDAPMod		* single_ldap_mod = NULL;
+	LDAPMod		* single_ldap_mod_remove = NULL, * single_ldap_mod_add = NULL;
 	ForeignTable *table;
 	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
@@ -1816,29 +1817,44 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
             // Eindeutigen Namen des Attributs erhalten
             char *att_name = pstrdup(NameStr(tupdesc->attrs[i].attname));
             // Wert des Attributs formatieren (z.B. für Logging)
-            char *value_str = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
-			if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
+            //char *value_str = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
+			//if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
+			if(!strcmp(att_name, "dn")) dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
 			else
 			{
-				elog(INFO, "i: %d, j: %d, Attribut: %s, Wert: %s", i, j, att_name, value_str);
-				if(value_str == NULL || !strcmp(value_str, "")) {
-					single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){value_str, NULL});
+				//elog(INFO, "i: %d, j: %d, Attribut: %s, Wert: %s", i, j, att_name, value_str);
+				single_ldap_mod_remove = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, NULL);
+				single_ldap_mod_add = NULL;
+				DEBUGPOINT;
+				char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
+				DEBUGPOINT;
+				//if(value_str == NULL || !strcmp(value_str, "")) {
+				if(values_array == NULL)
+				{
+					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){value_str, NULL});
+					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){NULL});
 				} else {
 					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, (char*[]){value_str, NULL});
+					//char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
 				DEBUGPOINT;
-					char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
-				DEBUGPOINT;
-					single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, values_array);
+					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, values_array);
+					single_ldap_mod_add = construct_new_ldap_mod(LDAP_MOD_ADD, att_name, values_array);
 				DEBUGPOINT;
 				}
 				DEBUGPOINT;
-				append_ldap_mod(&modify_data, single_ldap_mod);
+				//append_ldap_mod(&modify_data, single_ldap_mod);
+				append_ldap_mod(&modify_data, single_ldap_mod_remove);
+				if(single_ldap_mod_add) append_ldap_mod(&modify_data, single_ldap_mod_add);
 				//ldap_mods_free(&single_ldap_mod, true);
-				free_ldap_mod(single_ldap_mod);
-				single_ldap_mod = NULL;
+				//free_ldap_mod(single_ldap_mod);
+				free_ldap_mod(single_ldap_mod_remove);
+				if(single_ldap_mod_add) free_ldap_mod(single_ldap_mod_add);
+				//single_ldap_mod = NULL;
+				single_ldap_mod_remove = NULL;
+				single_ldap_mod_add = NULL;
 				
 			}
-            pfree(value_str);  // Freigeben des String-Puffers
+            //pfree(value_str);  // Freigeben des String-Puffers
 			pfree(att_name);
 		}
 	}
