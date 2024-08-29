@@ -1816,7 +1816,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
             // Eindeutigen Namen des Attributs erhalten
             char *att_name = pstrdup(NameStr(tupdesc->attrs[i].attname));
             // Wert des Attributs formatieren (z.B. für Logging)
-            char *value_str = DatumGetCString(DirectFunctionCall1(textout, attr_value));
+            char *value_str = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
 			if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
 			else
 			{
@@ -1958,6 +1958,17 @@ ldap2_fdw_EndForeignModify(EState *estate,
 						 ResultRelInfo *resultRelInfo)
 {
 	DEBUGPOINT;
+	// cleanup
+	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;
+
+	/* if festate is NULL, we are in EXPLAIN; nothing to do */
+	if (fmstate)
+	{
+		ldap_unbind_ext_s( fmstate->ldap , NULL, NULL);
+		fmstate->ldap = NULL;
+		pfree(fmstate);
+		resultRelInfo->ri_FdwState = NULL;
+	}
 	return;
 }
 
