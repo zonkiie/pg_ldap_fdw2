@@ -650,6 +650,7 @@ Datum ldap2_fdw_handler(PG_FUNCTION_ARGS)
     fdw_routine->IsForeignRelUpdatable = ldap2_fdw_IsForeignRelUpdatable;
 
     fdw_routine->AnalyzeForeignTable = ldap2_fdw_AnalyzeForeignTable;
+	//fdw_routine->ImportForeignSchema = ldap2_fdw_ImportForeignSchema;
 
     PG_RETURN_POINTER(fdw_routine);
 }
@@ -2088,5 +2089,8 @@ ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
 	return 0;
 }
 
-
+static List *
+ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
+{
+}
 
