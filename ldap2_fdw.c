@@ -155,6 +155,9 @@ static int ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
 							  double *totalrows,
 							  double *totaldeadrows);
 
+static List * ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt,
+							Oid serverOid);
+
 /* magic */
 enum FdwScanPrivateIndex
 {
