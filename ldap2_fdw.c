@@ -43,18 +43,17 @@
 #include "utils/memutils.h"
 #include "utils/rel.h"
 
-#include "LdapFdwConn.h"
+#include "LdapFdwTypes.h"
 #include "LdapFdwOptions.h"
-#include "LdapFdwPlanState.h"
-#include "LdapFdwModifyState.h"
 #include "helper_functions.h"
 #include "ldap_functions.h"
 #include "deparse.h"
 
 void GetOptionStructr(LdapFdwOptions *, Oid);
 void print_list(FILE *, List *);
-void initLdap();
-void bindLdap();
+static void initLdap();
+static void initLdapConnection(LDAP *, LdapFdwOptions *)
+static void bindLdap(LDAP *, LdapFdwOptions *);
 
 PG_MODULE_MAGIC;
 
@@ -192,7 +191,7 @@ LDAP *ld = NULL;
 LdapFdwOptions *option_params = NULL;
 LDAPControl **serverctrls = NULL;
 LDAPControl **clientctrls = NULL;
-char ** attributes_array = NULL;
+//char ** attributes_array = NULL;
 //_cleanup_ldap_message_ LDAPMessage *res = NULL;
 
 char *dn, *matched_msg = NULL, *error_msg = NULL;
@@ -520,8 +519,21 @@ static bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Exp
 	return true;
 }
 
+static LdapFdwConn* create_LdapFdwConn();
 
-void initLdap()
+static LdapFdwConn* create_LdapFdwConn()
+{
+	LdapFdwConn * conn = (LdapFdwConn *)malloc(sizeof(LdapFdwConn));
+	return conn;
+}
+
+
+static void initLdap(LdapFdwConn * ldap_fdw_connection)
+{
+	
+}
+
+static void initLdapConnection(LDAP * ld, LdapFdwOptions * option_params)
 {
 	int version = LDAP_VERSION3, rc = 0;
 	//int debug_level = LDAP_DEBUG_TRACE;
@@ -578,10 +590,10 @@ void initLdap()
 	}*/
 	
 	// removed ldap bind - call bind from another function
-	bindLdap();
+	bindLdap(ld, option_params);
 }
 
-void bindLdap()
+static void bindLdap(LDAP * ld, LdapFdwOptions * option_params)
 {
 	int rc;
 	//ereport(INFO, errmsg_internal("bindLdap username: %s, password %s\n", option_params->username, option_params->password));
