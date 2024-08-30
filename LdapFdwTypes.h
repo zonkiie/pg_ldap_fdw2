@@ -6,7 +6,11 @@
 #include <ldap.h>
 #include <ldap_schema.h>
 #include <sasl/sasl.h>
+#include "postgres.h"
 #include "helper_functions.h"
+#include "funcapi.h"
+#include "miscadmin.h"
+#include "utils/builtins.h"
 
 typedef struct LdapFdwOptions
 {

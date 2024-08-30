@@ -51,9 +51,9 @@
 
 void GetOptionStructr(LdapFdwOptions *, Oid);
 void print_list(FILE *, List *);
-static void initLdapWithOptions(LdapFdwConn * ldap_fdw_connection );
-static void initLdapConnection(LDAP *, LdapFdwOptions *);
-static void bindLdap(LDAP *, LdapFdwOptions *);
+static void initLdapWithOptions(LdapFdwConn * ldap_fdw_connection);
+static void initLdapConnection(LDAP *, LdapFdwOptions * );
+static void bindLdap(LDAP *, LdapFdwOptions * );
 
 PG_MODULE_MAGIC;
 
@@ -184,15 +184,6 @@ enum FdwModifyPrivateIndex
     /* Integer list of attribute numbers retrieved by RETURNING */
     FdwModifyPrivateRetrievedAttrs
 };
-
-//_cleanup_ldap_ LDAP *ld = NULL;
-LDAP *ld = NULL;
-//_cleanup_options_ LdapFdwOptions *option_params = (LdapFdwOptions *)calloc(1, sizeof(LdapFdwOptions *));
-LdapFdwOptions *option_params = NULL;
-LDAPControl **serverctrls = NULL;
-LDAPControl **clientctrls = NULL;
-//char ** attributes_array = NULL;
-//_cleanup_ldap_message_ LDAPMessage *res = NULL;
 
 char *dn, *matched_msg = NULL, *error_msg = NULL;
 struct timeval timeout_struct = {.tv_sec = 10L, .tv_usec = 0L};
@@ -433,7 +424,7 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 		elog(INFO, "%s ereport Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter);
 	}
 	//rc = ldap_search_ext( ld, options->basedn, options->scope, options->filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
-	rc = ldap_search_ext( ld, options->basedn, options->scope, NULL, (char *[]){NULL}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
+	rc = ldap_search_ext( ldap, options->basedn, options->scope, NULL, (char *[]){NULL}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	if ( rc != LDAP_SUCCESS )
 	{
 		if ( error_msg != NULL && *error_msg != '\0' )
@@ -448,7 +439,7 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 	}
 	while(!finished)
 	{
-		rc = ldap_result( ld, msgid, LDAP_MSG_ONE, &zerotime, &res );
+		rc = ldap_result( ldap, msgid, LDAP_MSG_ONE, &zerotime, &res );
 		switch( rc )
 		{
 			case LDAP_RES_SEARCH_ENTRY:
@@ -520,16 +511,27 @@ static bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Exp
 }
 
 static LdapFdwConn* create_LdapFdwConn();
+static LdapFdwOptions * create_LdapFdwOptions();
 
 static LdapFdwConn* create_LdapFdwConn()
 {
-	return (LdapFdwConn *)palloc(sizeof(LdapFdwConn));
+	LdapFdwConn* conn = (LdapFdwConn *)palloc(sizeof(LdapFdwConn));
+	conn->options = create_LdapFdwOptions();
+	conn->serverctrls = NULL;
+	conn->clientctrls = NULL;
+	return conn;
+}
+
+static LdapFdwOptions * create_LdapFdwOptions()
+{
+	LdapFdwOptions * options = (LdapFdwOptions *)palloc(sizeof(LdapFdwOptions));
+	return options;
 }
 
 
-static void initLdapWithOptions(LdapFdwConn * ldap_fdw_connection, LdapFdwOptions * option_params)
+static void initLdapWithOptions(LdapFdwConn * ldap_fdw_connection)
 {
-	initLdapConnection(ldap_fdw_connection->ldap, option_params);
+	initLdapConnection(ldap_fdw_connection->ldap, ldap_fdw_connection->options);
 }
 
 static void initLdapConnection(LDAP * ld, LdapFdwOptions * option_params)
@@ -665,14 +667,13 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	fpinfo = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	baserel->fdw_private = (void *) fpinfo;
 	
-	//LdapFdwOptions *option_params = (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions *));
 	//initLdapFdwOptions(option_params);
-	
-	GetOptionStructr(option_params, foreigntableid);
-	initLdapWithOptions();
+	fpinfo->ldapConn = create_LdapFdwConn();
+	fpinfo->ldapConn->options = create_LdapFdwOptions();
+	GetOptionStructr(fpinfo->ldapConn->options, foreigntableid);
+	initLdapWithOptions(fpinfo->ldapConn);
 
-	//baserel->rows = estimate_size(ld, option_params->basedn, option_params->filter, option_params->scope);
-	baserel->rows = estimate_size(ld, option_params);
+	baserel->rows = estimate_size(fpinfo->ldapConn->ldap, fpinfo->ldapConn->options);
 }
 
 /*
@@ -694,8 +695,9 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	Cost		total_cost;
 	
 	/* Fetch options */
-	GetOptionStructr(option_params, foreigntableid);
-	initLdap();
+	GetOptionStructr(fdw_private->ldapConn->options, foreigntableid);
+	initLdapWithOptions(fdw_private->ldapConn);
+	
 #if (PG_VERSION_NUM < 90500)
 	path = (Path *) create_foreignscan_path(root, baserel,
 						baserel->rows,
@@ -754,8 +756,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	/* Fetch options */
-	GetOptionStructr(option_params, foreigntableid);
-	initLdap();
+	fdw_private->ldapConn = create_LdapFdwConn();
+	GetOptionStructr(fdw_private->ldapConn->options, foreigntableid);
+	initLdapWithOptions(fdw_private->ldapConn);
 
 	Path	   *foreignPath;
 	Index		scan_relid = baserel->relid;
@@ -794,8 +797,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
 	//DEBUGPOINT;
 	/* Fetch options */
-	GetOptionStructr(option_params, foreigntableid);
-	initLdap();
+	fdw_private->ldapConn = create_LdapFdwConn();
+	GetOptionStructr(fdw_private->ldapConn->options, foreigntableid);
+	initLdapWithOptions(fdw_private->ldapConn);
 	//DEBUGPOINT;
 
 	scan_relid = baserel->relid;
@@ -951,7 +955,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	Oid typid;
 	bool is_array = false;
 	
-	fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
+	//fsstate = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	//fsstate->ntuples = 3;
 	fsstate->row = 0;
 
@@ -999,7 +1003,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	// from:     dynamodb_fdw/dynamodb_impl.cpp line 800
 	// LDAP search
 	//rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
-	fsstate->rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, option_params->filter, fsstate->columns, 0, serverctrls, clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fsstate->msgid) );
+	fsstate->rc = ldap_search_ext( fsstate->ldapConn->ldap, fsstate->ldapConn->options->basedn, fsstate->ldapConn->options->scope, fsstate->ldapConn->options->filter, fsstate->columns, 0, fsstate->ldapConn->serverctrls, fsstate->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fsstate->msgid) );
 	if ( fsstate->rc != LDAP_SUCCESS ) {
 
 		elog(INFO, "ldap_search_ext_s: %s\n", ldap_err2string( fsstate->rc ) );
@@ -1069,7 +1073,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	
 	ExecClearTuple(slot);
 	
-	fsstate->rc = ldap_result( ld, fsstate->msgid, LDAP_MSG_ONE, &timeout_struct, &(fsstate->ldap_message_result) );
+	fsstate->rc = ldap_result( fsstate->ldapConn->ldap, fsstate->msgid, LDAP_MSG_ONE, &timeout_struct, &(fsstate->ldap_message_result) );
 	switch(fsstate->rc)
 	{
 		case -1:
@@ -1080,9 +1084,9 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			return slot;
 		case LDAP_RES_SEARCH_ENTRY:
 			//elog(INFO, "LDAP_RES_SEARCH_ENTRY");
-			entrydn = ldap_get_dn(ld, fsstate->ldap_message_result);
+			entrydn = ldap_get_dn(fsstate->ldapConn->ldap, fsstate->ldap_message_result);
 			i = 0;
-			ldap_get_option(ld, LDAP_OPT_ERROR_NUMBER, &err);
+			ldap_get_option(fsstate->ldapConn->ldap, LDAP_OPT_ERROR_NUMBER, &err);
 			
 			for(char **a = fsstate->columns; *a != NULL; *a++) {
 				
@@ -1096,7 +1100,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					i++;
 					continue;
 				}
-				if((vals = ldap_get_values_len(ld, fsstate->ldap_message_result, *a)) != NULL)
+				if((vals = ldap_get_values_len(fsstate->ldapConn->ldap, fsstate->ldap_message_result, *a)) != NULL)
 				{
 					int values_length = ldap_count_values_len(vals);
 					//if(ldap_count_values_len(vals) == 0)
@@ -1521,16 +1525,11 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 
 	fmstate->rel = rel;
 	//GetOptionStructr((fmstate->options), foreignTableId);
-	GetOptionStructr(option_params, foreignTableId);
+	fmstate->ldapConn = create_LdapFdwConn();
+	GetOptionStructr(fmstate->ldapConn->options, foreignTableId);
+	initLdapWithOptions(fmstate->ldapConn);
 
-	/*
-	 * Get connection to the foreign server.  Connection manager will
-	 * establish new connection if necessary.
-	 */
-	fmstate->ldapConn->ldap = ld;
-	
 	fmstate->target_attrs = (List *) list_nth(fdw_private, 0);
-	fmstate->ldapConn->options = option_params;
 	
 	//fmstate->retrieved_attrs = (List *) list_nth(fdw_private, 3);
 
@@ -1644,9 +1643,10 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 
 	fmstate->rel = rel;
 	//GetOptionStructr((fmstate->options), foreignTableId);
-	GetOptionStructr(option_params, foreignTableId);
-	initLdap();
-	
+	fmstate->ldapConn = create_LdapFdwConn();
+	GetOptionStructr(fmstate->ldapConn->options, foreignTableId);
+	initLdapWithOptions(fmstate->ldapConn);
+
 	//p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
 	//insert_data = ( LDAPMod ** ) palloc(( fmstate->p_nums + 1 ) * sizeof( LDAPMod * ));
 
@@ -1760,7 +1760,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	}*/
 	
 	elog(INFO, "ldap add: dn: %s", dn);
-	rc = ldap_add_ext_s( ld, dn, insert_data, NULL, NULL );
+	rc = ldap_add_ext_s( fmstate->ldapConn->ldap, dn, insert_data, NULL, NULL );
 
 	if ( rc != LDAP_SUCCESS ) {
 		elog( ERROR, "ldap_add_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
@@ -1789,7 +1789,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 						  TupleTableSlot *planSlot)
 {
 	DEBUGPOINT;
-	LdapFdwModifyState *fmstate = fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
+	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Datum       attr_value, datum;
 	bool		isNull = false;
 	Oid			foreignTableId;
@@ -1871,7 +1871,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	}
 	
 	elog(INFO, "ldap mod: dn: %s", dn);
-	rc = ldap_modify_ext_s( ld, dn, modify_data, NULL, NULL );
+	rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data, NULL, NULL );
 	rc = LDAP_SUCCESS;
 
 	if ( rc != LDAP_SUCCESS ) {
@@ -1925,7 +1925,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	elog(INFO, "Column Name: %s\n", columnName);
 	elog(INFO, "Base DN to delete from: %s\n", fmstate->ldapConn->options->basedn);
 	asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->ldapConn->options->basedn);
-	rc = ldap_delete_s(ld, dn);
+	rc = ldap_delete_s(fmstate->ldapConn->ldap, dn);
 	free(dn);
 	
 	if(rc != LDAP_SUCCESS) return NULL;
