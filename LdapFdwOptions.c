@@ -1,5 +1,10 @@
 #include "LdapFdwOptions.h"
 
+LdapFdwOptions * createLdapFdwOptions()
+{
+	return (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions *));
+}
+
 void initLdapFdwOptions(LdapFdwOptions* ldapFdwOptions)
 {
 	ldapFdwOptions->uri = NULL;

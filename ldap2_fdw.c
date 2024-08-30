@@ -43,16 +43,16 @@
 #include "utils/memutils.h"
 #include "utils/rel.h"
 
-#include "LdapFdwTypes.h"
 #include "LdapFdwOptions.h"
+#include "LdapFdwTypes.h"
 #include "helper_functions.h"
 #include "ldap_functions.h"
 #include "deparse.h"
 
 void GetOptionStructr(LdapFdwOptions *, Oid);
 void print_list(FILE *, List *);
-static void initLdap();
-static void initLdapConnection(LDAP *, LdapFdwOptions *)
+static void initLdapWithOptions(LdapFdwConn * ldap_fdw_connection );
+static void initLdapConnection(LDAP *, LdapFdwOptions *);
 static void bindLdap(LDAP *, LdapFdwOptions *);
 
 PG_MODULE_MAGIC;
@@ -523,14 +523,13 @@ static LdapFdwConn* create_LdapFdwConn();
 
 static LdapFdwConn* create_LdapFdwConn()
 {
-	LdapFdwConn * conn = (LdapFdwConn *)malloc(sizeof(LdapFdwConn));
-	return conn;
+	return (LdapFdwConn *)palloc(sizeof(LdapFdwConn));
 }
 
 
-static void initLdap(LdapFdwConn * ldap_fdw_connection)
+static void initLdapWithOptions(LdapFdwConn * ldap_fdw_connection, LdapFdwOptions * option_params)
 {
-	
+	initLdapConnection(ldap_fdw_connection->ldap, option_params);
 }
 
 static void initLdapConnection(LDAP * ld, LdapFdwOptions * option_params)
@@ -611,8 +610,8 @@ static void bindLdap(LDAP * ld, LdapFdwOptions * option_params)
 
 void _PG_init()
 {
-	option_params = (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions *));
-	initLdapFdwOptions(option_params);
+	//option_params = (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions *));
+	//initLdapFdwOptions(option_params);
 	//DEBUGPOINT;
 }
 
@@ -666,12 +665,11 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	fpinfo = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	baserel->fdw_private = (void *) fpinfo;
 	
-	
 	//LdapFdwOptions *option_params = (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions *));
 	//initLdapFdwOptions(option_params);
 	
 	GetOptionStructr(option_params, foreigntableid);
-	initLdap();
+	initLdapWithOptions();
 
 	//baserel->rows = estimate_size(ld, option_params->basedn, option_params->filter, option_params->scope);
 	baserel->rows = estimate_size(ld, option_params);
@@ -1529,10 +1527,10 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	 * Get connection to the foreign server.  Connection manager will
 	 * establish new connection if necessary.
 	 */
-	fmstate->ldap = ld;
+	fmstate->ldapConn->ldap = ld;
 	
 	fmstate->target_attrs = (List *) list_nth(fdw_private, 0);
-	fmstate->options = option_params;
+	fmstate->ldapConn->options = option_params;
 	
 	//fmstate->retrieved_attrs = (List *) list_nth(fdw_private, 3);
 
@@ -1925,8 +1923,8 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 
 	columnName = get_attname(foreignTableId, 1, false);
 	elog(INFO, "Column Name: %s\n", columnName);
-	elog(INFO, "Base DN to delete from: %s\n", fmstate->options->basedn);
-	asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->options->basedn);
+	elog(INFO, "Base DN to delete from: %s\n", fmstate->ldapConn->options->basedn);
+	asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->ldapConn->options->basedn);
 	rc = ldap_delete_s(ld, dn);
 	free(dn);
 	
@@ -1993,8 +1991,8 @@ ldap2_fdw_EndForeignModify(EState *estate,
 	/* if festate is NULL, we are in EXPLAIN; nothing to do */
 	if (fmstate)
 	{
-		ldap_unbind_ext_s( fmstate->ldap , NULL, NULL);
-		fmstate->ldap = NULL;
+		ldap_unbind_ext_s( fmstate->ldapConn->ldap , NULL, NULL);
+		fmstate->ldapConn->ldap = NULL;
 		pfree(fmstate);
 		resultRelInfo->ri_FdwState = NULL;
 	}

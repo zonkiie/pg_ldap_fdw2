@@ -23,7 +23,7 @@ typedef struct LdapFdwOptions
 
 typedef struct LdapFdwConn
 {
-	LDAP *ld;
+	LDAP *ldap;
 	LDAPControl **serverctrls;
 	LDAPControl **clientctrls;
 	LdapFdwOptions *options;
@@ -44,9 +44,8 @@ typedef struct LdapFdwModifyState
 
 	struct HTAB *columnMappingHash;
 
-	LDAP *ldap;	/* MongoDB connection */
+	LdapFdwConn  *ldapConn;
 
-	LdapFdwOptions *options;
 	AttrNumber	rowidAttno;		/* attnum of resjunk rowid column */
 
 	/* Join/Upper relation information */
@@ -75,6 +74,7 @@ typedef struct LdapFdwPlanState
 	AttInMetadata *attinmeta;
 	LDAPMessage   *ldap_message_result;
 	LDAPMessage	  *msg;
+	LdapFdwConn  *ldapConn;
 } LdapFdwPlanState;
 
 #endif
