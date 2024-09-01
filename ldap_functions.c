@@ -42,8 +42,8 @@ void free_berval(struct berval **bval)
 
 int append_ldap_mod(LDAPMod ***insert_data_all, LDAPMod *insert_data_entry)
 {
-	if(insert_data_entry == NULL) return -1;
 	int current_count = 0;
+	if(insert_data_entry == NULL) return -1;
 	if(*insert_data_all == NULL) *insert_data_all = (LDAPMod**)calloc(sizeof(LDAPMod*), 2);
 	else
 	{
