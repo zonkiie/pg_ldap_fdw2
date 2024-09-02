@@ -55,8 +55,6 @@ void print_list(FILE *, List *);
 static void initLdapWithOptions(LdapFdwConn * ldap_fdw_connection);
 static void initLdapConnection(LDAP *, LdapFdwOptions * );
 static void bindLdap(LDAP *, LdapFdwOptions * );
-void initLdapGlobal();
-void bindLdapGlobal();
 static LdapFdwConn * create_LdapFdwConn();
 static LdapFdwOptions * create_LdapFdwOptions();
 
