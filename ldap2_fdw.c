@@ -530,7 +530,7 @@ static bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Exp
 
 static LdapFdwConn * create_LdapFdwConn()
 {
-	LdapFdwConn* conn = (LdapFdwConn *)palloc(sizeof(LdapFdwConn));
+	LdapFdwConn* conn = (LdapFdwConn *)palloc0(sizeof(LdapFdwConn));
 	conn->options = create_LdapFdwOptions();
 	conn->serverctrls = NULL;
 	conn->clientctrls = NULL;
@@ -539,7 +539,7 @@ static LdapFdwConn * create_LdapFdwConn()
 
 static LdapFdwOptions * create_LdapFdwOptions()
 {
-	LdapFdwOptions * options = (LdapFdwOptions *)palloc(sizeof(LdapFdwOptions));
+	LdapFdwOptions * options = (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions));
 	initLdapFdwOptions(options);
 	return options;
 }
@@ -661,6 +661,7 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   Oid foreigntableid)
 {
 	char * uri;
+	LDAP *ld = NULL;
 	LdapFdwPlanState *fpinfo = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	baserel->fdw_private = (void *) fpinfo;
 	
@@ -669,8 +670,8 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	GetOptionStructr(fpinfo->ldapConn->options, foreigntableid);
 	initLdapWithOptions(fpinfo->ldapConn);
 	DEBUGPOINT;
-	LDAP *ld = NULL;
-	initLdapConnection(ld, fpinfo->ldapConn->options);
+	ld = fpinfo->ldapConn->ldap;
+	//initLdapConnection(ld, fpinfo->ldapConn->options);
 	//ldap_get_option(fpinfo->ldapConn->ldap, LDAP_OPT_URI, &uri);
 	ldap_get_option(ld, LDAP_OPT_URI, &uri);
 	elog(INFO, "uri: %s", uri);
@@ -970,9 +971,13 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 
 	fsstate->attinmeta = TupleDescGetAttInMetadata(node->ss.ss_currentRelation->rd_att);
 
+	DEBUGPOINT;
+	
 	rel = node->ss.ss_currentRelation;
 	
 	tupdesc = RelationGetDescr(rel);
+	
+	DEBUGPOINT;
 	
 	fsstate->num_attrs = tupdesc->natts;
 	
@@ -982,6 +987,8 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	memset(fsstate->column_types, 0, (tupdesc->natts) * sizeof(char*));
 	fsstate->column_type_ids = (Oid*)palloc(sizeof(Oid) * tupdesc->natts);
 	memset(fsstate->column_type_ids, 0, (tupdesc->natts) * sizeof(Oid));
+	
+	DEBUGPOINT;
 	
 	// Beispiel für die Schleife über die Spalten
 	for (attnum = 1; attnum <= tupdesc->natts; attnum++)
@@ -1003,6 +1010,8 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 			fsstate->column_type_ids[attnum - 1] = tupdesc->attrs[attnum - 1].atttypid;
 		}
 	}
+	DEBUGPOINT;
+	
 	fsstate->columns[tupdesc->natts] = NULL;
 
 	node->fdw_state = (void *) fsstate;
