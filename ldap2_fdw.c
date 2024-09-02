@@ -668,7 +668,6 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	
 	//initLdapFdwOptions(option_params);
 	fpinfo->ldapConn = create_LdapFdwConn();
-	fpinfo->ldapConn->options = create_LdapFdwOptions();
 	GetOptionStructr(fpinfo->ldapConn->options, foreigntableid);
 	initLdapWithOptions(fpinfo->ldapConn);
 	DEBUGPOINT;
