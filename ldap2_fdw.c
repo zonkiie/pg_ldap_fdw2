@@ -680,6 +680,7 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   Oid foreigntableid)
 {
 	LdapFdwPlanState *fpinfo;
+	char * uri;
 	fpinfo = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	baserel->fdw_private = (void *) fpinfo;
 	
@@ -688,8 +689,10 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	fpinfo->ldapConn->options = create_LdapFdwOptions();
 	GetOptionStructr(fpinfo->ldapConn->options, foreigntableid);
 	print_options(fpinfo->ldapConn->options);
-	DEBUGPOINT;
 	initLdapWithOptions(fpinfo->ldapConn);
+	DEBUGPOINT;
+	ldap_get_option(fpinfo->ldapConn->ldap, LDAP_OPT_URI, &uri);
+	elog(INFO, "Uri: %s", uri);
 	DEBUGPOINT;
 	baserel->rows = estimate_size(fpinfo->ldapConn->ldap, fpinfo->ldapConn->options);
 	DEBUGPOINT;
@@ -781,9 +784,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						List *tlist,
 						List *scan_clauses)
 {
-	LdapFdwPlanState *fdw_private;
-	
-	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
+	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	/* Fetch options */
 	fdw_private->ldapConn = create_LdapFdwConn();
 	GetOptionStructr(fdw_private->ldapConn->options, foreigntableid);
@@ -819,10 +820,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	ListCell *cell = NULL;
 	List *remote_exprs = NIL;
 	List *local_exprs = NIL;
-	LdapFdwPlanState *fdw_private;
-	
-	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
-	
+	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	
 	DEBUGPOINT;
 	/* Fetch options */
@@ -1123,7 +1121,8 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			i = 0;
 			ldap_get_option(fsstate->ldapConn->ldap, LDAP_OPT_ERROR_NUMBER, &err);
 			
-			for(char **a = fsstate->columns; *a != NULL; *a++) {
+			// former: *a++
+			for(char **a = fsstate->columns; *a != NULL; a++) {
 				
 				column_type_is_array = (fsstate->column_types[i])[0] == '_';
 				
@@ -1640,11 +1639,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	LDAPMod		**insert_data = NULL;
 	LDAPMod		* single_ldap_mod = NULL;
 	TupleDesc	tupdesc;
-    int         n_rows;
-	int 		i;
-	int 		j;
-	int			p_index;
-	int			rc;
+    int         n_rows = 0, i = 0, j = 0, p_index = 0, rc = 0;
 	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	tupdesc = RelationGetDescr(rel);
@@ -1959,12 +1954,15 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	columnName = get_attname(foreignTableId, 1, false);
 	elog(INFO, "Column Name: %s\n", columnName);
 	elog(INFO, "Base DN to delete from: %s\n", fmstate->ldapConn->options->basedn);
-	asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->ldapConn->options->basedn);
-	//rc = ldap_delete_s(fmstate->ldapConn->ldap, dn);
-	rc = ldap_delete_ext_s(fmstate->ldapConn->ldap, dn, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
-	free(dn);
+	if(asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->ldapConn->options->basedn) > 0)
+	{
+		//rc = ldap_delete_s(fmstate->ldapConn->ldap, dn);
+		rc = ldap_delete_ext_s(fmstate->ldapConn->ldap, dn, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
+
+		free(dn);
 	
-	if(rc != LDAP_SUCCESS) return NULL;
+		if(rc != LDAP_SUCCESS) return NULL;
+	}
 	
 	/*
 	typoid = get_atttype(foreignTableId, 1);
