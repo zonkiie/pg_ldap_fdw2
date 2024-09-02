@@ -2,7 +2,7 @@
 
 LdapFdwOptions * createLdapFdwOptions()
 {
-	return (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions *));
+	return (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions));
 }
 
 void initLdapFdwOptions(LdapFdwOptions* ldapFdwOptions)

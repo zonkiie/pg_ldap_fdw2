@@ -55,6 +55,8 @@ void print_list(FILE *, List *);
 static void initLdapWithOptions(LdapFdwConn * ldap_fdw_connection);
 static void initLdapConnection(LDAP *, LdapFdwOptions * );
 static void bindLdap(LDAP *, LdapFdwOptions * );
+void initLdapGlobal();
+void bindLdapGlobal();
 static LdapFdwConn * create_LdapFdwConn();
 static LdapFdwOptions * create_LdapFdwOptions();
 
@@ -540,6 +542,7 @@ static LdapFdwConn * create_LdapFdwConn()
 static LdapFdwOptions * create_LdapFdwOptions()
 {
 	LdapFdwOptions * options = (LdapFdwOptions *)palloc(sizeof(LdapFdwOptions));
+	initLdapFdwOptions(options);
 	return options;
 }
 
@@ -563,11 +566,6 @@ static void initLdapConnection(LDAP * ld, LdapFdwOptions * option_params)
 				errhint("ldap option params is not initialized!")));
 		return;
 	}
-	
-	//ereport(INFO, errmsg_internal("initLdap uri: %s, username: %s, password %s\n", option_params->uri, option_params->username, option_params->password));
-
-	
-	//option_params = (LdapFdwOptions *)malloc(sizeof(LdapFdwOptions *));
 	
 	if(option_params->uri == NULL || !strcmp(option_params->uri, ""))
 	{
@@ -596,15 +594,6 @@ static void initLdapConnection(LDAP * ld, LdapFdwOptions * option_params)
 		return;
 	}
 
-	/*if ( ( rc = ldap_set_option( ld, LDAP_OPT_DEBUG_LEVEL, &debug_level ) ) != LDAP_SUCCESS )
-	{
-		ereport(ERROR,
-				(errcode(ERRCODE_FDW_ERROR),
-				errmsg("Could not set ldap debug level option!"),
-				errhint("Could not set ldap debug level option.")));
-		return;
-	}*/
-	
 	// removed ldap bind - call bind from another function
 	bindLdap(ld, option_params);
 }
@@ -612,7 +601,6 @@ static void initLdapConnection(LDAP * ld, LdapFdwOptions * option_params)
 static void bindLdap(LDAP * ld, LdapFdwOptions * option_params)
 {
 	int rc;
-	//ereport(INFO, errmsg_internal("bindLdap username: %s, password %s\n", option_params->username, option_params->password));
 	
 	if ( ( rc = common_ldap_bind( ld, option_params->username, option_params->password, option_params->use_sasl) ) != LDAP_SUCCESS)
 	{
@@ -627,15 +615,10 @@ static void bindLdap(LDAP * ld, LdapFdwOptions * option_params)
 
 void _PG_init()
 {
-	//option_params = (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions *));
-	//initLdapFdwOptions(option_params);
-	//DEBUGPOINT;
 }
 
 void _PG_fini()
 {
-	DEBUGPOINT;
-	//free_ldap(&ld);
 }
 
 Datum ldap2_fdw_handler(PG_FUNCTION_ARGS)
@@ -679,22 +662,24 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   RelOptInfo *baserel,
 						   Oid foreigntableid)
 {
-	LdapFdwPlanState *fpinfo;
 	char * uri;
-	fpinfo = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
+	LdapFdwPlanState *fpinfo = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	baserel->fdw_private = (void *) fpinfo;
 	
 	//initLdapFdwOptions(option_params);
 	fpinfo->ldapConn = create_LdapFdwConn();
 	fpinfo->ldapConn->options = create_LdapFdwOptions();
 	GetOptionStructr(fpinfo->ldapConn->options, foreigntableid);
-	print_options(fpinfo->ldapConn->options);
 	initLdapWithOptions(fpinfo->ldapConn);
 	DEBUGPOINT;
-	ldap_get_option(fpinfo->ldapConn->ldap, LDAP_OPT_URI, &uri);
-	elog(INFO, "Uri: %s", uri);
-	DEBUGPOINT;
-	baserel->rows = estimate_size(fpinfo->ldapConn->ldap, fpinfo->ldapConn->options);
+	LDAP *ld = NULL;
+	initLdapConnection(ld, fpinfo->ldapConn->options);
+	//ldap_get_option(fpinfo->ldapConn->ldap, LDAP_OPT_URI, &uri);
+	ldap_get_option(ld, LDAP_OPT_URI, &uri);
+	elog(INFO, "uri: %s", uri);
+	//baserel->rows = estimate_size(fpinfo->ldapConn->ldap, fpinfo->ldapConn->options);
+	baserel->rows = estimate_size(ld, fpinfo->ldapConn->options);
+	elog(INFO, "Rows: %d", baserel->rows);
 	DEBUGPOINT;
 	
 }
