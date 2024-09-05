@@ -670,13 +670,9 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	GetOptionStructr(fpinfo->ldapConn->options, foreigntableid);
 	initLdapWithOptions(fpinfo->ldapConn);
 	DEBUGPOINT;
-	ld = fpinfo->ldapConn->ldap;
-	//initLdapConnection(ld, fpinfo->ldapConn->options);
-	//ldap_get_option(fpinfo->ldapConn->ldap, LDAP_OPT_URI, &uri);
-	ldap_get_option(ld, LDAP_OPT_URI, &uri);
+	ldap_get_option(fpinfo->ldapConn->ldap, LDAP_OPT_URI, &uri);
 	elog(INFO, "uri: %s", uri);
-	//baserel->rows = estimate_size(fpinfo->ldapConn->ldap, fpinfo->ldapConn->options);
-	baserel->rows = estimate_size(ld, fpinfo->ldapConn->options);
+	baserel->rows = estimate_size(fpinfo->ldapConn->ldap, fpinfo->ldapConn->options);
 	elog(INFO, "Rows: %d", baserel->rows);
 	DEBUGPOINT;
 	
