@@ -416,20 +416,12 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 	
 	if(options == NULL)
 	{
-		ereport(ERROR,
-			(errcode(ERRCODE_FDW_ERROR),
-			errmsg("options is null!"),
-			errhint("options is null!"))
-		);
+		elog(ERROR, "options is null!");
 	}
 	
 	if(options->basedn == NULL || !strcmp(options->basedn, ""))
 	{
-		ereport(ERROR,
-			(errcode(ERRCODE_FDW_ERROR),
-			errmsg("Basedn is null or empty!"),
-			errhint("Basedn is null or empty!"))
-		);
+		elog(ERROR, "Basedn is null or empty!");
 	}
 	
 	elog(INFO, "%s Line %d : basedn: %s\n", __FUNCTION__, __LINE__, options->basedn);
@@ -661,7 +653,6 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   Oid foreigntableid)
 {
 	char * uri;
-	LDAP *ld = NULL;
 	LdapFdwPlanState *fpinfo = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	baserel->fdw_private = (void *) fpinfo;
 	
