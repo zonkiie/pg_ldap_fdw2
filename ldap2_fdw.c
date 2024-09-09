@@ -50,7 +50,8 @@
 #include "ldap_functions.h"
 #include "deparse.h"
 
-void GetOptionStructr(LdapFdwOptions *, Oid);
+static void GetOptionStructr(LdapFdwOptions *, Oid);
+static LdapFdwOptions * GetOptionStruct(Oid);
 void print_list(FILE *, List *);
 static void initLdapWithOptions(LdapFdwConn * ldap_fdw_connection);
 static void initLdapConnection(LDAP *, LdapFdwOptions * );
@@ -193,7 +194,7 @@ enum FdwModifyPrivateIndex
 
 struct timeval timeout_struct = {.tv_sec = 10L, .tv_usec = 0L};
 
-void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
+static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 {
 	ForeignTable *foreignTable = NULL;
 	ForeignServer *foreignServer = NULL;
@@ -299,6 +300,13 @@ void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		pfree(value);
 	}
 	options->use_sasl = 0;
+}
+
+static LdapFdwOptions * GetOptionStruct(Oid foreignTableId)
+{
+	LdapFdwOptions * options = create_LdapFdwOptions();
+	GetOptionStructr(options, foreignTableId);
+	return options;
 }
 
 void print_list(FILE *out_channel, List *list)
@@ -533,6 +541,12 @@ static LdapFdwOptions * create_LdapFdwOptions()
 {
 	LdapFdwOptions * options = (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions));
 	initLdapFdwOptions(options);
+	return options;
+}
+
+static LdapFdwConn * create_LdapFdwConnForFt(Oid foreignTableId)
+{
+	LdapFdwOptions * options = NULL;
 	return options;
 }
 
