@@ -49,6 +49,7 @@ typedef struct LdapFdwModifyState
 	struct HTAB *columnMappingHash;
 
 	LdapFdwConn  *ldapConn;
+	//LDAP		*ldap;
 
 	AttrNumber	rowidAttno;		/* attnum of resjunk rowid column */
 
@@ -79,6 +80,7 @@ typedef struct LdapFdwPlanState
 	LDAPMessage   *ldap_message_result;
 	LDAPMessage	  *msg;
 	LdapFdwConn  *ldapConn;
+	//LDAP		*ldap;
 } LdapFdwPlanState;
 
 #endif

@@ -58,6 +58,8 @@ static void initLdapConnection(LDAP *, LdapFdwOptions * );
 static void bindLdap(LDAP *, LdapFdwOptions * );
 static LdapFdwConn * create_LdapFdwConn();
 static LdapFdwOptions * create_LdapFdwOptions();
+static void initLdapConnectionStruct(LdapFdwConn *);
+static void bindLdapStruct(LdapFdwConn *);
 
 PG_MODULE_MAGIC;
 
@@ -556,6 +558,67 @@ static void initLdapWithOptions(LdapFdwConn * ldap_fdw_connection)
 	initLdapConnection(ldap_fdw_connection->ldap, ldap_fdw_connection->options);
 }
 
+static void initLdapConnectionStruct(LdapFdwConn * ldap_fdw_connection)
+{
+	int version = LDAP_VERSION3, rc = 0;
+	//int debug_level = LDAP_DEBUG_TRACE;
+	
+	if(ldap_fdw_connection->options == NULL)
+	{
+		DEBUGPOINT;
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_ATTRIBUTE_VALUE),
+				errmsg("options is null!"),
+				errhint("ldap option params is not initialized!")));
+		return;
+	}
+	
+	if(ldap_fdw_connection->options->uri == NULL || !strcmp(ldap_fdw_connection->options->uri, ""))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_ATTRIBUTE_VALUE),
+				errmsg("URI is empty!"),
+				errhint("LDAP URI is not given or has empty value!")));
+		return;
+	}
+
+	if ( ( rc = ldap_initialize( &(ldap_fdw_connection->ldap), ldap_fdw_connection->options->uri ) ) != LDAP_SUCCESS )
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_UNABLE_TO_ESTABLISH_CONNECTION),
+				errmsg("Could not establish connection to \"%s\"", ldap_fdw_connection->options->uri),
+				errhint("Check that ldap server runs, accept connections and can be reached.")));
+		return;
+	}
+
+	if ( ( rc = ldap_set_option( ldap_fdw_connection->ldap, LDAP_OPT_PROTOCOL_VERSION, &version ) ) != LDAP_SUCCESS )
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_ERROR),
+				errmsg("Could not set ldap version option!"),
+				errhint("Could not set ldap version option. Does ldap server accept the correct ldap version 3?")));
+		return;
+	}
+
+	// removed ldap bind - call bind from another function
+	bindLdapStruct(ldap_fdw_connection);
+}
+
+static void bindLdapStruct(LdapFdwConn * ldap_fdw_connection)
+{
+	int rc;
+	
+	if ( ( rc = common_ldap_bind( ldap_fdw_connection->ldap, ldap_fdw_connection->options->username, ldap_fdw_connection->options->password, ldap_fdw_connection->options->use_sasl) ) != LDAP_SUCCESS)
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_ERROR),
+				errmsg("Could not exec ldap bind to \"%s\" with username \"%s\"!", ldap_fdw_connection->options->uri, ldap_fdw_connection->options->username),
+				errhint("Could not bind to ldap server. Is username and password correct?")));
+		return;
+	}
+	
+}
+
 static void initLdapConnection(LDAP * ld, LdapFdwOptions * option_params)
 {
 	int version = LDAP_VERSION3, rc = 0;
@@ -601,6 +664,7 @@ static void initLdapConnection(LDAP * ld, LdapFdwOptions * option_params)
 	// removed ldap bind - call bind from another function
 	bindLdap(ld, option_params);
 }
+
 
 static void bindLdap(LDAP * ld, LdapFdwOptions * option_params)
 {
@@ -673,7 +737,8 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	//initLdapFdwOptions(option_params);
 	fpinfo->ldapConn = create_LdapFdwConn();
 	GetOptionStructr(fpinfo->ldapConn->options, foreigntableid);
-	initLdapWithOptions(fpinfo->ldapConn);
+	//initLdapWithOptions(fpinfo->ldapConn);
+	initLdapConnectionStruct(fpinfo->ldapConn);
 	DEBUGPOINT;
 	ldap_get_option(fpinfo->ldapConn->ldap, LDAP_OPT_URI, &uri);
 	elog(INFO, "uri: %s", uri);
@@ -706,7 +771,8 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	
 	/* Fetch options */
 	GetOptionStructr(fdw_private->ldapConn->options, foreigntableid);
-	initLdapWithOptions(fdw_private->ldapConn);
+	//initLdapWithOptions(fdw_private->ldapConn);
+	initLdapConnectionStruct(fdw_private->ldapConn);
 	
 	DEBUGPOINT;
 	
@@ -772,7 +838,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	/* Fetch options */
 	fdw_private->ldapConn = create_LdapFdwConn();
 	GetOptionStructr(fdw_private->ldapConn->options, foreigntableid);
-	initLdapWithOptions(fdw_private->ldapConn);
+	//initLdapWithOptions(fdw_private->ldapConn);
+	initLdapConnectionStruct(fpinfo->ldapConn);
 
 	Path	   *foreignPath;
 	Index		scan_relid = baserel->relid;
@@ -810,7 +877,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	/* Fetch options */
 	fdw_private->ldapConn = create_LdapFdwConn();
 	GetOptionStructr(fdw_private->ldapConn->options, foreigntableid);
-	initLdapWithOptions(fdw_private->ldapConn);
+	//initLdapWithOptions(fdw_private->ldapConn);
+	initLdapConnectionStruct(fdw_private->ldapConn);
 	//DEBUGPOINT;
 
 	scan_relid = baserel->relid;
@@ -1553,7 +1621,8 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	//GetOptionStructr((fmstate->options), foreignTableId);
 	fmstate->ldapConn = create_LdapFdwConn();
 	GetOptionStructr(fmstate->ldapConn->options, foreignTableId);
-	initLdapWithOptions(fmstate->ldapConn);
+	//initLdapWithOptions(fmstate->ldapConn);
+	initLdapConnectionStruct(fmstate->ldapConn);
 
 	fmstate->target_attrs = (List *) list_nth(fdw_private, 0);
 	
@@ -1667,7 +1736,8 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	//GetOptionStructr((fmstate->options), foreignTableId);
 	fmstate->ldapConn = create_LdapFdwConn();
 	GetOptionStructr(fmstate->ldapConn->options, foreignTableId);
-	initLdapWithOptions(fmstate->ldapConn);
+	//initLdapWithOptions(fmstate->ldapConn);
+	initLdapConnectionStruct(fmstate->ldapConn);
 
 	//p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
 	//insert_data = ( LDAPMod ** ) palloc(( fmstate->p_nums + 1 ) * sizeof( LDAPMod * ));
