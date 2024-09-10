@@ -544,7 +544,7 @@ static LdapFdwOptions * create_LdapFdwOptions()
 	return options;
 }
 
-static LdapFdwConn * create_LdapFdwConnForFt(Oid foreignTableId)
+static LdapFdwOptions * create_LdapFdwConnForFt(Oid foreignTableId)
 {
 	LdapFdwOptions * options = NULL;
 	return options;
@@ -678,7 +678,7 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	ldap_get_option(fpinfo->ldapConn->ldap, LDAP_OPT_URI, &uri);
 	elog(INFO, "uri: %s", uri);
 	baserel->rows = estimate_size(fpinfo->ldapConn->ldap, fpinfo->ldapConn->options);
-	elog(INFO, "Rows: %d", baserel->rows);
+	elog(INFO, "Rows: %f", baserel->rows);
 	DEBUGPOINT;
 	
 }
