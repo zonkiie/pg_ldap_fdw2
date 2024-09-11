@@ -731,7 +731,8 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   Oid foreigntableid)
 {
 	char * uri;
-	LdapFdwPlanState *fpinfo = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
+	LdapFdwPlanState *fpinfo = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
+	memset(fpinfo, 0, sizeof(LdapFdwPlanState));
 	baserel->fdw_private = (void *) fpinfo;
 	
 	//initLdapFdwOptions(option_params);
@@ -875,10 +876,10 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
 	DEBUGPOINT;
 	/* Fetch options */
-	fdw_private->ldapConn = create_LdapFdwConn();
-	GetOptionStructr(fdw_private->ldapConn->options, foreigntableid);
-	//initLdapWithOptions(fdw_private->ldapConn);
-	initLdapConnectionStruct(fdw_private->ldapConn);
+	//fdw_private->ldapConn = create_LdapFdwConn();
+	//GetOptionStructr(fdw_private->ldapConn->options, foreigntableid);
+	////initLdapWithOptions(fdw_private->ldapConn);
+	//initLdapConnectionStruct(fdw_private->ldapConn);
 	//DEBUGPOINT;
 
 	scan_relid = baserel->relid;
@@ -1038,6 +1039,8 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	//fsstate->ntuples = 3;
 	fsstate->row = 0;
 
+	DEBUGPOINT;
+	
 	fsstate->attinmeta = TupleDescGetAttInMetadata(node->ss.ss_currentRelation->rd_att);
 
 	DEBUGPOINT;
