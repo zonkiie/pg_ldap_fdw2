@@ -799,18 +799,20 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	ListCell *cell = NULL;
 	List *remote_exprs = NIL;
 	List *local_exprs = NIL;
-	LdapFdwPlanState *fdw_private;
 	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
+	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
 	
 	DEBUGPOINT;
 	
-	//if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
+	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
 	
 	/* Fetch options */
 	fdw_private->ldapConn = create_LdapFdwConn();
 	GetOptionStructr(fdw_private->ldapConn->options, foreignTableId);
 	////initLdapWithOptions(fdw_private->ldapConn);
 	initLdapConnectionStruct(fdw_private->ldapConn);
+	
+	//baserel->fdw_private = (void*)fdw_private;
 	//DEBUGPOINT;
 
 	scan_relid = baserel->relid;
@@ -933,7 +935,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 			scan_clauses,
 			scan_relid, // baserel->relid,
 			scan_clauses,
-			NIL, // best_path->fdw_private,
+			list_make1(fdw_private), //NIL, // best_path->fdw_private,
 			NIL,
 			NIL,
 			outer_plan);
