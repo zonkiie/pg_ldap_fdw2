@@ -431,10 +431,11 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 		elog(ERROR, "Basedn is null or empty!");
 	}
 	
+	/*
 	if(options->filter != NULL)
 	{
 		elog(INFO, "%s Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter);
-	}
+	}*/
 	
 	//rc = ldap_search_ext( ld, options->basedn, options->scope, options->filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	rc = ldap_search_ext( ldap, options->basedn, options->scope, NULL, (char *[]){NULL}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
@@ -465,7 +466,6 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 		ldap_msgfree(res);
 		res = NULL;
 	}
-	elog(INFO, "%s ereport Line %d : rows: %d\n", __FUNCTION__, __LINE__, rows);
 	return rows;
 }
 
@@ -788,18 +788,18 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	List *local_exprs = NIL;
 	List *fdw_private_list = NIL;
 	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
-	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
+	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
 	
-	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
+	//if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
 	
 	/* Fetch options */
-	fdw_private->ldapConn = create_LdapFdwConn();
-	GetOptionStructr(fdw_private->ldapConn->options, foreignTableId);
+	//fdw_private->ldapConn = create_LdapFdwConn();
+	//GetOptionStructr(fdw_private->ldapConn->options, foreignTableId);
 	////initLdapWithOptions(fdw_private->ldapConn);
-	initLdapConnectionStruct(fdw_private->ldapConn);
+	//initLdapConnectionStruct(fdw_private->ldapConn);
 	
 	//baserel->fdw_private = (void*)fdw_private;
-	//DEBUGPOINT;
+	DEBUGPOINT;
 
 	scan_relid = baserel->relid;
 	/*foreach(cell, scan_clauses) {
@@ -834,7 +834,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		// Ignore pseudoconstants, they are dealt with elsewhere
 		if (rinfo->pseudoconstant)
 			continue;
-
+/*
 		if (list_member_ptr(fdw_private->remote_conds, rinfo))
 			remote_exprs = lappend(remote_exprs, rinfo->clause);
 		else if (list_member_ptr(fdw_private->local_conds, rinfo))
@@ -843,6 +843,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 			remote_exprs = lappend(remote_exprs, rinfo->clause);
 		else
 			local_exprs = lappend(local_exprs, rinfo->clause);
+*/
 	}
 	
 	//print_list(stderr, scan_clauses);
@@ -860,8 +861,6 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
 
 	//ereport(INFO, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
-	
-	//DEBUGPOINT;
 	
 	//char * values = NameListToString(scan_clauses);
 	//char * values = ListToString(scan_clauses, ", ");
@@ -911,8 +910,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		}
 	}*/
 	
-	ldap_unbind_ext_s(fdw_private->ldapConn->ldap, NULL, NULL);
-	free_options(fdw_private->ldapConn->options);
+	//ldap_unbind_ext_s(fdw_private->ldapConn->ldap, NULL, NULL);
+	//free_options(fdw_private->ldapConn->options);
+	DEBUGPOINT;
 	
 	return make_foreignscan(tlist,
 			scan_clauses,
@@ -956,6 +956,8 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	ForeignServer *server;
 	UserMapping *user;
 	int attnum;
+	
+	DEBUGPOINT;
 	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
 	
@@ -1092,13 +1094,15 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			return slot;
 		case LDAP_RES_SEARCH_ENTRY:
 			//elog(INFO, "LDAP_RES_SEARCH_ENTRY");
-			DEBUGPOINT;
+// 			DEBUGPOINT;
 			entrydn = ldap_get_dn(fdw_private->ldapConn->ldap, fdw_private->ldap_message_result);
 			i = 0;
 			ldap_get_option(fdw_private->ldapConn->ldap, LDAP_OPT_ERROR_NUMBER, &err);
 			
 			// former: *a++
 			for(char **a = fdw_private->columns; *a != NULL; a++) {
+				
+// 				DEBUGPOINT;
 				
 				column_type_is_array = (fdw_private->column_types[i])[0] == '_';
 				
@@ -1116,7 +1120,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					//if(ldap_count_values_len(vals) == 0)
 					if(values_length == 0)
 					{
-						DEBUGPOINT;
+// 						DEBUGPOINT;
 						null_values[i] = true;
 						d_values[i] = PointerGetDatum(NULL);
 						//if(!column_type_is_array) s_values[i] = NULL;
@@ -1125,13 +1129,13 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					else
 					{
 						if(!column_type_is_array) {
-							DEBUGPOINT;
+// 							DEBUGPOINT;
 							null_values[i] = (vals[0]->bv_val == NULL || strlen(vals[0]->bv_val) == 0);
 							elog(INFO, "Line %d, Null_Value: %d, Value: %s", __LINE__, null_values[i], vals[0]->bv_val);
 							d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
 							//s_values[i] = pstrdup(vals[0]->bv_val);
 						} else {
-							DEBUGPOINT;
+// 							DEBUGPOINT;
 							//Datum* item_values = (Datum*)palloc(sizeof(Datum) * ldap_count_values_len(vals) + 1);
 							//memset(item_values, 0, (ldap_count_values_len(vals) + 1 ) * sizeof(Datum));
 							
@@ -1173,13 +1177,15 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 						s_values[i] = pstrdup(tmp_str);
 						free(tmp_str);
 						*/
-						DEBUGPOINT;
+// 						DEBUGPOINT;
 						
 					}
 					ber_bvecfree(vals);
 				}
 				else
 				{
+					null_values[i] = true;
+					d_values[i] = PointerGetDatum(NULL);
 				}
 				i++;
 			}
@@ -1190,7 +1196,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			break;
 	}
 	
-	DEBUGPOINT;
+// 	DEBUGPOINT;
 	
 	fdw_private->row++;
 	
@@ -1810,7 +1816,8 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	char *columnName = NULL;
 	int rc = 0;
 	int i = 0, j = 0;
-	LDAPMod		**modify_data = NULL;
+	LDAPMod		**modify_data_remove = NULL;
+	LDAPMod		**modify_data_add = NULL;
 	LDAPMod		* single_ldap_mod = NULL;
 	LDAPMod		* single_ldap_mod_remove = NULL, * single_ldap_mod_add = NULL;
 	ForeignTable *table;
@@ -1829,7 +1836,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
             elog(INFO, "Attribut %s ist NULL", NameStr(tupdesc->attrs[i].attname));
 			char *att_name = pstrdup(NameStr(tupdesc->attrs[i].attname));
 			single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){NULL});
-			append_ldap_mod(&modify_data, single_ldap_mod);
+			append_ldap_mod(&modify_data_remove, single_ldap_mod);
 			free_ldap_mod(single_ldap_mod);
 			single_ldap_mod = NULL;
             continue;
@@ -1850,6 +1857,8 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 				DEBUGPOINT;
 				//elog(INFO, "i: %d, j: %d, Attribut: %s, Wert: %s", i, j, att_name, value_str);
 				single_ldap_mod_remove = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, NULL);
+				append_ldap_mod(&modify_data_remove, single_ldap_mod_remove);
+				
 				single_ldap_mod_add = NULL;
 				char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
 				//if(value_str == NULL || !strcmp(value_str, "")) {
@@ -1866,8 +1875,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 				}
 				elog(INFO, "attname: %s", att_name);
 				//append_ldap_mod(&modify_data, single_ldap_mod);
-				append_ldap_mod(&modify_data, single_ldap_mod_remove);
-				if(single_ldap_mod_add) append_ldap_mod(&modify_data, single_ldap_mod_add);
+				if(single_ldap_mod_add) append_ldap_mod(&modify_data_add, single_ldap_mod_add);
 				//ldap_mods_free(&single_ldap_mod, true);
 				//free_ldap_mod(single_ldap_mod);
 				free_ldap_mod(single_ldap_mod_remove);
@@ -1883,22 +1891,37 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	}
 	
 	elog(INFO, "ldap mod: dn: %s", dn);
-	rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data, NULL, NULL );
-	rc = LDAP_SUCCESS;
+	rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data_remove, NULL, NULL );
 
 	if ( rc != LDAP_SUCCESS ) {
-		elog( ERROR, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
+		elog( LOG, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
 
 	}
 	
-	for ( i = 0; i < fmstate->p_nums; i++ ) {
+	for( i = 0; modify_data_remove[i] != NULL; i++)
+	{
+		free( modify_data_remove[ i ] );
+	}
+	
+	free(modify_data_remove);
+	modify_data_remove = NULL;
+	
+	elog(INFO, "ldap mod: dn: %s", dn);
+	rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data_add, NULL, NULL );
 
-		free( modify_data[ i ] );
+	if ( rc != LDAP_SUCCESS ) {
+		elog( LOG, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
 
+	}
+
+	for( i = 0; modify_data_add[i] != NULL; i++)
+	{
+		free( modify_data_add[ i ] );
 	}
 	
 	pfree(dn);
-	free( modify_data );
+	free( modify_data_add );
+	modify_data_add = NULL;
 	
 	return NULL;
 }
