@@ -799,6 +799,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	ListCell *cell = NULL;
 	List *remote_exprs = NIL;
 	List *local_exprs = NIL;
+	List *fdw_private_list = NIL;
 	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
 	
@@ -935,7 +936,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 			scan_clauses,
 			scan_relid, // baserel->relid,
 			scan_clauses,
-			list_make1(fdw_private), //NIL, // best_path->fdw_private,
+			fdw_private_list, //NIL, // best_path->fdw_private,
 			NIL,
 			NIL,
 			outer_plan);
@@ -961,20 +962,30 @@ static void
 ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 {
 	//ForeignScan *fsplan = (ForeignScan *) node->ss.ps.plan;
-	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) node->fdw_state;
+	//Relation *frel = node->ss.ss_currentRelation;
+	// Oid foreignTableId = fsplan->scanRel->relid;
+	// Oid foreignTableId = fsplan->scan.scanrelid;
+	Oid foreignTableId = node->ss.ss_currentRelation->rd_id;
+	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) node->fdw_state;
+	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	Relation rel;
 	TupleDesc tupdesc;
+	ForeignTable *table;
+	ForeignServer *server;
+	UserMapping *user;
 	int attnum;
+	
+	elog(INFO, "foreign Table ID: %d", foreignTableId);
 	
 	DEBUGPOINT;
 	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
 	
 	//fdw_private = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
-	//fdw_private->ldapConn = create_LdapFdwConn();
-	//GetOptionStructr(fdw_private->ldapConn->options, foreignTableId);
+	fdw_private->ldapConn = create_LdapFdwConn();
+	GetOptionStructr(fdw_private->ldapConn->options, foreignTableId);
 	////initLdapWithOptions(fdw_private->ldapConn);
-	//initLdapConnectionStruct(fdw_private->ldapConn);
+	initLdapConnectionStruct(fdw_private->ldapConn);
 	//fdw_private->ntuples = 3;
 	fdw_private->row = 0;
 
