@@ -431,13 +431,11 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 		elog(ERROR, "Basedn is null or empty!");
 	}
 	
-	elog(INFO, "%s Line %d : basedn: %s\n", __FUNCTION__, __LINE__, options->basedn);
 	if(options->filter != NULL)
 	{
 		elog(INFO, "%s Line %d : filter: %s\n", __FUNCTION__, __LINE__, options->filter);
 	}
 	
-	elog(INFO, "%s Line %d Scope: %d", __FUNCTION__, __LINE__, options->scope);
 	//rc = ldap_search_ext( ld, options->basedn, options->scope, options->filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	rc = ldap_search_ext( ldap, options->basedn, options->scope, NULL, (char *[]){NULL}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	if ( rc != LDAP_SUCCESS )
@@ -669,6 +667,8 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	//elog(INFO, "Rows: %f", baserel->rows);
 	baserel->fdw_private = (void *) fdw_private;
 	if(baserel->fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
+	ldap_unbind_ext_s(fdw_private->ldapConn->ldap, NULL, NULL);
+	free_options(fdw_private->ldapConn->options);
 }
 
 /*
@@ -802,7 +802,6 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	//DEBUGPOINT;
 
 	scan_relid = baserel->relid;
-	//DEBUGPOINT;
 	/*foreach(cell, scan_clauses) {
 		DefElem *def = lfirst_node(DefElem, cell);
 		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
@@ -823,6 +822,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	 * for remote-safety.  Only the OpExpr clauses are sent to the remote
 	 * server.
 	 */
+	
 	foreach(cell, scan_clauses)
 	{
 		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
@@ -831,7 +831,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		
 		//ereport(INFO, errmsg_internal("%s ereport Line %d : List Cell ptr: %s\n", __FUNCTION__, __LINE__, (char*)cell->ptr_value));
 
-		/* Ignore pseudoconstants, they are dealt with elsewhere */
+		// Ignore pseudoconstants, they are dealt with elsewhere
 		if (rinfo->pseudoconstant)
 			continue;
 
@@ -845,9 +845,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 			local_exprs = lappend(local_exprs, rinfo->clause);
 	}
 	
-	
 	//print_list(stderr, scan_clauses);
-	//DEBUGPOINT;
 	if(scan_clauses == NULL)
 	{
 		//DEBUGPOINT;
@@ -869,8 +867,6 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	//char * values = ListToString(scan_clauses, ", ");
 	
 	//ereport(INFO, errmsg_internal("%s ereport Line %d : Raw Values: %s\n", __FUNCTION__, __LINE__, values));
-	//DEBUGPOINT;
-
 	
 	/*
 	foreach(cell, scan_clauses) {
@@ -915,7 +911,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		}
 	}*/
 	
-	DEBUGPOINT;
+	ldap_unbind_ext_s(fdw_private->ldapConn->ldap, NULL, NULL);
+	free_options(fdw_private->ldapConn->options);
 	
 	return make_foreignscan(tlist,
 			scan_clauses,
@@ -959,8 +956,6 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	ForeignServer *server;
 	UserMapping *user;
 	int attnum;
-	
-	elog(INFO, "foreign Table ID: %d", foreignTableId);
 	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
 	
@@ -1069,7 +1064,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 #define array_delimiter ','
 	//LDAPMessage *tmpmsg = NULL;
 	
-	
 	get_typlenbyvalalign(varchar_oid, &typeLength, &typeByValue, &typeAlignment);
 	
 	tupdesc = RelationGetDescr(rel);
@@ -1083,6 +1077,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	d_values = (Datum*)palloc(sizeof(Datum) * fdw_private->num_attrs + 1);
 	memset(d_values, 0, (fdw_private->num_attrs + 1 ) * sizeof(Datum*));
 	
+	DEBUGPOINT;
 	
 	ExecClearTuple(slot);
 	
@@ -1097,6 +1092,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			return slot;
 		case LDAP_RES_SEARCH_ENTRY:
 			//elog(INFO, "LDAP_RES_SEARCH_ENTRY");
+			DEBUGPOINT;
 			entrydn = ldap_get_dn(fdw_private->ldapConn->ldap, fdw_private->ldap_message_result);
 			i = 0;
 			ldap_get_option(fdw_private->ldapConn->ldap, LDAP_OPT_ERROR_NUMBER, &err);
@@ -1120,6 +1116,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					//if(ldap_count_values_len(vals) == 0)
 					if(values_length == 0)
 					{
+						DEBUGPOINT;
 						null_values[i] = true;
 						d_values[i] = PointerGetDatum(NULL);
 						//if(!column_type_is_array) s_values[i] = NULL;
@@ -1128,10 +1125,13 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					else
 					{
 						if(!column_type_is_array) {
-							null_values[i] = strlen(vals[0]->bv_val) == 0;
+							DEBUGPOINT;
+							null_values[i] = (vals[0]->bv_val == NULL || strlen(vals[0]->bv_val) == 0);
+							elog(INFO, "Line %d, Null_Value: %d, Value: %s", __LINE__, null_values[i], vals[0]->bv_val);
 							d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
 							//s_values[i] = pstrdup(vals[0]->bv_val);
 						} else {
+							DEBUGPOINT;
 							//Datum* item_values = (Datum*)palloc(sizeof(Datum) * ldap_count_values_len(vals) + 1);
 							//memset(item_values, 0, (ldap_count_values_len(vals) + 1 ) * sizeof(Datum));
 							
@@ -1173,6 +1173,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 						s_values[i] = pstrdup(tmp_str);
 						free(tmp_str);
 						*/
+						DEBUGPOINT;
 						
 					}
 					ber_bvecfree(vals);
@@ -1189,12 +1190,15 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			break;
 	}
 	
+	DEBUGPOINT;
 	
 	fdw_private->row++;
 	
 	tuple = heap_form_tuple(tupdesc, d_values, null_values);
 	//tuple = BuildTupleFromCStrings(fdw_private->attinmeta, s_values);
 	ExecStoreHeapTuple(tuple, slot, false);
+	
+	DEBUGPOINT;
 	
 	return slot;
 
@@ -1217,12 +1221,15 @@ ldap2_fdw_ReScanForeignScan(ForeignScanState *node)
 static void
 ldap2_fdw_EndForeignScan(ForeignScanState *node)
 {
+	DEBUGPOINT;
 	// cleanup
 	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) node->fdw_state;
 
 	/* if festate is NULL, we are in EXPLAIN; nothing to do */
 	if (fdw_private)
 	{
+		ldap_unbind_ext_s(fdw_private->ldapConn->ldap, NULL, NULL);
+		free_options(fdw_private->ldapConn->options);
 		free_ldap_message(&(fdw_private->ldap_message_result));
 		pfree(fdw_private);
 		node->fdw_state = NULL;
