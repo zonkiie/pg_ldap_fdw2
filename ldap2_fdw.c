@@ -1814,6 +1814,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
 	datum = ExecGetJunkAttribute(planSlot, fmstate->rowidAttno, &isNull);
 	typoid = get_atttype(foreignTableId, 1);
+	DEBUGPOINT;
 	// Durchlaufe alle Attribute des Tuples
     for (i = 0; i < tupdesc->natts; i++) {
         if (slot->tts_isnull[i]) {
@@ -1826,6 +1827,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 			single_ldap_mod = NULL;
             continue;
         }
+		DEBUGPOINT;
         attr_value = slot_getattr(slot, i + 1, &isNull);
 
         if (!isNull) {
@@ -1834,9 +1836,11 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
             // Wert des Attributs formatieren (z.B. für Logging)
             //char *value_str = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
 			//if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
+			DEBUGPOINT;
 			if(!strcmp(att_name, "dn")) dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
 			else
 			{
+				DEBUGPOINT;
 				//elog(INFO, "i: %d, j: %d, Attribut: %s, Wert: %s", i, j, att_name, value_str);
 				single_ldap_mod_remove = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, NULL);
 				single_ldap_mod_add = NULL;
