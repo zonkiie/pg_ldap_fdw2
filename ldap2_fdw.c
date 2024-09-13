@@ -1256,7 +1256,7 @@ ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
 
 	/* assumes that this isn't attisdropped */
 	Form_pg_attribute attr = TupleDescAttr(RelationGetDescr(target_relation), 0);
-
+	
 	/* Make a Var representing the desired value */
 #if PG_VERSION_NUM >= 140000
 	var = makeVar(rtindex,
@@ -1287,7 +1287,6 @@ ldap2_fdw_AddForeignUpdateTargets(Query *parsetree,
 	/* ... And add it to the query's targetlist */
 	parsetree->targetList = lappend(parsetree->targetList, tle);
 #endif
-	DEBUGPOINT;
 }
 
 
@@ -1327,7 +1326,6 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 #else
 	rel = table_open(rte->relid, NoLock);
 #endif
-	
 	
 	initStringInfo(&sql);
 	
@@ -1532,7 +1530,6 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	table = GetForeignTable(foreignTableId);
 	server = GetForeignServer(table->serverid);
 	//user = GetUserMapping(userid, server->serverid);
-	DEBUGPOINT;
 
 	fmstate->rel = rel;
 	//GetOptionStructr((fmstate->options), foreignTableId);
@@ -1855,29 +1852,22 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 					//char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
 					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, values_array);
 					single_ldap_mod_add = construct_new_ldap_mod(LDAP_MOD_ADD, att_name, values_array);
-					DEBUGPOINT;
 				}
 				elog(INFO, "attname: %s", att_name);
 				//append_ldap_mod(&modify_data, single_ldap_mod);
 				append_ldap_mod(&modify_data, single_ldap_mod_remove);
-				DEBUGPOINT;
 				if(single_ldap_mod_add) append_ldap_mod(&modify_data, single_ldap_mod_add);
 				//ldap_mods_free(&single_ldap_mod, true);
 				//free_ldap_mod(single_ldap_mod);
-				DEBUGPOINT;
 				free_ldap_mod(single_ldap_mod_remove);
-				DEBUGPOINT;
 				if(single_ldap_mod_add) free_ldap_mod(single_ldap_mod_add);
-				DEBUGPOINT;
 				//single_ldap_mod = NULL;
 				single_ldap_mod_remove = NULL;
 				single_ldap_mod_add = NULL;
 				
 			}
-			DEBUGPOINT;
             //pfree(value_str);  // Freigeben des String-Puffers
 			pfree(att_name);
-			DEBUGPOINT;
 		}
 	}
 	

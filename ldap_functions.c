@@ -1,5 +1,8 @@
 #include <ldap_functions.h>
 #include "helper_functions.h"
+#include "utils/elog.h"
+
+#define DEBUGPOINT elog(INFO, "ereport File %s, Func %s, Line %d\n", __FILE__, __FUNCTION__, __LINE__)
 
 int common_ldap_bind(LDAP *ld, const char *username, const char *password, int use_sasl)
 {
@@ -44,7 +47,10 @@ int append_ldap_mod(LDAPMod ***insert_data_all, LDAPMod *insert_data_entry)
 {
 	int current_count = 0;
 	if(insert_data_entry == NULL) return -1;
-	if(*insert_data_all == NULL) *insert_data_all = (LDAPMod**)calloc(sizeof(LDAPMod*), 2);
+	if(*insert_data_all == NULL)
+	{
+		*insert_data_all = (LDAPMod**)calloc(sizeof(LDAPMod*), 2);
+	}
 	else
 	{
 		current_count = LDAPMod_count(*insert_data_all);
@@ -53,7 +59,6 @@ int append_ldap_mod(LDAPMod ***insert_data_all, LDAPMod *insert_data_entry)
 	}
 	(*insert_data_all)[current_count] = copy_ldap_mod(insert_data_entry);
 	(*insert_data_all)[current_count + 1] = NULL;
-	
 	return current_count + 1;
 	
 }
@@ -70,12 +75,15 @@ int LDAPMod_count(LDAPMod ** array)
 
 LDAPMod * create_new_ldap_mod()
 {
-	return (LDAPMod*)malloc(sizeof(LDAPMod));
+	LDAPMod * new_value = (LDAPMod*)malloc(sizeof(LDAPMod));
+	memset(new_value, 0, sizeof(LDAPMod));
+	return new_value;
 }
 
 LDAPMod * copy_ldap_mod(LDAPMod * ldap_mod)
 {
 	LDAPMod * new_value = create_new_ldap_mod();
+	if(ldap_mod == NULL) return NULL;
 	new_value->mod_op = ldap_mod->mod_op;
 	new_value->mod_type = strdup(ldap_mod->mod_type);
 	//struct berval *value = ber_bvdup(*(ldap_mod->mod_bvalues));

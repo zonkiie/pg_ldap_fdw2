@@ -1,4 +1,7 @@
 #include "helper_functions.h"
+#include "utils/elog.h"
+
+#define DEBUGPOINT elog(INFO, "ereport File %s, Func %s, Line %d\n", __FILE__, __FUNCTION__, __LINE__)
 
 struct         timeval  zerotime = {.tv_sec = 0L, .tv_usec = 0L};
 const size_t blocksize = 1024;
@@ -120,6 +123,7 @@ char ** array_copy(char ** input)
 	int count = get_carr_size(input), i = 0;
 	char ** output = (char**)malloc(sizeof(char*) * (count + 1));
 	memset(output, 0, sizeof(char*) * (count + 1));
+	if(input == NULL) return NULL;
 	for(; input[i] != NULL; i++)
 	{
 		output[i] = strdup(input[i]);
