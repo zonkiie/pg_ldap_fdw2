@@ -440,7 +440,6 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 	elog(INFO, "%s Line %d Scope: %d", __FUNCTION__, __LINE__, options->scope);
 	//rc = ldap_search_ext( ld, options->basedn, options->scope, options->filter, (char *[]){"objectClass"}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
 	rc = ldap_search_ext( ldap, options->basedn, options->scope, NULL, (char *[]){NULL}, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msgid );
-	DEBUGPOINT;
 	if ( rc != LDAP_SUCCESS )
 	{
 		if ( error_msg != NULL && *error_msg != '\0' )
@@ -453,7 +452,6 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 			);
 		}
 	}
-	DEBUGPOINT;
 	while(!finished)
 	{
 		rc = ldap_result( ldap, msgid, LDAP_MSG_ONE, &zerotime, &res );
@@ -668,11 +666,9 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	initLdapConnectionStruct(fdw_private->ldapConn);
 	baserel->rows = estimate_size(fdw_private->ldapConn->ldap, fdw_private->ldapConn->options);
 	fdw_private->row = 0;
-	elog(INFO, "Rows: %f", baserel->rows);
-	DEBUGPOINT;
+	//elog(INFO, "Rows: %f", baserel->rows);
 	baserel->fdw_private = (void *) fdw_private;
 	if(baserel->fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
-	DEBUGPOINT;
 }
 
 /*
@@ -690,21 +686,14 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	Cost		startup_cost = 0.0;
 	Cost		total_cost = 0.0;
 	
-	DEBUGPOINT;
-	
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
-	
-	DEBUGPOINT;
 	
 	/* Fetch options */
 	//GetOptionStructr(fdw_private->ldapConn->options, foreignTableId);
 	//initLdapWithOptions(fdw_private->ldapConn);
 	//initLdapConnectionStruct(fdw_private->ldapConn);
-	
-	DEBUGPOINT;
-	
 	
 #if (PG_VERSION_NUM < 90500)
 	path = (Path *) create_foreignscan_path(root, baserel,
@@ -744,8 +733,6 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	// Eliminate Compiler warning
 	if(path)
 		;
-	
-	DEBUGPOINT;
 	
 }
 
@@ -802,8 +789,6 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	List *fdw_private_list = NIL;
 	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
-	
-	DEBUGPOINT;
 	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
 	
@@ -977,8 +962,6 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	
 	elog(INFO, "foreign Table ID: %d", foreignTableId);
 	
-	DEBUGPOINT;
-	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
 	
 	//fdw_private = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
@@ -989,17 +972,11 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	//fdw_private->ntuples = 3;
 	fdw_private->row = 0;
 
-	DEBUGPOINT;
-	
 	fdw_private->attinmeta = TupleDescGetAttInMetadata(node->ss.ss_currentRelation->rd_att);
 
-	DEBUGPOINT;
-	
 	rel = node->ss.ss_currentRelation;
 	
 	tupdesc = RelationGetDescr(rel);
-	
-	DEBUGPOINT;
 	
 	fdw_private->num_attrs = tupdesc->natts;
 	
@@ -1009,8 +986,6 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	memset(fdw_private->column_types, 0, (tupdesc->natts) * sizeof(char*));
 	fdw_private->column_type_ids = (Oid*)palloc(sizeof(Oid) * tupdesc->natts);
 	memset(fdw_private->column_type_ids, 0, (tupdesc->natts) * sizeof(Oid));
-	
-	DEBUGPOINT;
 	
 	// Beispiel für die Schleife über die Spalten
 	for (attnum = 1; attnum <= tupdesc->natts; attnum++)
@@ -1032,13 +1007,9 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 			fdw_private->column_type_ids[attnum - 1] = tupdesc->attrs[attnum - 1].atttypid;
 		}
 	}
-	DEBUGPOINT;
-	
 	fdw_private->columns[tupdesc->natts] = NULL;
 
 	node->fdw_state = (void *) fdw_private;
-	DEBUGPOINT;
-	
 	
 	//fdw_private->query = strVal(list_nth(fsplan->fdw_private, FdwScanPrivateSelectSql));
 	//fdw_private->retrieved_attrs = list_nth(fsplan->fdw_private, FdwScanPrivateRetrievedAttrs);
@@ -1051,8 +1022,6 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 
 		elog(INFO, "ldap_search_ext_s: %s\n", ldap_err2string( fdw_private->rc ) );
 	}
-	DEBUGPOINT;
-	
 }
 
 /*
@@ -1100,8 +1069,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 #define array_delimiter ','
 	//LDAPMessage *tmpmsg = NULL;
 	
-	
-	DEBUGPOINT;
 	
 	get_typlenbyvalalign(varchar_oid, &typeLength, &typeByValue, &typeAlignment);
 	
@@ -1229,9 +1196,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	//tuple = BuildTupleFromCStrings(fdw_private->attinmeta, s_values);
 	ExecStoreHeapTuple(tuple, slot, false);
 	
-	DEBUGPOINT;
-	
-		
 	return slot;
 
 }
@@ -1833,7 +1797,6 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
-	DEBUGPOINT;
 	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Datum       attr_value, datum;
 	bool		isNull = false;
@@ -1880,9 +1843,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 				//elog(INFO, "i: %d, j: %d, Attribut: %s, Wert: %s", i, j, att_name, value_str);
 				single_ldap_mod_remove = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, NULL);
 				single_ldap_mod_add = NULL;
-				DEBUGPOINT;
 				char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
-				DEBUGPOINT;
 				//if(value_str == NULL || !strcmp(value_str, "")) {
 				if(values_array == NULL)
 				{
@@ -1892,26 +1853,31 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 				} else {
 					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, (char*[]){value_str, NULL});
 					//char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
-				DEBUGPOINT;
 					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, values_array);
 					single_ldap_mod_add = construct_new_ldap_mod(LDAP_MOD_ADD, att_name, values_array);
-				DEBUGPOINT;
+					DEBUGPOINT;
 				}
-				DEBUGPOINT;
+				elog(INFO, "attname: %s", att_name);
 				//append_ldap_mod(&modify_data, single_ldap_mod);
 				append_ldap_mod(&modify_data, single_ldap_mod_remove);
+				DEBUGPOINT;
 				if(single_ldap_mod_add) append_ldap_mod(&modify_data, single_ldap_mod_add);
 				//ldap_mods_free(&single_ldap_mod, true);
 				//free_ldap_mod(single_ldap_mod);
+				DEBUGPOINT;
 				free_ldap_mod(single_ldap_mod_remove);
+				DEBUGPOINT;
 				if(single_ldap_mod_add) free_ldap_mod(single_ldap_mod_add);
+				DEBUGPOINT;
 				//single_ldap_mod = NULL;
 				single_ldap_mod_remove = NULL;
 				single_ldap_mod_add = NULL;
 				
 			}
+			DEBUGPOINT;
             //pfree(value_str);  // Freigeben des String-Puffers
 			pfree(att_name);
+			DEBUGPOINT;
 		}
 	}
 	
