@@ -1605,6 +1605,7 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	Assert(fmstate->p_nums <= n_params);
 
 	resultRelInfo->ri_FdwState = fmstate;
+	DEBUGPOINT;
 }
 
 /*
@@ -1871,9 +1872,10 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, (char*[]){value_str, NULL});
 					//char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
 					//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, values_array);
-					single_ldap_mod_add = construct_new_ldap_mod(LDAP_MOD_ADD, att_name, values_array);
+					single_ldap_mod_add = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, values_array);
 				}
 				elog(INFO, "attname: %s", att_name);
+				elog(INFO, "Value: %s", values_array[0]);
 				//append_ldap_mod(&modify_data, single_ldap_mod);
 				if(single_ldap_mod_add) append_ldap_mod(&modify_data_add, single_ldap_mod_add);
 				//ldap_mods_free(&single_ldap_mod, true);
@@ -1890,38 +1892,46 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 		}
 	}
 	
-	elog(INFO, "ldap mod: dn: %s", dn);
-	rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data_remove, NULL, NULL );
-
-	if ( rc != LDAP_SUCCESS ) {
-		elog( LOG, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
-
-	}
-	
-	for( i = 0; modify_data_remove[i] != NULL; i++)
+	if(modify_data_remove != NULL)
 	{
-		free( modify_data_remove[ i ] );
+		elog(INFO, "ldap mod: Line: %d, dn: %s", __LINE__, dn);
+		rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data_remove, NULL, NULL );
+
+		if ( rc != LDAP_SUCCESS ) {
+			elog( LOG, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
+
+		}
+		else elog(INFO, "ldap_modify success (remove)!");
+		
+		for( i = 0; modify_data_remove[i] != NULL; i++)
+		{
+			free( modify_data_remove[ i ] );
+		}
+		
+		free(modify_data_remove);
+		modify_data_remove = NULL;
 	}
 	
-	free(modify_data_remove);
-	modify_data_remove = NULL;
-	
-	elog(INFO, "ldap mod: dn: %s", dn);
-	rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data_add, NULL, NULL );
-
-	if ( rc != LDAP_SUCCESS ) {
-		elog( LOG, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
-
-	}
-
-	for( i = 0; modify_data_add[i] != NULL; i++)
+	if(modify_data_add != NULL)
 	{
-		free( modify_data_add[ i ] );
+		elog(INFO, "ldap mod: Line: %d, dn: %s", __LINE__, dn);
+		rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data_add, NULL, NULL );
+
+		if ( rc != LDAP_SUCCESS ) {
+			elog( LOG, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
+
+		}
+		else elog(INFO, "ldap_modify success (add)!");
+
+		for( i = 0; modify_data_add[i] != NULL; i++)
+		{
+			free( modify_data_add[ i ] );
+		}
+		
+		pfree(dn);
+		free( modify_data_add );
+		modify_data_add = NULL;
 	}
-	
-	pfree(dn);
-	free( modify_data_add );
-	modify_data_add = NULL;
 	
 	return NULL;
 }
