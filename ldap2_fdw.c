@@ -527,7 +527,25 @@ static bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Exp
 static LdapFdwConn * create_LdapFdwConn()
 {
 	LdapFdwConn* conn = (LdapFdwConn *)palloc0(sizeof(LdapFdwConn));
+	LDAPControl	*tmpc = NULL;
+	
 	conn->options = create_LdapFdwOptions();
+	
+	/*
+	tmpc = (LDAPControl*)palloc( sizeof( LDAPControl ));
+	//tmpc->ldctl_oid = LDAP_CONTROL_SUBENTRIES;	
+	tmpc->ldctl_oid = LDAP_CONTROL_X_WHATFAILED;
+	tmpc->ldctl_iscritical = 1;
+	ber = ber_alloc_t(LBER_USE_DER);
+	ber_printf( ber, "b", 1);
+	ber_flatten2( ber, &(tmpc->ldctl_value), 1 );
+	ber_free( ber, 1 );
+	
+	conn->serverctrls = (LDAPControl**)malloc( sizeof( LDAPControl* ) * 2);
+	conn->serverctrls[0] = tmpc;
+	conn->serverctrls[1] = NULL;
+	*/
+
 	conn->serverctrls = NULL;
 	conn->clientctrls = NULL;
 	return conn;
@@ -2027,7 +2045,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	{
 		elog(INFO, "ldap mod: Line: %d, dn: %s", __LINE__, dn);
 		
-		rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data, NULL, NULL );
+		rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
 
 		if ( rc != LDAP_SUCCESS ) {
 			elog( LOG, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
