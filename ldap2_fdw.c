@@ -1990,6 +1990,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	int rc = 0;
 	int i = 0, j = 0;
 	LDAPMod		**modify_data = NULL;
+	LDAPMod		**single_mod_array = NULL;
 	LDAPMod		* single_ldap_mod = NULL;
 	ForeignTable *table;
 	Form_pg_attribute attr;
@@ -2045,13 +2046,26 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	{
 		elog(INFO, "ldap mod: Line: %d, dn: %s", __LINE__, dn);
 		
-		rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
+		single_mod_array = (LDAPMod**)palloc(sizeof(LDAPMod*) * 2);
+		memset(single_mod_array, 0, sizeof(LDAPMod*) * 2);
+		
+		for( i = 0; modify_data[i] != NULL; i++)
+		{
+			single_mod_array[0] = modify_data[i];
+			rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, single_mod_array, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
+
+			if ( rc != LDAP_SUCCESS ) elog( LOG, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
+			else elog(INFO, "ldap_modify success!");
+		}
+		
+		/*rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
 
 		if ( rc != LDAP_SUCCESS ) {
 			elog( LOG, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
 
 		}
-		else elog(INFO, "ldap_modify success (remove)!");
+		else elog(INFO, "ldap_modify success!");
+		*/
 		
 		for( i = 0; modify_data[i] != NULL; i++)
 		{
