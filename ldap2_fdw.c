@@ -408,6 +408,7 @@ static char ** extract_array_from_datum(Datum datum, Oid oid)
 			retval = (char**)palloc(sizeof(char*) * (2));
 			memset(retval, 0, sizeof(char*) * (2));
 			retval[0] = DatumGetCString(DirectFunctionCall1(textout, datum));
+			elog(INFO, "Retval[0]: %s", retval[0]);
 		}
 			break;
 	}
@@ -1342,8 +1343,6 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	
 	initStringInfo(&sql);
 	
-	elog(INFO, "SQL String: %s", sql.data);
-
 	/*
 	 * Core code already has some lock on each rel being planned, so we can
 	 * use NoLock here.
@@ -1802,7 +1801,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
  * ldap2_fdw_ExecForeignUpdate
  *		Update one row in a foreign table
  */
-static TupleTableSlot *
+/*static TupleTableSlot *
 ldap2_fdw_ExecForeignUpdate(EState *estate,
 						  ResultRelInfo *resultRelInfo,
 						  TupleTableSlot *slot,
@@ -1834,18 +1833,20 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
     for (i = 0; i < tupdesc->natts; i++) {
         if (slot->tts_isnull[i]) {
             // Attribut ist NULL
-            elog(INFO, "Attribut %s ist NULL", NameStr(tupdesc->attrs[i].attname));
+			elog(INFO, "Attribut %s ist NULL in Line %d", NameStr(tupdesc->attrs[i].attname), __LINE__);
 			char *att_name = pstrdup(NameStr(tupdesc->attrs[i].attname));
 			single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){NULL});
 			append_ldap_mod(&modify_data_remove, single_ldap_mod);
 			free_ldap_mod(single_ldap_mod);
 			single_ldap_mod = NULL;
+			DEBUGPOINT;
             continue;
         }
 		DEBUGPOINT;
         attr_value = slot_getattr(slot, i + 1, &isNull);
 
-        if (!isNull) {
+        if (!isNull)
+		{
             // Eindeutigen Namen des Attributs erhalten
             char *att_name = pstrdup(NameStr(tupdesc->attrs[i].attname));
             // Wert des Attributs formatieren (z.B. für Logging)
@@ -1890,11 +1891,23 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
             //pfree(value_str);  // Freigeben des String-Puffers
 			pfree(att_name);
 		}
+		else
+		{
+			elog(INFO, "Attribut %s ist NULL in Line %d", NameStr(tupdesc->attrs[i].attname), __LINE__);
+			char *att_name = pstrdup(NameStr(tupdesc->attrs[i].attname));
+			single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){NULL});
+			append_ldap_mod(&modify_data_remove, single_ldap_mod);
+			free_ldap_mod(single_ldap_mod);
+			single_ldap_mod = NULL;
+			DEBUGPOINT;
+			
+		}
 	}
 	
 	if(modify_data_remove != NULL)
 	{
 		elog(INFO, "ldap mod: Line: %d, dn: %s", __LINE__, dn);
+		
 		rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data_remove, NULL, NULL );
 
 		if ( rc != LDAP_SUCCESS ) {
@@ -1911,6 +1924,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 		free(modify_data_remove);
 		modify_data_remove = NULL;
 	}
+	
 	
 	if(modify_data_add != NULL)
 	{
@@ -1931,6 +1945,103 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 		pfree(dn);
 		free( modify_data_add );
 		modify_data_add = NULL;
+	}
+	
+	
+	return NULL;
+}
+*/
+
+/*
+ * ldap2_fdw_ExecForeignUpdate
+ *		Update one row in a foreign table
+ */
+static TupleTableSlot *
+ldap2_fdw_ExecForeignUpdate(EState *estate,
+						  ResultRelInfo *resultRelInfo,
+						  TupleTableSlot *slot,
+						  TupleTableSlot *planSlot)
+{
+	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
+	Datum       attr_value, datum;
+	bool		isNull = false;
+	Oid			foreignTableId;
+	Oid			typoid;
+	char *dn = NULL;
+	char *columnName = NULL;
+	int rc = 0;
+	int i = 0, j = 0;
+	LDAPMod		**modify_data = NULL;
+	LDAPMod		* single_ldap_mod = NULL;
+	ForeignTable *table;
+	Form_pg_attribute attr;
+	Relation rel = resultRelInfo->ri_RelationDesc;
+	TupleDesc tupdesc = RelationGetDescr(rel);
+	ListCell   *lc = NULL;
+	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
+	datum = ExecGetJunkAttribute(planSlot, fmstate->rowidAttno, &isNull);
+	typoid = get_atttype(foreignTableId, 1);
+	DEBUGPOINT;
+	// Durchlaufe alle Attribute des Tuples
+    for (i = 0; i < tupdesc->natts; i++) {
+        attr_value = slot_getattr(slot, i + 1, &isNull);
+		
+		char *att_name = pstrdup(NameStr(tupdesc->attrs[i].attname));
+		single_ldap_mod = NULL;
+		
+        if (slot->tts_isnull[i] || isNull) {
+            // Attribut ist NULL
+			elog(INFO, "Attribut %s ist NULL in Line %d", NameStr(tupdesc->attrs[i].attname), __LINE__);
+			single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){NULL});
+			append_ldap_mod(&modify_data, single_ldap_mod);
+			free_ldap_mod(single_ldap_mod);
+			single_ldap_mod = NULL;
+			DEBUGPOINT;
+            continue;
+        }
+        else if(!isNull)
+		{
+			if(!strcmp(att_name, "dn")) dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
+			else
+			{
+				char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
+				if(values_array == NULL)
+				{
+					elog(INFO, "Function %s, Line: %d: values array = NULL!", __FUNCTION__, __LINE__);
+					single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, (char*[]){NULL});
+				} else {
+					elog(INFO, "Function %s, Line: %d: values array != NULL!", __FUNCTION__, __LINE__);
+					single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, values_array);
+				}
+				elog(INFO, "attname: %s, Value: %s", att_name, values_array[0]);
+				if(single_ldap_mod) append_ldap_mod(&modify_data, single_ldap_mod);
+				if(single_ldap_mod) free_ldap_mod(single_ldap_mod);
+				single_ldap_mod = NULL;
+				
+			}
+			pfree(att_name);
+		}
+	}
+	
+	if(modify_data != NULL)
+	{
+		elog(INFO, "ldap mod: Line: %d, dn: %s", __LINE__, dn);
+		
+		rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data, NULL, NULL );
+
+		if ( rc != LDAP_SUCCESS ) {
+			elog( LOG, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
+
+		}
+		else elog(INFO, "ldap_modify success (remove)!");
+		
+		for( i = 0; modify_data[i] != NULL; i++)
+		{
+			free( modify_data[ i ] );
+		}
+		
+		free(modify_data);
+		modify_data = NULL;
 	}
 	
 	return NULL;

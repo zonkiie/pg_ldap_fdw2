@@ -34,6 +34,8 @@ I will try to implement a Read AND Write FDW.
 
 [https://www.ibm.com/docs/en/zos/2.4.0?topic=schema-retrieving](https://www.ibm.com/docs/en/zos/2.4.0?topic=schema-retrieving)
 
+[https://wiki.mozilla.org/Mozilla_LDAP_SDK_Programmer%27s_Guide/Adding,_Updating,_and_Deleting_Entries_With_LDAP_C_SDK](https://wiki.mozilla.org/Mozilla_LDAP_SDK_Programmer%27s_Guide/Adding,_Updating,_and_Deleting_Entries_With_LDAP_C_SDK)
+
 ## Error constants
 [https://github.com/munakoiso/logerrors/blob/master/constants.h](https://github.com/munakoiso/logerrors/blob/master/constants.h)
 
