@@ -48,6 +48,7 @@
 #include "LdapFdwTypes.h"
 #include "helper_functions.h"
 #include "ldap_functions.h"
+#include "ldap_schema_helpers.h"
 #include "deparse.h"
 
 static void GetOptionStructr(LdapFdwOptions *, Oid);
@@ -199,7 +200,7 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 	ForeignServer *foreignServer = NULL;
 	UserMapping *mapping = NULL;
 	ListCell *cell = NULL;
-	List * all_options = NULL;
+	List * all_options = NIL;
 	
 	if(options == NULL) {
 		elog(ERROR, "options is null - variable is not initialized! Line: %d", __LINE__);
@@ -212,7 +213,9 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 	mapping = GetUserMapping(GetUserId(), foreignTable->serverid);
 	
 	
-	all_options = list_copy(foreignTable->options);
+	//all_options = list_copy(foreignTable->options);
+	
+	all_options = list_concat(all_options, foreignTable->options);
 	all_options = list_concat(all_options, foreignServer->options);
 	all_options = list_concat(all_options, mapping->options);
 	
@@ -1988,7 +1991,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	char *dn = NULL;
 	char *columnName = NULL;
 	int rc = 0;
-	int i = 0, j = 0;
+	int i = 0, j = 0, op_success = 0;
 	LDAPMod		**modify_data = NULL;
 	LDAPMod		**single_mod_array = NULL;
 	LDAPMod		* single_ldap_mod = NULL;
@@ -2054,8 +2057,10 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 			single_mod_array[0] = modify_data[i];
 			rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, single_mod_array, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
 
-			if ( rc != LDAP_SUCCESS ) elog( LOG, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
-			else elog(INFO, "ldap_modify success!");
+			if( rc == LDAP_SUCCESS) op_success++;
+			
+			//if ( rc != LDAP_SUCCESS ) elog( INFO, "ldap_modify_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) );
+			//else elog(INFO, "ldap_modify success!");
 		}
 		
 		/*rc = ldap_modify_ext_s( fmstate->ldapConn->ldap, dn, modify_data, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
@@ -2280,9 +2285,62 @@ ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
 	return 0;
 }
 
+/**
+ * @see https://github.com/pgspider/jdbc_fdw/blob/main/jdbc_fdw.c function jdbcImportForeignSchema
+ * Method to fetch Schema from foreign Server 
+ *
+ */
 static List *
 ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 {
-	return NULL;
+	List			*commands = NIL;
+	List			*commands_drop = NIL;
+	List	   		*schema_list = NIL;
+	ListCell		*lc;
+	ListCell		*table_lc;
+	ListCell		*column_lc;
+	AttrTypemap		**attr_typemap = NULL;
+	bool			recreate = false;
+	bool			first_column;
+	ForeignServer	*server;
+	UserMapping		*user;
+	StringInfoData 	buf;
+	char			*objectClass = NULL;
+	size_t			num_attrs = 0;
+	LDAPMessage 	*schema = NULL, *entry = NULL;
+	server = GetForeignServer(serverOid);
+	user = GetUserMapping(GetUserId(), server->serverid);
+	LdapFdwConn *ldapConn = create_LdapFdwConn();
+	DEBUGPOINT;
+	
+	foreach(lc, stmt->options)
+	{
+		DefElem    *def = (DefElem *) lfirst(lc);
+
+		if (!strcmp(def->defname, "recreate")) recreate = defGetBoolean(def);
+		else if(!strcmp(def->defname, "uri")) ldapConn->options->uri = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "username")) ldapConn->options->username = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "password")) ldapConn->options->password = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "basedn")) ldapConn->options->basedn = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "filter")) ldapConn->options->filter = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "objectclass")) ldapConn->options->objectclass = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "schemadn")) ldapConn->options->schemadn = pstrdup(defGetString(def));
+		else
+			ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+					errmsg("invalid option \"%s\"", def->defname)));
+	}
+
+	DEBUGPOINT;
+	initLdapConnectionStruct(ldapConn);
+	DEBUGPOINT;
+	
+	num_attrs = fetch_ldap_typemap(&attr_typemap, ldapConn->ldap, ldapConn->options->objectclass, ldapConn->options->basedn);
+	DEBUGPOINT;
+	
+	ldap_unbind_ext_s(ldapConn->ldap, NULL, NULL);
+	free_options(ldapConn->options);
+	
+	return commands;
 }
 
