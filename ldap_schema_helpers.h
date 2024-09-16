@@ -13,14 +13,30 @@
 
 typedef struct AttrTypemap
 {
-	char *attribute_name;
+	char *description;
 	char *ldap_type;
 	char *pg_type;
 } AttrTypemap;
 
+typedef struct AttrListPg
+{
+	char *attr_name;
+	char *pg_type;
+} AttrListPg;
+
+typedef struct AttrListLdap
+{
+	char *attr_name;
+	char *ldap_type;
+	bool isarray;
+} AttrListLdap;
+
 AttrTypemap ** Create_AttrTypemap();
 
-size_t fetch_ldap_typemap(AttrTypemap***, LDAP *, char *, char *);
+size_t fetch_ldap_typemap(AttrListLdap***, LDAP *, char *, char *);
+
+size_t translate_AttrListLdap(AttrListPg***, AttrListLdap**);
+
 
 size_t fetch_objectclass(char ***, LDAP *, char *, char *);
 

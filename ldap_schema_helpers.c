@@ -1,12 +1,27 @@
 #include "ldap_schema_helpers.h"
 
+// Handle ldap types
+// https://www.openldap.org/doc/admin22/schema.html
+
+/*
+AttrTypemap typemap = {
+	{"boolean", 			"1.3.6.1.4.1.1466.115.121.1.7", 	"boolean"}, //"bool"
+	{"directoryString",		"1.3.6.1.4.1.1466.115.121.1.15",	"varchar"}, //"Unicode (UTF-8) string"
+	{"distinguishedName",	"1.3.6.1.4.1.1466.115.121.1.12",	"varchar"}, //"LDAP DN"
+	{"integer",				"1.3.6.1.4.1.1466.115.121.1.27",	"integer"}, //"integer"
+	{"numericString",		"1.3.6.1.4.1.1466.115.121.1.36",	"numeric"}, //"numeric string"
+	{"OID",					"1.3.6.1.4.1.1466.115.121.1.38",	"varchar"}, //"object identifier"
+	{"octetString",			"1.3.6.1.4.1.1466.115.121.1.40",	"varchar"}, //"arbitary octets"
+	{NULL, NULL, NULL},
+};
 
 AttrTypemap ** Create_AttrTypemap()
 {
 	
 }
+*/
 
-size_t fetch_ldap_typemap(AttrTypemap*** attrlist, LDAP *ld, char *object_class, char *schema_dn)
+size_t fetch_ldap_typemap(AttrListLdap*** attrlist, LDAP *ld, char *object_class, char *schema_dn)
 {
 	size_t size = 0;
 	char *a = NULL, * schema_entry_str = NULL;
@@ -19,7 +34,7 @@ size_t fetch_ldap_typemap(AttrTypemap*** attrlist, LDAP *ld, char *object_class,
 	rc = ldap_search_ext_s(
 		ld,
 		schema_dn,
-		LDAP_SCOPE_BASE,
+		LDAP_SCOPE_BASE, //LDAP_SCOPE_SUBTREE, //LDAP_SCOPE_BASE,
 		/*schema_filter, */ "(objectClass=*)",
 		(char*[]){ "objectClasses", NULL }, // (char*[]){ "attributeTypes", "objectClasses", NULL },   //(char*[]){ NULL },
 		0,
@@ -90,6 +105,12 @@ size_t fetch_ldap_typemap(AttrTypemap*** attrlist, LDAP *ld, char *object_class,
 	return size;
 }
 
+
+size_t translate_AttrListLdap(AttrListPg***, AttrListLdap**)
+{
+	size_t size = 0;
+	return size;
+}
 
 size_t fetch_objectclass(char ***attributes, LDAP *ld, char * object_class, char * base_dn)
 {
