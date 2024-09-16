@@ -6,7 +6,7 @@ AttrTypemap ** Create_AttrTypemap()
 	
 }
 
-size_t fetch_ldap_typemap(AttrTypemap*** attrlist, LDAP *ld, char *object_class, char *base_dn)
+size_t fetch_ldap_typemap(AttrTypemap*** attrlist, LDAP *ld, char *object_class, char *schema_dn)
 {
 	size_t size = 0;
 	char *a = NULL, * schema_entry_str = NULL;
@@ -18,7 +18,7 @@ size_t fetch_ldap_typemap(AttrTypemap*** attrlist, LDAP *ld, char *object_class,
 	BerElement *ber;
 	rc = ldap_search_ext_s(
 		ld,
-		base_dn,
+		schema_dn,
 		LDAP_SCOPE_BASE,
 		/*schema_filter, */ "(objectClass=*)",
 		(char*[]){ "objectClasses", NULL }, // (char*[]){ "attributeTypes", "objectClasses", NULL },   //(char*[]){ NULL },
@@ -32,14 +32,20 @@ size_t fetch_ldap_typemap(AttrTypemap*** attrlist, LDAP *ld, char *object_class,
 		return -1;
 	}
 	
+	elog(INFO, "ObjectClass: %s", object_class);
+	
 	for (entry = ldap_first_entry(ld, schema); entry != NULL; entry = ldap_next_entry(ld, entry)) {
 		schema_entry_str = ldap_get_dn(ld, entry);
 		elog(INFO, "Schema Str: %s", schema_entry_str);
 		ldap_memfree(schema_entry_str);
 		for ( a = ldap_first_attribute( ld, entry, &ber ); a != NULL; a = ldap_next_attribute( ld, entry, ber ) ) {
+			DEBUGPOINT;
 			struct berval **vals = NULL;
 			if ((vals = ldap_get_values_len( ld, entry, a)) != NULL ) {
+				DEBUGPOINT;
 				for (int i = 0; vals[i] != NULL; i++ ) {
+					DEBUGPOINT;
+					elog(INFO, "attr: %s, i: %d, val: %s", a, i, vals[i]->bv_val);
 					if(!strcmp(a, "objectClasses")) {
 						int oclass_error = 0;
 						const char * oclass_error_text;

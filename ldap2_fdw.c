@@ -2311,7 +2311,6 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	server = GetForeignServer(serverOid);
 	user = GetUserMapping(GetUserId(), server->serverid);
 	LdapFdwConn *ldapConn = create_LdapFdwConn();
-	DEBUGPOINT;
 	
 	foreach(lc, stmt->options)
 	{
@@ -2330,12 +2329,17 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 					errmsg("invalid option \"%s\"", def->defname)));
 	}
-
-	DEBUGPOINT;
-	initLdapConnectionStruct(ldapConn);
-	DEBUGPOINT;
 	
-	num_attrs = fetch_ldap_typemap(&attr_typemap, ldapConn->ldap, ldapConn->options->objectclass, ldapConn->options->basedn);
+	if(ldapConn->options->schemadn == NULL || !strcmp(ldapConn->options->schemadn, ""))
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
+					errmsg("Schemadn empty! Read your ldap server manual. usually it's cn=schema or cn=subschema.")));
+	}
+
+	initLdapConnectionStruct(ldapConn);
+	
+	num_attrs = fetch_ldap_typemap(&attr_typemap, ldapConn->ldap, ldapConn->options->objectclass, ldapConn->options->schemadn);
 	DEBUGPOINT;
 	
 	ldap_unbind_ext_s(ldapConn->ldap, NULL, NULL);
