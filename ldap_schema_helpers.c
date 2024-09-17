@@ -20,7 +20,50 @@ AttrTypemap ** Create_AttrTypemap()
 	
 }
 
+size_t AttrListLdapCount(AttrListLdap*** attrlist)
+{
+	if(attrlist == NULL || *attrlist == NULL) return 0;
+	size_t count = 0;
+	for(int i = 0; attrlist[i] != NULL; i++) count++;
+	return count;
+}
 
+size_t AttrListLdapAppend(AttrListLdap*** attrlist, AttrListLdap *value)
+{
+	size_t current_size = AttrListLdapCount(attrlist);
+	*attrlist = realloc(*attrlist, sizeof(AttrListLdap**) * (current_size + 1));
+	(*attrlist)[current_size] = value;
+	return current_size + 1;
+}
+
+void AttrListLdapFree(AttrListLdap **value)
+{
+	if((*value)->attr_name != NULL)
+	{
+		free((*value)->attr_name);
+		(*value)->attr_name = NULL;
+	}
+	if((*value)->ldap_type != NULL)
+	{
+		free((*value)->ldap_type);
+		(*value)->ldap_type = NULL;
+	}
+	free(*value);
+}
+
+void AttrListFree(AttrListLdap*** attrlist)
+{
+	for(int i = 0; (*attrlist)[i] != NULL; i++)
+	{
+		AttrListLdapFree(&(*attrlist)[i]);
+		(*attrlist)[i] = NULL;
+	}
+	*attrlist = NULL;
+}
+
+/**
+ * This is a Prototype for a generic C ldap library, after tests it will be adapted to Postgresql Datatypes like list, Hashmap ...
+ */
 size_t fetch_ldap_typemap(AttrListLdap*** attrlist, LDAP *ld, char *object_class, char *schema_dn)
 {
 	size_t size = 0;
@@ -98,6 +141,7 @@ size_t fetch_ldap_typemap(AttrListLdap*** attrlist, LDAP *ld, char *object_class
 						attrData->isarray = (attribute_data->at_single_value == 0);
 						ldap_attributetype_free(attribute_data);
 						elog(INFO, "Attribute %s: %s", attrData->attr_name, attrData->ldap_type);
+						AttrListLdapAppend(attrlist, attrData);
 					}
 				}
 

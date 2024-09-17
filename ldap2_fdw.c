@@ -2045,6 +2045,12 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 		}
 	}
 	
+	/*
+	 *	NOTE: Dirty workaround: Every change is committed individually because there are errors if fields are not existent and other fields are changed.
+	 *	This may be changed in the future.
+	 *  TODO: Improve updates
+	 */
+	
 	if(modify_data != NULL)
 	{
 		elog(INFO, "ldap mod: Line: %d, dn: %s", __LINE__, dn);

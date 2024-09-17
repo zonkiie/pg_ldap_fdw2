@@ -34,6 +34,10 @@ typedef struct AttrListLdap
 AttrTypemap ** Create_AttrTypemap();
 
 size_t fetch_ldap_typemap(AttrListLdap***, LDAP *, char *, char *);
+size_t AttrListLdapCount(AttrListLdap***);
+size_t AttrListLdapAppend(AttrListLdap***, AttrListLdap *);
+void AttrListLdapFree(AttrListLdap **);
+void AttrListFree(AttrListLdap***);
 
 size_t translate_AttrListLdap(AttrListPg***, AttrListLdap**);
 
