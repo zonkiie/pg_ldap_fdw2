@@ -3,12 +3,12 @@
 // Handle ldap types
 // https://www.openldap.org/doc/admin22/schema.html
 
-/*
-AttrTypemap typemap = {
+AttrTypemap typemap[] = {
 	{"boolean", 			"1.3.6.1.4.1.1466.115.121.1.7", 	"boolean"}, //"bool"
 	{"directoryString",		"1.3.6.1.4.1.1466.115.121.1.15",	"varchar"}, //"Unicode (UTF-8) string"
 	{"distinguishedName",	"1.3.6.1.4.1.1466.115.121.1.12",	"varchar"}, //"LDAP DN"
 	{"integer",				"1.3.6.1.4.1.1466.115.121.1.27",	"integer"}, //"integer"
+	{"jpeg",				"1.3.6.1.4.1.1466.115.121.1.28",	"bytea"},	//"JPEG Image"
 	{"numericString",		"1.3.6.1.4.1.1466.115.121.1.36",	"numeric"}, //"numeric string"
 	{"OID",					"1.3.6.1.4.1.1466.115.121.1.38",	"varchar"}, //"object identifier"
 	{"octetString",			"1.3.6.1.4.1.1466.115.121.1.40",	"varchar"}, //"arbitary octets"
@@ -19,7 +19,7 @@ AttrTypemap ** Create_AttrTypemap()
 {
 	
 }
-*/
+
 
 size_t fetch_ldap_typemap(AttrListLdap*** attrlist, LDAP *ld, char *object_class, char *schema_dn)
 {
@@ -36,7 +36,7 @@ size_t fetch_ldap_typemap(AttrListLdap*** attrlist, LDAP *ld, char *object_class
 		schema_dn,
 		LDAP_SCOPE_BASE, //LDAP_SCOPE_SUBTREE, //LDAP_SCOPE_BASE,
 		/*schema_filter, */ "(objectClass=*)",
-		(char*[]){ "objectClasses", NULL }, // (char*[]){ "attributeTypes", "objectClasses", NULL },   //(char*[]){ NULL },
+		(char*[]){ "attributeTypes", "objectClasses", NULL }, //(char*[]){ NULL },
 		0,
 		NULL,
 		NULL,
@@ -87,6 +87,18 @@ size_t fetch_ldap_typemap(AttrListLdap*** attrlist, LDAP *ld, char *object_class
 						}
 						ldap_objectclass_free(oclass);
 					}
+					else if(!strcmp(a, "attributeTypes")) {
+						int * attribute_error;
+						const char *  attribute_error_text;
+						LDAPAttributeType *attribute_data = ldap_str2attributetype(vals[i]->bv_val, &attribute_error, &attribute_error_text, LDAP_SCHEMA_ALLOW_NONE);
+						names = attribute_data->at_names;
+						AttrListLdap * attrData = (AttrListLdap *)malloc(sizeof(AttrListLdap)+1);
+						attrData->attr_name = strdup(names[0]);
+						attrData->ldap_type = strdup(attribute_data->at_oid);
+						attrData->isarray = (attribute_data->at_single_value == 0);
+						ldap_attributetype_free(attribute_data);
+						elog(INFO, "Attribute %s: %s", attrData->attr_name, attrData->ldap_type);
+					}
 				}
 
 				ber_bvecfree(vals);
@@ -106,7 +118,7 @@ size_t fetch_ldap_typemap(AttrListLdap*** attrlist, LDAP *ld, char *object_class
 }
 
 
-size_t translate_AttrListLdap(AttrListPg***, AttrListLdap**)
+size_t translate_AttrListLdap(AttrListPg*** attributesPg, AttrListLdap** attributesLd)
 {
 	size_t size = 0;
 	return size;
