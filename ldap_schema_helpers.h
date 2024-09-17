@@ -31,14 +31,19 @@ typedef struct AttrListLdap
 	bool isarray;
 } AttrListLdap;
 
-AttrTypemap ** Create_AttrTypemap();
-
-size_t fetch_ldap_typemap(AttrListLdap***, LDAP *, char *, char *);
+AttrListLdap ** Create_AttrListLdap();
 size_t AttrListLdapCount(AttrListLdap***);
 size_t AttrListLdapAppend(AttrListLdap***, AttrListLdap *);
 void AttrListLdapFree(AttrListLdap **);
 void AttrListFree(AttrListLdap***);
+AttrListPg ** Create_AttrListPg();
+size_t AttrListPgCount(AttrListPg*** );
+size_t AttrListPgAppend(AttrListPg*** , AttrListPg *);
+void AttrListPgFreeSingle(AttrListPg **);
+void AttrListPgFree(AttrListPg*** );
 
+
+size_t fetch_ldap_typemap(AttrListLdap***, LDAP *, char *, char *);
 size_t translate_AttrListLdap(AttrListPg***, AttrListLdap**);
 
 

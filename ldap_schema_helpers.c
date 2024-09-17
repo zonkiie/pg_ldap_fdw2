@@ -15,9 +15,11 @@ AttrTypemap typemap[] = {
 	{NULL, NULL, NULL},
 };
 
-AttrTypemap ** Create_AttrTypemap()
+AttrListLdap ** Create_AttrListLdap()
 {
-	
+	AttrListLdap ** retval (AttrListLdap **)malloc(sizeof(AttrListLdap**) * 2);
+	memset(retval, 0, sizeof(AttrListLdap**) * 2);
+	return retval;
 }
 
 size_t AttrListLdapCount(AttrListLdap*** attrlist)
@@ -36,7 +38,7 @@ size_t AttrListLdapAppend(AttrListLdap*** attrlist, AttrListLdap *value)
 	return current_size + 1;
 }
 
-void AttrListLdapFree(AttrListLdap **value)
+void AttrListLdapFreeSingle(AttrListLdap **value)
 {
 	if((*value)->attr_name != NULL)
 	{
@@ -51,11 +53,59 @@ void AttrListLdapFree(AttrListLdap **value)
 	free(*value);
 }
 
-void AttrListFree(AttrListLdap*** attrlist)
+void AttrListLdapFree(AttrListLdap*** attrlist)
 {
 	for(int i = 0; (*attrlist)[i] != NULL; i++)
 	{
-		AttrListLdapFree(&(*attrlist)[i]);
+		AttrListLdapFreeSingle(&(*attrlist)[i]);
+		(*attrlist)[i] = NULL;
+	}
+	*attrlist = NULL;
+}
+
+AttrListPg ** Create_AttrListPg()
+{
+	AttrListPg ** retval (AttrListPg **)malloc(sizeof(AttrListPg**) * 2);
+	memset(retval, 0, sizeof(AttrListPg**) * 2);
+	return retval;
+}
+
+size_t AttrListPgCount(AttrListPg*** attrlist)
+{
+	if(attrlist == NULL || *attrlist == NULL) return 0;
+	size_t count = 0;
+	for(int i = 0; attrlist[i] != NULL; i++) count++;
+	return count;
+}
+
+size_t AttrListPgAppend(AttrListPg*** attrlist, AttrListPg *value)
+{
+	size_t current_size = AttrListPgCount(attrlist);
+	*attrlist = realloc(*attrlist, sizeof(AttrListPg**) * (current_size + 1));
+	(*attrlist)[current_size] = value;
+	return current_size + 1;
+}
+
+void AttrListPgFreeSingle(AttrListPg **value)
+{
+	if((*value)->attr_name != NULL)
+	{
+		free((*value)->attr_name);
+		(*value)->attr_name = NULL;
+	}
+	if((*value)->ldap_type != NULL)
+	{
+		free((*value)->ldap_type);
+		(*value)->ldap_type = NULL;
+	}
+	free(*value);
+}
+
+void AttrListPgFree(AttrListPg*** attrlist)
+{
+	for(int i = 0; (*attrlist)[i] != NULL; i++)
+	{
+		AttrListPgFreeSingle(&(*attrlist)[i]);
 		(*attrlist)[i] = NULL;
 	}
 	*attrlist = NULL;
