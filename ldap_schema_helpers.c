@@ -125,6 +125,7 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 				for (int i = 0; vals[i] != NULL; i++ ) {
 					//elog(INFO, "attr: %s, i: %d, val: %s", a, i, vals[i]->bv_val);
 					if(!strcmp(a, "objectClasses")) {
+						elog(INFO, "objects");
 						int oclass_error = 0;
 						const char * oclass_error_text;
 						LDAPObjectClass *oclass = ldap_str2objectclass(vals[i]->bv_val, &oclass_error, &oclass_error_text, LDAP_SCHEMA_ALLOW_ALL);
@@ -152,6 +153,7 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 						ldap_objectclass_free(oclass);
 					}
 					else if(!strcmp(a, "attributeTypes")) {
+						elog(INFO, "attributes");
 						int * attribute_error;
 						const char *  attribute_error_text;
 						LDAPAttributeType *attribute_data = ldap_str2attributetype(vals[i]->bv_val, &attribute_error, &attribute_error_text, LDAP_SCHEMA_ALLOW_NONE);
