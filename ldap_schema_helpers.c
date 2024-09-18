@@ -123,7 +123,7 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 			struct berval **vals = NULL;
 			if ((vals = ldap_get_values_len( ld, entry, a)) != NULL ) {
 				for (int i = 0; vals[i] != NULL; i++ ) {
-					//elog(INFO, "attr: %s, i: %d, val: %s", a, i, vals[i]->bv_val);
+					elog(INFO, "attr: %s, i: %d, val: %s", a, i, vals[i]->bv_val);
 					if(!strcmp(a, "objectClasses")) {
 						elog(INFO, "objects");
 						int oclass_error = 0;
@@ -190,21 +190,16 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 size_t fill_AttrListType(AttrListType*** attributes, AttrTypemap map[])
 {
 	size_t size = 0;
-	DEBUGPOINT;
 	if(*attributes == 0) return 0;
-	DEBUGPOINT;
 	while((*attributes)[size] != NULL)
 	{
-	DEBUGPOINT;
 		(*attributes)[size]->pg_type = strdup(getPgTypeForLdapType(map, (*attributes)[size]->ldap_type));
-	DEBUGPOINT;
 		if((*attributes)[size]->isarray)
 		{
-	DEBUGPOINT;
 			(*attributes)[size]->pg_type = realloc(((*attributes)[size]->pg_type), strlen((*attributes)[size]->pg_type) + 3);
 			strcat((*attributes)[size]->pg_type, "[]");
 		}
-		elog(INFO, "pg_type: %s", (*attributes)[size]->pg_type);
+//		elog(INFO, "pg_type: %s", (*attributes)[size]->pg_type);
 		size++;
 	}
 	return size;

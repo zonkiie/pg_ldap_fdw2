@@ -99,6 +99,42 @@ char *trim(char *string, char *trimchars)
 	return strndup((string + start), copylen);
 }
 
+void strmcat(char **targetstr, char *tocat)
+{
+	int newsize = strlen((*targetstr)) + strlen(tocat);
+	(*targetstr) = (char*)realloc((*targetstr), newsize + 2);
+	strcat((*targetstr), tocat);
+}
+
+char * strmcat_multi_alloc_with_null(char * arg1, ...)
+{
+	char * targetstr = strdup(arg1);
+	va_list args;
+    va_start(args, arg1);
+	char * argument;
+	while((argument = va_arg(args, char*)) != NULL)
+	{
+		if(!strcmp(argument, "")) continue;
+		targetstr = (char*)realloc(targetstr, strlen(targetstr) + strlen(argument) + 2);
+		strcat(targetstr, argument);
+	}
+	return targetstr;
+}
+
+// Last Argument must be NULL if no error should occur
+void strmcat_multi_with_null(char **targetstr, ...)
+{
+	va_list args;
+    va_start(args, targetstr);
+	char * argument;
+	while((argument = va_arg(args, char*)) != NULL)
+	{
+		if(!strcmp(argument, "")) continue;
+		(*targetstr) = (char*)realloc((*targetstr), strlen(*targetstr) + strlen(argument) + 2);
+		strcat((*targetstr), argument);
+	}
+}
+
 bool char_charlist(char c, char *charlist)
 {
 	for(int i = 0; i < strlen(charlist); i++)

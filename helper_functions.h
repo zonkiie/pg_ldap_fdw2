@@ -21,6 +21,8 @@ extern struct         timeval  zerotime;
 #define _cleanup_pstr_ __attribute((cleanup(free_pstr)))
 #define _cleanup_options_ __attribute((cleanup(free_options)))
 
+#define strmcat_multi(...) strmcat_multi_with_null(__VA_ARGS__, NULL)
+#define strmcat_multi_alloc(...) strmcat_multi_alloc_with_null(__VA_ARGS__, NULL)
 
 int str_split(char ***, char *, char *);
 int str_join(char **, char **, char *);
@@ -28,6 +30,9 @@ char * str_replace(const char *, const char *, const char *);
 char *trim(char *, char *);
 bool char_charlist(char , char *);
 int substr_count(char *, char *);
+void strmcat(char **, char *);
+void strmcat_multi_with_null(char **targetstr, ...);
+char * strmcat_multi_alloc_with_null(char * arg1, ...);
 char ** array_copy(char **);
 void free_cstr(char ** );
 void free_pstr(char ** );
