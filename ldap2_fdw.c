@@ -2309,6 +2309,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	bool			recreate = false;
 	bool			first_column;
 	char			**columns = NULL;
+	char			*table_name = NULL;
 	ForeignServer	*server;
 	UserMapping		*user;
 	StringInfoData 	buf;
@@ -2331,6 +2332,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		else if(!strcmp(def->defname, "filter")) ldapConn->options->filter = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "objectclass")) ldapConn->options->objectclass = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "schemadn")) ldapConn->options->schemadn = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "tablename")) table_name = pstrdup(defGetString(def));
 		else
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
@@ -2363,16 +2365,18 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	
 	for(int i = 0; attr_typemap[i] != NULL; i++)
 	{
-		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
+		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", i, attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
 	}
 	
 	DEBUGPOINT;
 	
 	fill_AttrListType(&attr_typemap, typemap);
 	
+	DEBUGPOINT;
+	
 	for(int i = 0; attr_typemap[i] != NULL; i++)
 	{
-		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
+		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", i, attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
 	}
 	DEBUGPOINT;
 	

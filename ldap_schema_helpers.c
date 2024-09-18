@@ -31,7 +31,7 @@ static char* getPgTypeForLdapType(AttrTypemap map[], char *ldapType)
 
 AttrListType ** Create_AttrListType()
 {
-	AttrListType ** retval = (AttrListType **)malloc(sizeof(AttrListType**) * 2);
+	AttrListType ** retval = (AttrListType **)malloc(sizeof(AttrListType*) * 2);
 	memset(retval, 0, sizeof(AttrListType**) * 2);
 	return retval;
 }
@@ -188,9 +188,21 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 size_t fill_AttrListType(AttrListType*** attributes, AttrTypemap map[])
 {
 	size_t size = 0;
+	DEBUGPOINT;
+	if(*attributes == 0) return 0;
+	DEBUGPOINT;
 	while((*attributes)[size] != NULL)
 	{
+	DEBUGPOINT;
 		(*attributes)[size]->pg_type = strdup(getPgTypeForLdapType(map, (*attributes)[size]->ldap_type));
+	DEBUGPOINT;
+		if((*attributes)[size]->isarray)
+		{
+	DEBUGPOINT;
+			(*attributes)[size]->pg_type = realloc(((*attributes)[size]->pg_type), strlen((*attributes)[size]->pg_type) + 3);
+			strcat((*attributes)[size]->pg_type, "[]");
+		}
+		elog(INFO, "pg_type: %s", (*attributes)[size]->pg_type);
 		size++;
 	}
 	return size;
