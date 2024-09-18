@@ -24,6 +24,7 @@ typedef struct AttrListType
 	char *ldap_type;
 	char *pg_type;
 	bool isarray;
+	bool nullable;
 } AttrListType;
 
 AttrListType** Create_AttrListType();
