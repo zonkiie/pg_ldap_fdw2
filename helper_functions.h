@@ -37,6 +37,8 @@ void free_carr_n(char ***);
 void free_file(FILE** );
 bool in_array(char ** , char * );
 bool add_to_unique_array(char *** , char * );
+size_t array_count(char **);
+size_t array_push(char ***, char *);
 
 size_t put_file_content_nm(char*, char*, size_t, char*);
 size_t put_file_content_n(char*, char*, size_t);

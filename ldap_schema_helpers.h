@@ -18,12 +18,6 @@ typedef struct AttrTypemap
 	char *pg_type;
 } AttrTypemap;
 
-typedef struct AttrListPg
-{
-	char *attr_name;
-	char *pg_type;
-} AttrListPg;
-
 typedef struct AttrListType
 {
 	char *attr_name;
@@ -37,19 +31,11 @@ size_t AttrListTypeCount(AttrListType***);
 size_t AttrListTypeAppend(AttrListType***, AttrListType *);
 void AttrListTypeFreeSingle(AttrListType **);
 void AttrListTypeFree(AttrListType***);
-AttrListPg ** Create_AttrListPg();
-size_t AttrListPgCount(AttrListPg*** );
-size_t AttrListPgAppend(AttrListPg*** , AttrListPg *);
-void AttrListPgFreeSingle(AttrListPg **);
-void AttrListPgFree(AttrListPg*** );
 
-
-size_t fetch_ldap_typemap(AttrListType***, LDAP *, char *, char *);
-size_t fill_AttrListType(AttrListType***, AttrTypemap**);
-
-
-size_t fetch_objectclass(char ***, LDAP *, char *, char *);
+size_t fetch_ldap_typemap(AttrListType***, char ***, LDAP *, char *, char *);
+size_t fill_AttrListType(AttrListType***, AttrTypemap[]);
 
 extern struct timeval timeout_struct;
+extern AttrTypemap typemap[];
 
 #endif

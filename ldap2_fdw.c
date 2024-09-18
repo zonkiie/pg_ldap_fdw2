@@ -2305,9 +2305,10 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	ListCell		*lc;
 	ListCell		*table_lc;
 	ListCell		*column_lc;
-	AttrListType		**attr_typemap = Create_AttrListType();
+	AttrListType	**attr_typemap = Create_AttrListType();
 	bool			recreate = false;
 	bool			first_column;
+	char			**columns = NULL;
 	ForeignServer	*server;
 	UserMapping		*user;
 	StringInfoData 	buf;
@@ -2345,11 +2346,42 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 
 	initLdapConnectionStruct(ldapConn);
 	
-	num_attrs = fetch_ldap_typemap(&attr_typemap, ldapConn->ldap, ldapConn->options->objectclass, ldapConn->options->schemadn);
+	//columns = (char**)malloc(sizeof(char*) * 2);
+	
+	num_attrs = fetch_ldap_typemap(&attr_typemap, &columns, ldapConn->ldap, ldapConn->options->objectclass, ldapConn->options->schemadn);
+	elog(INFO, "num_attrs: %d", num_attrs);
+	
+// 	if(columns != NULL)
+// 	{
+// 	DEBUGPOINT;
+// 		for(int i = 0; columns[i] != NULL; i++)
+// 		{
+// 			//elog(INFO, "column: %s", columns[i]);
+// 		}
+// 	}
 	DEBUGPOINT;
 	
+	for(int i = 0; attr_typemap[i] != NULL; i++)
+	{
+		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
+	}
+	
+	DEBUGPOINT;
+	
+	fill_AttrListType(&attr_typemap, typemap);
+	
+	for(int i = 0; attr_typemap[i] != NULL; i++)
+	{
+		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
+	}
+	DEBUGPOINT;
+	
+	free_carr_n(&columns);
+	
 	ldap_unbind_ext_s(ldapConn->ldap, NULL, NULL);
+	DEBUGPOINT;
 	free_options(ldapConn->options);
+	DEBUGPOINT;
 	
 	return commands;
 }

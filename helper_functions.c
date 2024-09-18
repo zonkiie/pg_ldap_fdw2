@@ -205,6 +205,26 @@ bool add_to_unique_array(char *** array, char * value)
 	return true;
 }
 
+size_t array_count(char ** array)
+{
+	if(array != NULL)
+	{
+		size_t count = 0;
+		while(array[count] != NULL) count++;
+		return count;
+	}
+	else return 0;
+}
+
+size_t array_push(char *** array, char *value)
+{
+	size_t n_el = array_count(*array);
+	*array = realloc(*array, sizeof(char*) * (n_el + 2));
+	(*array)[n_el] = strdup(value);
+	(*array)[n_el + 1] = NULL;
+	return array_count(*array);
+}
+
 size_t put_file_content_nm(char* filename, char* content, size_t contentsize, char* mode)
 {
 	size_t pos = 0;
