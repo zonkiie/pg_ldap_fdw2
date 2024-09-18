@@ -15,14 +15,14 @@ AttrTypemap typemap[] = {
 	{NULL, NULL, NULL},
 };
 
-AttrListLdap ** Create_AttrListLdap()
+AttrListType ** Create_AttrListType()
 {
-	AttrListLdap ** retval (AttrListLdap **)malloc(sizeof(AttrListLdap**) * 2);
-	memset(retval, 0, sizeof(AttrListLdap**) * 2);
+	AttrListType ** retval = (AttrListType **)malloc(sizeof(AttrListType**) * 2);
+	memset(retval, 0, sizeof(AttrListType**) * 2);
 	return retval;
 }
 
-size_t AttrListLdapCount(AttrListLdap*** attrlist)
+size_t AttrListTypeCount(AttrListType*** attrlist)
 {
 	if(attrlist == NULL || *attrlist == NULL) return 0;
 	size_t count = 0;
@@ -30,15 +30,15 @@ size_t AttrListLdapCount(AttrListLdap*** attrlist)
 	return count;
 }
 
-size_t AttrListLdapAppend(AttrListLdap*** attrlist, AttrListLdap *value)
+size_t AttrListTypeAppend(AttrListType*** attrlist, AttrListType *value)
 {
-	size_t current_size = AttrListLdapCount(attrlist);
-	*attrlist = realloc(*attrlist, sizeof(AttrListLdap**) * (current_size + 1));
+	size_t current_size = AttrListTypeCount(attrlist);
+	*attrlist = realloc(*attrlist, sizeof(AttrListType**) * (current_size + 1));
 	(*attrlist)[current_size] = value;
 	return current_size + 1;
 }
 
-void AttrListLdapFreeSingle(AttrListLdap **value)
+void AttrListTypeFreeSingle(AttrListType **value)
 {
 	if((*value)->attr_name != NULL)
 	{
@@ -50,14 +50,19 @@ void AttrListLdapFreeSingle(AttrListLdap **value)
 		free((*value)->ldap_type);
 		(*value)->ldap_type = NULL;
 	}
+	if((*value)->pg_type != NULL)
+	{
+		free((*value)->pg_type);
+		(*value)->pg_type = NULL;
+	}
 	free(*value);
 }
 
-void AttrListLdapFree(AttrListLdap*** attrlist)
+void AttrListTypeFree(AttrListType*** attrlist)
 {
 	for(int i = 0; (*attrlist)[i] != NULL; i++)
 	{
-		AttrListLdapFreeSingle(&(*attrlist)[i]);
+		AttrListTypeFreeSingle(&(*attrlist)[i]);
 		(*attrlist)[i] = NULL;
 	}
 	*attrlist = NULL;
@@ -65,7 +70,7 @@ void AttrListLdapFree(AttrListLdap*** attrlist)
 
 AttrListPg ** Create_AttrListPg()
 {
-	AttrListPg ** retval (AttrListPg **)malloc(sizeof(AttrListPg**) * 2);
+	AttrListPg ** retval = (AttrListPg **)malloc(sizeof(AttrListPg**) * 2);
 	memset(retval, 0, sizeof(AttrListPg**) * 2);
 	return retval;
 }
@@ -93,10 +98,10 @@ void AttrListPgFreeSingle(AttrListPg **value)
 		free((*value)->attr_name);
 		(*value)->attr_name = NULL;
 	}
-	if((*value)->ldap_type != NULL)
+	if((*value)->pg_type != NULL)
 	{
-		free((*value)->ldap_type);
-		(*value)->ldap_type = NULL;
+		free((*value)->pg_type);
+		(*value)->pg_type = NULL;
 	}
 	free(*value);
 }
@@ -114,7 +119,7 @@ void AttrListPgFree(AttrListPg*** attrlist)
 /**
  * This is a Prototype for a generic C ldap library, after tests it will be adapted to Postgresql Datatypes like list, Hashmap ...
  */
-size_t fetch_ldap_typemap(AttrListLdap*** attrlist, LDAP *ld, char *object_class, char *schema_dn)
+size_t fetch_ldap_typemap(AttrListType *** attrlist, LDAP *ld, char *object_class, char *schema_dn)
 {
 	size_t size = 0;
 	char *a = NULL, * schema_entry_str = NULL;
@@ -185,13 +190,13 @@ size_t fetch_ldap_typemap(AttrListLdap*** attrlist, LDAP *ld, char *object_class
 						const char *  attribute_error_text;
 						LDAPAttributeType *attribute_data = ldap_str2attributetype(vals[i]->bv_val, &attribute_error, &attribute_error_text, LDAP_SCHEMA_ALLOW_NONE);
 						names = attribute_data->at_names;
-						AttrListLdap * attrData = (AttrListLdap *)malloc(sizeof(AttrListLdap)+1);
+						AttrListType * attrData = (AttrListType *)malloc(sizeof(AttrListType)+1);
 						attrData->attr_name = strdup(names[0]);
 						attrData->ldap_type = strdup(attribute_data->at_oid);
 						attrData->isarray = (attribute_data->at_single_value == 0);
 						ldap_attributetype_free(attribute_data);
 						elog(INFO, "Attribute %s: %s", attrData->attr_name, attrData->ldap_type);
-						AttrListLdapAppend(attrlist, attrData);
+						AttrListTypeAppend(attrlist, attrData);
 					}
 				}
 
@@ -212,7 +217,7 @@ size_t fetch_ldap_typemap(AttrListLdap*** attrlist, LDAP *ld, char *object_class
 }
 
 
-size_t translate_AttrListLdap(AttrListPg*** attributesPg, AttrListLdap** attributesLd)
+size_t fill_AttrListType(AttrListType*** attributes, AttrTypemap** map)
 {
 	size_t size = 0;
 	return size;

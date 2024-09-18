@@ -2305,7 +2305,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	ListCell		*lc;
 	ListCell		*table_lc;
 	ListCell		*column_lc;
-	AttrTypemap		**attr_typemap = NULL;
+	AttrListType		**attr_typemap = Create_AttrListType();
 	bool			recreate = false;
 	bool			first_column;
 	ForeignServer	*server;

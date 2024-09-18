@@ -24,18 +24,19 @@ typedef struct AttrListPg
 	char *pg_type;
 } AttrListPg;
 
-typedef struct AttrListLdap
+typedef struct AttrListType
 {
 	char *attr_name;
 	char *ldap_type;
+	char *pg_type;
 	bool isarray;
-} AttrListLdap;
+} AttrListType;
 
-AttrListLdap ** Create_AttrListLdap();
-size_t AttrListLdapCount(AttrListLdap***);
-size_t AttrListLdapAppend(AttrListLdap***, AttrListLdap *);
-void AttrListLdapFree(AttrListLdap **);
-void AttrListFree(AttrListLdap***);
+AttrListType** Create_AttrListType();
+size_t AttrListTypeCount(AttrListType***);
+size_t AttrListTypeAppend(AttrListType***, AttrListType *);
+void AttrListTypeFreeSingle(AttrListType **);
+void AttrListTypeFree(AttrListType***);
 AttrListPg ** Create_AttrListPg();
 size_t AttrListPgCount(AttrListPg*** );
 size_t AttrListPgAppend(AttrListPg*** , AttrListPg *);
@@ -43,8 +44,8 @@ void AttrListPgFreeSingle(AttrListPg **);
 void AttrListPgFree(AttrListPg*** );
 
 
-size_t fetch_ldap_typemap(AttrListLdap***, LDAP *, char *, char *);
-size_t translate_AttrListLdap(AttrListPg***, AttrListLdap**);
+size_t fetch_ldap_typemap(AttrListType***, LDAP *, char *, char *);
+size_t fill_AttrListType(AttrListType***, AttrTypemap**);
 
 
 size_t fetch_objectclass(char ***, LDAP *, char *, char *);
