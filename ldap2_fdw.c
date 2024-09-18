@@ -2310,7 +2310,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	bool			first_column;
 	char			**columns = NULL;
 	char			*tablename = NULL;
-	char			*tmp_str = NULL;
+	char			*dropStr = NULL;
+	char			*createStr = NULL;
 	ForeignServer	*server;
 	UserMapping		*user;
 	StringInfoData 	buf;
@@ -2346,6 +2347,11 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
 					errmsg("Schemadn empty! Read your ldap server manual. usually it's cn=schema or cn=subschema.")));
 	}
+	
+	if(tablename == NULL)
+	{
+		elog(ERROR, "tablename is NULL!");
+	}
 
 	initLdapConnectionStruct(ldapConn);
 	
@@ -2367,27 +2373,34 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 // 		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", i, attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
 // 	}
 // 	
-// 	DEBUGPOINT;
+	DEBUGPOINT;
 	
 	fill_AttrListType(&attr_typemap, typemap);
+	
+	DEBUGPOINT;
 	
 	/*for(int i = 0; attr_typemap[i] != NULL; i++)
 	{
 		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", i, attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
 	}*/
 	
-	tmp_str = strdup("");
-	strmcat_multi(tmp_str, "CREATE FOREIGN TABLE IF NOT EXISTS \"", tablename, "\" (");
+	asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\";", tablename);
+	
+	elog(INFO, "dropStr: %s", dropStr);
+	
+	createStr = strdup("");
+	strmcat_multi(createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", tablename, "\" (");
+	DEBUGPOINT;
 	
 	
 	for(int i = 0; columns[i] != NULL; i++)
 	{
-		strmcat_multi(tmp_str, columns[i], "varchar ");
+		strmcat_multi(createStr, columns[i], "varchar ");
 	}
 	
-	strmcat_multi(tmp_str, ")");
+	strmcat_multi(createStr, ")");
 	
-	elog(INFO, "Create Statement: %s", tmp_str);
+	elog(INFO, "Create Statement: %s", createStr);
 	
 	free_carr_n(&columns);
 	
