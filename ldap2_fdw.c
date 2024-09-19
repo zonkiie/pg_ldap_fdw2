@@ -212,14 +212,10 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 	foreignServer = GetForeignServer(foreignTable->serverid);
 	mapping = GetUserMapping(GetUserId(), foreignTable->serverid);
 	
-	
-	//all_options = list_copy(foreignTable->options);
-	
 	all_options = list_concat(all_options, foreignTable->options);
 	all_options = list_concat(all_options, foreignServer->options);
 	all_options = list_concat(all_options, mapping->options);
 	
-	//foreach(cell, foreignTable->options)
 	foreach(cell, all_options)
 	{
 		DefElem *def = lfirst_node(DefElem, cell);
@@ -266,12 +262,6 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 			//if(filter != NULL) options->filter = pstrdup(filter);
 			if(value != NULL) options->filter = pstrdup(value);
 		}
-		/*else if (strcmp("objectclass", def->defname) == 0)
-		{
-			//options->objectclass = defGetString(def);
-			//if(value != NULL) options->objectclass = pstrdup(value);
-			if(value != NULL) array_pushp(&(options->objectclasses), value);
-		}*/
 		else if (strcmp("schemadn", def->defname) == 0)
 		{
 			//options->schemadn = defGetString(def);
@@ -1068,7 +1058,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	int16		typeLength;
 	
 	bool column_type_is_array;
-	//char **s_values;
 	Datum *d_values;
 	bool *null_values;
 	//BerElement *ber;
@@ -1084,9 +1073,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	get_typlenbyvalalign(varchar_oid, &typeLength, &typeByValue, &typeAlignment);
 	
 	tupdesc = RelationGetDescr(rel);
-	
-	//s_values = (char **) palloc(sizeof(char *) * fdw_private->num_attrs + 1);
-	//memset(s_values, 0, (fdw_private->num_attrs + 1 ) * sizeof(char*));
 	
 	null_values = (bool*)palloc(sizeof(bool) * fdw_private->num_attrs + 1);
 	memset(null_values, 0, (fdw_private->num_attrs + 1 ) * sizeof(bool));
@@ -1123,7 +1109,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 				{
 					null_values[i] = 0;
 					d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(entrydn));
-					//s_values[i] = pstrdup(entrydn);
 					i++;
 					continue;
 				}
@@ -1135,20 +1120,13 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					{
 						null_values[i] = true;
 						d_values[i] = PointerGetDatum(NULL);
-						//if(!column_type_is_array) s_values[i] = NULL;
-						//else s_values[i] = "{}";
 					}
 					else
 					{
 						if(!column_type_is_array) {
 							null_values[i] = (vals[0]->bv_val == NULL || strlen(vals[0]->bv_val) == 0);
-							//elog(INFO, "Line %d, Null_Value: %d, Value: %s", __LINE__, null_values[i], vals[0]->bv_val);
 							d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
-							//s_values[i] = pstrdup(vals[0]->bv_val);
 						} else {
-							//Datum* item_values = (Datum*)palloc(sizeof(Datum) * ldap_count_values_len(vals) + 1);
-							//memset(item_values, 0, (ldap_count_values_len(vals) + 1 ) * sizeof(Datum));
-							
 							ArrayType* array_values;
 							Datum* item_values = (Datum*)palloc(sizeof(Datum) * values_length + 2);
 							memset(item_values, 0, (values_length + 1 ) * sizeof(Datum));
@@ -1156,37 +1134,9 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 							for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
 								item_values[vi] = DirectFunctionCall1(textin, CStringGetDatum(vals[ vi ]->bv_val));
 							}
-							//ArrayType* array_values = construct_array(item_values, ldap_count_values_len(vals), varchar_oid, 1, 1, 0);
 							array_values = construct_array(item_values, values_length, varchar_oid, typeLength, typeByValue, typeAlignment);
 							d_values[i] = PointerGetDatum(array_values);
 						}
-						
-						/*
-						char *tmp_str = strdup("");
-						
-						first_in_array = true;
-						
-						
-						for ( vi = 0; vals[ vi ] != NULL; vi++ ) {
-							if(first_in_array == true) first_in_array = false;
-							else{
-								tmp_str = realloc(tmp_str, strlen(tmp_str) + 1);
-								tmp_str[strlen(tmp_str)] = array_delimiter;
-							}
-							tmp_str = realloc(tmp_str, strlen(tmp_str) + strlen(vals[ vi ]->bv_val) + 1);
-							strcat(tmp_str, vals[ vi ]->bv_val);
-						}
-						
-						if(column_type_is_array)
-						{
-							char * tmp_str2 = tmp_str;
-							asprintf(&tmp_str, "{%s}", tmp_str2);
-							free(tmp_str2);
-						}
-						
-						s_values[i] = pstrdup(tmp_str);
-						free(tmp_str);
-						*/
 						
 					}
 					ber_bvecfree(vals);
@@ -1209,7 +1159,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	fdw_private->row++;
 	
 	tuple = heap_form_tuple(tupdesc, d_values, null_values);
-	//tuple = BuildTupleFromCStrings(fdw_private->attinmeta, s_values);
 	ExecStoreHeapTuple(tuple, slot, false);
 	
 	return slot;
@@ -2076,17 +2025,29 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	char *columnName = NULL;
 	int rc = 0;
 	int i = 0;
+	int dn_index = -1;
 	ForeignTable *table;
 	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	TupleDesc tupdesc = RelationGetDescr(rel);
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
+	for(i = 0; i < RelationGetDescr(rel)->natts; i++)
+	{
+		columnName = get_attname(foreignTableId, i + 1, false);
+		if(!strcmp(columnName, "dn"))
+		{
+			dn_index = i;
+			break;
+		}
+	}
 	
+	//columnName = get_attname(foreignTableId, 1, false);
 	/* Get the id that was passed up as a resjunk column */
-	datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
+	if(dn_index < 0) elog(ERROR, "No dn found!");
+	datum = ExecGetJunkAttribute(planSlot, dn_index + 1, &isNull);
+	//datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
 	char *value_str = DatumGetCString(DirectFunctionCall1(textout, datum));
 
-	columnName = get_attname(foreignTableId, 1, false);
 	//if(asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->ldapConn->options->basedn) > 0)
 	if(dn = strdup(value_str))
 	{
