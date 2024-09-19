@@ -1142,7 +1142,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					{
 						if(!column_type_is_array) {
 							null_values[i] = (vals[0]->bv_val == NULL || strlen(vals[0]->bv_val) == 0);
-							elog(INFO, "Line %d, Null_Value: %d, Value: %s", __LINE__, null_values[i], vals[0]->bv_val);
+							//elog(INFO, "Line %d, Null_Value: %d, Value: %s", __LINE__, null_values[i], vals[0]->bv_val);
 							d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
 							//s_values[i] = pstrdup(vals[0]->bv_val);
 						} else {
@@ -2087,14 +2087,19 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	char *value_str = DatumGetCString(DirectFunctionCall1(textout, datum));
 
 	columnName = get_attname(foreignTableId, 1, false);
-	if(asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->ldapConn->options->basedn) > 0)
+	//if(asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->ldapConn->options->basedn) > 0)
+	if(dn = strdup(value_str))
 	{
 		//rc = ldap_delete_s(fmstate->ldapConn->ldap, dn);
 		rc = ldap_delete_ext_s(fmstate->ldapConn->ldap, dn, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
 
 		free(dn);
 	
-		if(rc != LDAP_SUCCESS) return NULL;
+		if(rc != LDAP_SUCCESS)
+		{
+			elog( LOG, "ldap_delete_ext_s: (%d) %s\n", rc, ldap_err2string( rc ) ); 
+			return NULL;
+		}
 	}
 	
 	/*
