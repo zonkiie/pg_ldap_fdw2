@@ -86,6 +86,15 @@ void AttrListTypeFree(AttrListType*** attrlist)
 	*attrlist = NULL;
 }
 
+char * getAttrTypeByAttrName(AttrListType ***attrList, char * attrName)
+{
+	for(int i = 0; (*attrList)[i] != NULL; i++)
+	{
+		if(!strcmp((*attrList)[i]->attr_name, attrName)) return (*attrList)[i]->pg_type;
+	}
+	return "varchar";
+}
+
 /**
  * This is a Prototype for a generic C ldap library, after tests it will be adapted to Postgresql Datatypes like list, Hashmap ...
  */
@@ -123,9 +132,8 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 			struct berval **vals = NULL;
 			if ((vals = ldap_get_values_len( ld, entry, a)) != NULL ) {
 				for (int i = 0; vals[i] != NULL; i++ ) {
-					elog(INFO, "attr: %s, i: %d, val: %s", a, i, vals[i]->bv_val);
+// 					elog(INFO, "attr: %s, i: %d, val: %s", a, i, vals[i]->bv_val);
 					if(!strcmp(a, "objectClasses")) {
-						elog(INFO, "objects");
 						int oclass_error = 0;
 						const char * oclass_error_text;
 						LDAPObjectClass *oclass = ldap_str2objectclass(vals[i]->bv_val, &oclass_error, &oclass_error_text, LDAP_SCHEMA_ALLOW_ALL);
@@ -153,8 +161,7 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 						ldap_objectclass_free(oclass);
 					}
 					else if(!strcmp(a, "attributeTypes")) {
-						elog(INFO, "attributes");
-						int * attribute_error;
+						int attribute_error;
 						const char *  attribute_error_text;
 						LDAPAttributeType *attribute_data = ldap_str2attributetype(vals[i]->bv_val, &attribute_error, &attribute_error_text, LDAP_SCHEMA_ALLOW_NONE);
 						int new_size = 0;

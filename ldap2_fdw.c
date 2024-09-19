@@ -2312,6 +2312,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	char			*tablename = NULL;
 	char			*dropStr = NULL;
 	char			*createStr = NULL;
+	char			*scope = NULL;
 	ForeignServer	*server;
 	UserMapping		*user;
 	StringInfoData 	buf;
@@ -2334,6 +2335,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		else if(!strcmp(def->defname, "filter")) ldapConn->options->filter = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "objectclass")) ldapConn->options->objectclass = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "schemadn")) ldapConn->options->schemadn = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "scope")) scope = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "tablename")) tablename = pstrdup(defGetString(def));
 		else
 			ereport(ERROR,
@@ -2358,26 +2360,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	//columns = (char**)malloc(sizeof(char*) * 2);
 	
 	num_attrs = fetch_ldap_typemap(&attr_typemap, &columns, ldapConn->ldap, ldapConn->options->objectclass, ldapConn->options->schemadn);
-// 	if(columns != NULL)
-// 	{
-// 	DEBUGPOINT;
-// 		for(int i = 0; columns[i] != NULL; i++)
-// 		{
-// 			//elog(INFO, "column: %s", columns[i]);
-// 		}
-// 	}
-// 	DEBUGPOINT;
-// 	
-// 	for(int i = 0; attr_typemap[i] != NULL; i++)
-// 	{
-// 		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", i, attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
-// 	}
-// 	
-	DEBUGPOINT;
 	
 	fill_AttrListType(&attr_typemap, typemap);
-	
-	DEBUGPOINT;
 	
 	/*for(int i = 0; attr_typemap[i] != NULL; i++)
 	{
@@ -2389,25 +2373,43 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	elog(INFO, "dropStr: %s", dropStr);
 	
 	createStr = strdup("");
-	strmcat_multi(createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", tablename, "\" (");
-	DEBUGPOINT;
-	
+	strmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", tablename, "\" (");
 	
 	for(int i = 0; columns[i] != NULL; i++)
 	{
-		strmcat_multi(createStr, columns[i], "varchar ");
+		char * attrType = getAttrTypeByAttrName(&attr_typemap, columns[i]);
+		strmcat_multi(&createStr, columns[i], " ", attrType, " ", (columns[i + 1] != NULL?", ":""));
 	}
 	
-	strmcat_multi(createStr, ")");
+	strmcat_multi(&createStr, ") SERVER ", server->servername, " OPTIONS(");
+	if(ldapConn->options->basedn != NULL)
+	{
+		strmcat_multi(&createStr, " basedn '", ldapConn->options->basedn, "',");
+	}
+	if(ldapConn->options->filter != NULL)
+	{
+		strmcat_multi(&createStr, " filter '", ldapConn->options->filter, "',");
+	}
+	if(scope != NULL)
+	{
+		strmcat_multi(&createStr, "', scope '" , scope, "',");
+	}
+	if(createStr[strlen(createStr) - 1] == ',') createStr[strlen(createStr) - 1] = 0;
+	strmcat_multi(&createStr, ");");
 	
 	elog(INFO, "Create Statement: %s", createStr);
 	
 	free_carr_n(&columns);
 	
+	
+	//if(recreate) commands = lappend(commands, pstrdup(dropStr));
+	//commands = lappend(commands, pstrdup(createStr));
+	
+	free(dropStr);
+	free(createStr);
+	
 	ldap_unbind_ext_s(ldapConn->ldap, NULL, NULL);
-	DEBUGPOINT;
 	free_options(ldapConn->options);
-	DEBUGPOINT;
 	
 	return commands;
 }
