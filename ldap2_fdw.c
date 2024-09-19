@@ -2264,6 +2264,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	List			*commands = NIL;
 	List			*commands_drop = NIL;
 	List	   		*schema_list = NIL;
+	List			*options = NIL;
 	ListCell		*lc;
 	ListCell		*table_lc;
 	ListCell		*column_lc;
@@ -2286,14 +2287,22 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	user = GetUserMapping(GetUserId(), server->serverid);
 	LdapFdwConn *ldapConn = create_LdapFdwConn();
 	
+	options = list_concat(options, server->options);
+	options = list_concat(options, user->options);
+	
+	foreach(lc, options)
+	{
+		DefElem    *def = (DefElem *) lfirst(lc);
+		if(!strcmp(def->defname, "uri")) ldapConn->options->uri = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "username")) ldapConn->options->username = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "password")) ldapConn->options->password = pstrdup(defGetString(def));
+	}
+	
 	foreach(lc, stmt->options)
 	{
 		DefElem    *def = (DefElem *) lfirst(lc);
 
 		if (!strcmp(def->defname, "recreate")) recreate = defGetBoolean(def);
-		else if(!strcmp(def->defname, "uri")) ldapConn->options->uri = pstrdup(defGetString(def));
-		else if(!strcmp(def->defname, "username")) ldapConn->options->username = pstrdup(defGetString(def));
-		else if(!strcmp(def->defname, "password")) ldapConn->options->password = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "basedn")) ldapConn->options->basedn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "filter")) ldapConn->options->filter = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "objectclass")) array_push(&objectClasses, defGetString(def));
@@ -2330,7 +2339,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", i, attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
 	}*/
 	
-	asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\";", tablename);
+	int len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\";", tablename);
+	if(len == 0) elog(ERROR, "Cound not create drop string!");
 	
 	createStr = strdup("");
 	strmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", tablename, "\" (");
