@@ -371,7 +371,6 @@ static Oid get_type_oid(char * typename)
 static char ** extract_array_from_datum(Datum datum, Oid oid)
 {
 	char ** retval = NULL;
-	elog(INFO, "oid: %d", oid);
 	switch(oid)
 	{
 		case VARCHARARRAYOID:
@@ -402,7 +401,6 @@ static char ** extract_array_from_datum(Datum datum, Oid oid)
 				bool		typeVarLength;
 				getTypeOutputInfo(TEXTOID, &outputFunctionId, &typeVarLength);
 				valueString = OidOutputFunctionCall(outputFunctionId, elem_values[i]);
-				elog(INFO, "%s - value String(%d): %s", __FUNCTION__, i, valueString);
 				retval[i] = pstrdup(valueString);
 			}
 		}
@@ -412,7 +410,6 @@ static char ** extract_array_from_datum(Datum datum, Oid oid)
 			retval = (char**)palloc(sizeof(char*) * (2));
 			memset(retval, 0, sizeof(char*) * (2));
 			retval[0] = DatumGetCString(DirectFunctionCall1(textout, datum));
-			elog(INFO, "Retval[0]: %s", retval[0]);
 		}
 			break;
 	}
@@ -822,7 +819,6 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	//initLdapConnectionStruct(fdw_private->ldapConn);
 	
 	//baserel->fdw_private = (void*)fdw_private;
-	DEBUGPOINT;
 
 	scan_relid = baserel->relid;
 	/*foreach(cell, scan_clauses) {
@@ -928,14 +924,12 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 					break;
 				
 			}
-			DEBUGPOINT;
 			ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
 		}
 	}*/
 	
 	//ldap_unbind_ext_s(fdw_private->ldapConn->ldap, NULL, NULL);
 	//free_options(fdw_private->ldapConn->options);
-	DEBUGPOINT;
 	
 	return make_foreignscan(tlist,
 			scan_clauses,
@@ -979,8 +973,6 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	ForeignServer *server;
 	UserMapping *user;
 	int attnum;
-	
-	DEBUGPOINT;
 	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
 	
@@ -1102,8 +1094,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	d_values = (Datum*)palloc(sizeof(Datum) * fdw_private->num_attrs + 1);
 	memset(d_values, 0, (fdw_private->num_attrs + 1 ) * sizeof(Datum*));
 	
-	DEBUGPOINT;
-	
 	ExecClearTuple(slot);
 	
 	fdw_private->rc = ldap_result( fdw_private->ldapConn->ldap, fdw_private->msgid, LDAP_MSG_ONE, &timeout_struct, &(fdw_private->ldap_message_result) );
@@ -1143,7 +1133,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					//if(ldap_count_values_len(vals) == 0)
 					if(values_length == 0)
 					{
-// 						DEBUGPOINT;
 						null_values[i] = true;
 						d_values[i] = PointerGetDatum(NULL);
 						//if(!column_type_is_array) s_values[i] = NULL;
@@ -1152,13 +1141,11 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 					else
 					{
 						if(!column_type_is_array) {
-// 							DEBUGPOINT;
 							null_values[i] = (vals[0]->bv_val == NULL || strlen(vals[0]->bv_val) == 0);
 							elog(INFO, "Line %d, Null_Value: %d, Value: %s", __LINE__, null_values[i], vals[0]->bv_val);
 							d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
 							//s_values[i] = pstrdup(vals[0]->bv_val);
 						} else {
-// 							DEBUGPOINT;
 							//Datum* item_values = (Datum*)palloc(sizeof(Datum) * ldap_count_values_len(vals) + 1);
 							//memset(item_values, 0, (ldap_count_values_len(vals) + 1 ) * sizeof(Datum));
 							
@@ -1200,7 +1187,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 						s_values[i] = pstrdup(tmp_str);
 						free(tmp_str);
 						*/
-// 						DEBUGPOINT;
 						
 					}
 					ber_bvecfree(vals);
@@ -1219,15 +1205,12 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			break;
 	}
 	
-// 	DEBUGPOINT;
 	
 	fdw_private->row++;
 	
 	tuple = heap_form_tuple(tupdesc, d_values, null_values);
 	//tuple = BuildTupleFromCStrings(fdw_private->attinmeta, s_values);
 	ExecStoreHeapTuple(tuple, slot, false);
-	
-	DEBUGPOINT;
 	
 	return slot;
 
@@ -1250,7 +1233,6 @@ ldap2_fdw_ReScanForeignScan(ForeignScanState *node)
 static void
 ldap2_fdw_EndForeignScan(ForeignScanState *node)
 {
-	DEBUGPOINT;
 	// cleanup
 	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) node->fdw_state;
 
@@ -1356,7 +1338,6 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	Relation	rel = NULL;
 	//Oid			foreignTableId;
 	StringInfoData sql;
-	DEBUGPOINT;
 #if PG_VERSION_NUM < 130000
 	rel = heap_open(rte->relid, NoLock);
 #else
@@ -1497,8 +1478,6 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	table_close(rel, NoLock);
 #endif
 	
-	DEBUGPOINT;
-
 	/*
 	 * Build the fdw_private list that will be available to the executor.
 	 * Items in the list must match enum FdwModifyPrivateIndex, above.
@@ -1543,7 +1522,6 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	RangeTblEntry *rte;
 #endif
 
-	DEBUGPOINT;
 	/*
 	 * Do nothing in EXPLAIN (no ANALYZE) case.  resultRelInfo->ri_FdwState
 	 * stays NULL.
@@ -1592,7 +1570,6 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 		Assert(subplan != NULL);
 		
 		attr = TupleDescAttr(RelationGetDescr(rel), 0);
-		elog(INFO, "Function: %s, Attribute Name: %s, Line: %d", __FUNCTION__, NameStr(attr->attname), __LINE__);
 		
 		fmstate->rowidAttno = ExecFindJunkAttributeInTlist(subplan->targetlist, NameStr(attr->attname));
 		
@@ -1613,9 +1590,6 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	{
 		int			attnum = lfirst_int(lc);
 		attr = TupleDescAttr(RelationGetDescr(rel), attnum);
-		elog(INFO, "Function: %s, Attribute Name: %s", __FUNCTION__, NameStr(attr->attname));
-
-		elog(INFO, "Function: %s, attr->atttypid: %d, attr->attisdropped: %d", __FUNCTION__, attr->atttypid, attr->attisdropped);
 		Assert(!attr->attisdropped);
 		if(attr->atttypid != 0 && !attr->attisdropped) {
 			getTypeOutputInfo(attr->atttypid, &typefnoid, &isvarlena);
@@ -1626,7 +1600,6 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	Assert(fmstate->p_nums <= n_params);
 
 	resultRelInfo->ri_FdwState = fmstate;
-	DEBUGPOINT;
 }
 
 /*
@@ -1764,18 +1737,13 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 				*/
 				
 				char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
-				DEBUGPOINT;
 				
 				//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, att_name, (char*[]){value_str, NULL});
 				single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, att_name, values_array);
-				DEBUGPOINT;
 				append_ldap_mod(&insert_data, single_ldap_mod);
-				DEBUGPOINT;
 				//ldap_mods_free(&single_ldap_mod, true);
 				free_ldap_mod(single_ldap_mod);
-				DEBUGPOINT;
 				single_ldap_mod = NULL;
-				DEBUGPOINT;
 
 			}
             pfree(value_str);  // Freigeben des String-Puffers
@@ -2008,7 +1976,6 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
 	datum = ExecGetJunkAttribute(planSlot, fmstate->rowidAttno, &isNull);
 	typoid = get_atttype(foreignTableId, 1);
-	DEBUGPOINT;
 	// Durchlaufe alle Attribute des Tuples
     for (i = 0; i < tupdesc->natts; i++) {
         attr_value = slot_getattr(slot, i + 1, &isNull);
@@ -2018,12 +1985,10 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 		
         if (slot->tts_isnull[i] || isNull) {
             // Attribut ist NULL
-			elog(INFO, "Attribut %s ist NULL in Line %d", NameStr(tupdesc->attrs[i].attname), __LINE__);
 			single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_DELETE, att_name, (char*[]){NULL});
 			append_ldap_mod(&modify_data, single_ldap_mod);
 			free_ldap_mod(single_ldap_mod);
 			single_ldap_mod = NULL;
-			DEBUGPOINT;
             continue;
         }
         else if(!isNull)
@@ -2034,13 +1999,10 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 				char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
 				if(values_array == NULL)
 				{
-					elog(INFO, "Function %s, Line: %d: values array = NULL!", __FUNCTION__, __LINE__);
 					single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, (char*[]){NULL});
 				} else {
-					elog(INFO, "Function %s, Line: %d: values array != NULL!", __FUNCTION__, __LINE__);
 					single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_REPLACE, att_name, values_array);
 				}
-				elog(INFO, "attname: %s, Value: %s", att_name, values_array[0]);
 				if(single_ldap_mod) append_ldap_mod(&modify_data, single_ldap_mod);
 				if(single_ldap_mod) free_ldap_mod(single_ldap_mod);
 				single_ldap_mod = NULL;
@@ -2060,8 +2022,6 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	
 	if(modify_data != NULL)
 	{
-		elog(INFO, "ldap mod: Line: %d, dn: %s", __LINE__, dn);
-		
 		single_mod_array = (LDAPMod**)palloc(sizeof(LDAPMod*) * 2);
 		memset(single_mod_array, 0, sizeof(LDAPMod*) * 2);
 		
@@ -2125,11 +2085,8 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	/* Get the id that was passed up as a resjunk column */
 	datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
 	char *value_str = DatumGetCString(DirectFunctionCall1(textout, datum));
-	elog(INFO, "Value: %s", value_str);
 
 	columnName = get_attname(foreignTableId, 1, false);
-	elog(INFO, "Column Name: %s\n", columnName);
-	elog(INFO, "Base DN to delete from: %s\n", fmstate->ldapConn->options->basedn);
 	if(asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->ldapConn->options->basedn) > 0)
 	{
 		//rc = ldap_delete_s(fmstate->ldapConn->ldap, dn);
@@ -2194,7 +2151,6 @@ static void
 ldap2_fdw_EndForeignModify(EState *estate,
 						 ResultRelInfo *resultRelInfo)
 {
-	DEBUGPOINT;
 	// cleanup
 	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;
 
@@ -2218,7 +2174,6 @@ ldap2_fdw_EndForeignModify(EState *estate,
 static int
 ldap2_fdw_IsForeignRelUpdatable(Relation rel)
 {
-	DEBUGPOINT;
 	/* updatable is INSERT, UPDATE and DELETE.
 	 */
 	return (1 << CMD_INSERT) | (1 << CMD_UPDATE) | (1 << CMD_DELETE) ;
@@ -2341,8 +2296,6 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		else if(!strcmp(def->defname, "password")) ldapConn->options->password = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "basedn")) ldapConn->options->basedn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "filter")) ldapConn->options->filter = pstrdup(defGetString(def));
-		//else if(!strcmp(def->defname, "objectclass")) ldapConn->options->objectclass = pstrdup(defGetString(def));
-		//else if(!strcmp(def->defname, "objectclass")) array_push(&(ldapConn->options->objectclasses), defGetString(def));
 		else if(!strcmp(def->defname, "objectclass")) array_push(&objectClasses, defGetString(def));
 		else if(!strcmp(def->defname, "schemadn")) ldapConn->options->schemadn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "scope")) scope = pstrdup(defGetString(def));
@@ -2367,8 +2320,6 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 
 	initLdapConnectionStruct(ldapConn);
 	
-	//columns = (char**)malloc(sizeof(char*) * 2);
-	
 	//num_attrs = fetch_ldap_typemap(&attr_typemap, &columns, ldapConn->ldap, ldapConn->options->objectclasses, ldapConn->options->schemadn);
 	num_attrs = fetch_ldap_typemap(&attr_typemap, &columns, ldapConn->ldap, objectClasses, ldapConn->options->schemadn);
 	
@@ -2380,8 +2331,6 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	}*/
 	
 	asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\";", tablename);
-	
-	elog(INFO, "dropStr: %s", dropStr);
 	
 	createStr = strdup("");
 	strmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", tablename, "\" (");
@@ -2422,24 +2371,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		strmcat_multi(&createStr, " scope '" , scope, "',");
 	}
 	
-	
-	/*if(ldapConn->options->objectclasses != NULL)
-	{
-		strmcat_multi(&createStr, " objectclass '", ldapConn->options->objectclass, "',");
-	}*/
-	
-	/*if(ldapConn->options->objectclasses != NULL)
-	{
-		for(int i = 0; ldapConn->options->objectclasses[i] != NULL; i++)
-		{
-			strmcat_multi(&createStr, " objectclass '", ldapConn->options->objectclasses[i], "',");
-		}
-	}*/
-	
 	if(createStr[strlen(createStr) - 1] == ',') createStr[strlen(createStr) - 1] = 0;
 	strmcat_multi(&createStr, ");");
-	
-	elog(INFO, "Create Statement: %s", createStr);
 	
 	free_carr_n(&columns);
 	
