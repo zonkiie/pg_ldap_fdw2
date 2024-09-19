@@ -26,6 +26,7 @@ ldap_type ldap_type_map[] = {
     {"Binary", "1.3.6.1.4.1.1466.115.121.1.5", "bytea"},
     {"DN", "1.3.6.1.4.1.1466.115.121.1.12", "varchar"},
     {"BitString", "1.3.6.1.4.1.1466.115.121.1.6", "varchar"},
+    {NULL, NULL, NULL},
 };
 
 #endif
