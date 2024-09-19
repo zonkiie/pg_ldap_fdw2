@@ -266,12 +266,12 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 			//if(filter != NULL) options->filter = pstrdup(filter);
 			if(value != NULL) options->filter = pstrdup(value);
 		}
-		else if (strcmp("objectclass", def->defname) == 0)
+		/*else if (strcmp("objectclass", def->defname) == 0)
 		{
 			//options->objectclass = defGetString(def);
 			//if(value != NULL) options->objectclass = pstrdup(value);
 			if(value != NULL) array_pushp(&(options->objectclasses), value);
-		}
+		}*/
 		else if (strcmp("schemadn", def->defname) == 0)
 		{
 			//options->schemadn = defGetString(def);
@@ -1716,10 +1716,12 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	
 	//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, "objectClass", objectclass_values);
 	
+	/*
 	single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, "objectClass", fmstate->ldapConn->options->objectclasses);
 	append_ldap_mod(&insert_data, single_ldap_mod);
 	free_ldap_mod(single_ldap_mod);
 	single_ldap_mod = NULL;
+	*/
 	
     // Durchlaufe alle Attribute des Tuples
     for (i = 0; i < tupdesc->natts; i++) {
@@ -2054,6 +2056,8 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	 *  TODO: Improve updates
 	 */
 	
+	if(dn == NULL) elog(ERROR, "dn is null!");
+	
 	if(modify_data != NULL)
 	{
 		elog(INFO, "ldap mod: Line: %d, dn: %s", __LINE__, dn);
@@ -2316,6 +2320,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	char			*dropStr = NULL;
 	char			*createStr = NULL;
 	char			*scope = NULL;
+	char			**objectClasses = NULL;
 	ForeignServer	*server;
 	UserMapping		*user;
 	StringInfoData 	buf;
@@ -2337,7 +2342,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		else if(!strcmp(def->defname, "basedn")) ldapConn->options->basedn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "filter")) ldapConn->options->filter = pstrdup(defGetString(def));
 		//else if(!strcmp(def->defname, "objectclass")) ldapConn->options->objectclass = pstrdup(defGetString(def));
-		else if(!strcmp(def->defname, "objectclass")) array_push(&(ldapConn->options->objectclasses), defGetString(def));
+		//else if(!strcmp(def->defname, "objectclass")) array_push(&(ldapConn->options->objectclasses), defGetString(def));
+		else if(!strcmp(def->defname, "objectclass")) array_push(&objectClasses, defGetString(def));
 		else if(!strcmp(def->defname, "schemadn")) ldapConn->options->schemadn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "scope")) scope = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "tablename")) tablename = pstrdup(defGetString(def));
@@ -2363,7 +2369,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	
 	//columns = (char**)malloc(sizeof(char*) * 2);
 	
-	num_attrs = fetch_ldap_typemap(&attr_typemap, &columns, ldapConn->ldap, ldapConn->options->objectclasses, ldapConn->options->schemadn);
+	//num_attrs = fetch_ldap_typemap(&attr_typemap, &columns, ldapConn->ldap, ldapConn->options->objectclasses, ldapConn->options->schemadn);
+	num_attrs = fetch_ldap_typemap(&attr_typemap, &columns, ldapConn->ldap, objectClasses, ldapConn->options->schemadn);
 	
 	fill_AttrListType(&attr_typemap, typemap);
 	
@@ -2382,7 +2389,23 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	for(int i = 0; columns[i] != NULL; i++)
 	{
 		char * attrType = getAttrTypeByAttrName(&attr_typemap, columns[i]);
-		strmcat_multi(&createStr, "\"", columns[i], "\"", " ", attrType, " ", (columns[i + 1] != NULL?", ":""));
+		char * defaultValue = strdup("");
+		if(!strcasecmp(columns[i], "uid")) strmcat_multi(&defaultValue, "DEFAULT array[uuid_generate_v4()]");
+		else if(!strcasecmp(columns[i], "objectclass"))
+		{
+			if(objectClasses != NULL)
+			{
+				
+				for(int obj_i = 0; objectClasses[obj_i] != NULL; obj_i++)
+				{
+					if(obj_i == 0) strmcat_multi(&createStr, "DEFAULT array[");
+					strmcat_multi(&createStr, "'", objectClasses, "',");
+				}
+				if(createStr[strlen(createStr) - 1] == ',') createStr[strlen(createStr) - 1] = ']';
+			}
+		}
+		strmcat_multi(&createStr, "\"", columns[i], "\"", " ", attrType, " ", defaultValue, (columns[i + 1] != NULL?", ":""));
+		free(defaultValue);
 	}
 	
 	strmcat_multi(&createStr, ") SERVER ", server->servername, " OPTIONS(");
@@ -2398,6 +2421,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	{
 		strmcat_multi(&createStr, " scope '" , scope, "',");
 	}
+	
 	
 	/*if(ldapConn->options->objectclasses != NULL)
 	{

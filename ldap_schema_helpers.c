@@ -125,6 +125,7 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 	}
 	*attributes = (char**)malloc(sizeof(char*) * 2);
 	memset(*attributes, 0, sizeof(char*) * 2);
+	array_push(attributes, "dn");
 	
 	for (entry = ldap_first_entry(ld, schema); entry != NULL; entry = ldap_next_entry(ld, entry)) {
 // 		schema_entry_str = ldap_get_dn(ld, entry);

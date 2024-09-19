@@ -19,7 +19,7 @@ typedef struct LdapFdwOptions
 	char * password;
 	char * basedn;
 	char * filter;
-	char ** objectclasses;
+	//char ** objectclasses;
 	char * schemadn;
 	int scope;
 	int use_sasl;
