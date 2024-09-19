@@ -2344,17 +2344,18 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		{
 			if(objectClasses != NULL)
 			{
-				
+				attrType = "varchar[]";
 				for(int obj_i = 0; objectClasses[obj_i] != NULL; obj_i++)
 				{
-					if(obj_i == 0) strmcat_multi(&createStr, "DEFAULT array[");
-					strmcat_multi(&createStr, "'", objectClasses, "',");
+					if(obj_i == 0) strmcat_multi(&defaultValue, "DEFAULT array[");
+					strmcat_multi(&defaultValue, "'", objectClasses[obj_i], "',");
 				}
-				if(createStr[strlen(createStr) - 1] == ',') createStr[strlen(createStr) - 1] = ']';
+				if(defaultValue[strlen(defaultValue) - 1] == ',') defaultValue[strlen(defaultValue) - 1] = ']';
 			}
 		}
 		strmcat_multi(&createStr, "\"", columns[i], "\"", " ", attrType, " ", defaultValue, (columns[i + 1] != NULL?", ":""));
 		free(defaultValue);
+		defaultValue = NULL;
 	}
 	
 	strmcat_multi(&createStr, ") SERVER ", server->servername, " OPTIONS(");
