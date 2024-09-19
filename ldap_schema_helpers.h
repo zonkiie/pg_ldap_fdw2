@@ -34,7 +34,7 @@ void AttrListTypeFreeSingle(AttrListType **);
 void AttrListTypeFree(AttrListType***);
 char * getAttrTypeByAttrName(AttrListType ***, char *);
 
-size_t fetch_ldap_typemap(AttrListType***, char ***, LDAP *, char *, char *);
+size_t fetch_ldap_typemap(AttrListType***, char ***, LDAP *, char **, char *);
 size_t fill_AttrListType(AttrListType***, AttrTypemap[]);
 
 extern struct timeval timeout_struct;

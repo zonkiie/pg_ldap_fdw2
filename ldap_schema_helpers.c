@@ -98,7 +98,7 @@ char * getAttrTypeByAttrName(AttrListType ***attrList, char * attrName)
 /**
  * This is a Prototype for a generic C ldap library, after tests it will be adapted to Postgresql Datatypes like list, Hashmap ...
  */
-size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *ld, char *object_class, char *schema_dn)
+size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *ld, char **object_class, char *schema_dn)
 {
 	size_t size = 0;
 	char *a = NULL, * schema_entry_str = NULL;
@@ -123,6 +123,8 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 	if (rc != LDAP_SUCCESS) {
 		return -1;
 	}
+	*attributes = (char**)malloc(sizeof(char*) * 2);
+	memset(*attributes, 0, sizeof(char*) * 2);
 	
 	for (entry = ldap_first_entry(ld, schema); entry != NULL; entry = ldap_next_entry(ld, entry)) {
 // 		schema_entry_str = ldap_get_dn(ld, entry);
@@ -138,11 +140,10 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 						const char * oclass_error_text;
 						LDAPObjectClass *oclass = ldap_str2objectclass(vals[i]->bv_val, &oclass_error, &oclass_error_text, LDAP_SCHEMA_ALLOW_ALL);
 						names = oclass->oc_names;
-						if(in_array(names, object_class))
+						//if(in_array(names, object_class))
+						if(array_has_intersect(names, object_class))
 						{
 							int new_size = 0;
-							*attributes = (char**)malloc(sizeof(char*) * 2);
-							memset(*attributes, 0, sizeof(char*) * 2);
 							if(oclass != NULL && oclass->oc_at_oids_must != NULL)
 							{
 								for(int attributes_must_size = 0; oclass->oc_at_oids_must[attributes_must_size] != NULL; attributes_must_size++) {

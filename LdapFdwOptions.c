@@ -12,7 +12,7 @@ void initLdapFdwOptions(LdapFdwOptions* ldapFdwOptions)
 	ldapFdwOptions->password = NULL;
 	ldapFdwOptions->basedn = NULL;
 	ldapFdwOptions->filter = NULL;
-	ldapFdwOptions->objectclass = NULL;
+	ldapFdwOptions->objectclasses = NULL;
 	ldapFdwOptions->schemadn = NULL;
 }
 
@@ -23,7 +23,9 @@ void free_options(LdapFdwOptions * options)
 	free_pstr(&(options->password));
 	free_pstr(&(options->basedn));
 	free_pstr(&(options->filter));
-	free_pstr(&(options->objectclass));
+	//free_pstr(&(options->objectclass));
+	//free_pstr_array(&(options->objectclasses));
+	free_carr_n(&(options->objectclasses));
 	free_pstr(&(options->schemadn));
 
 }

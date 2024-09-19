@@ -210,6 +210,20 @@ void free_carr_n(char ***carr)
 	*carr = NULL;
 }
 
+void free_pstr_array(char *** array)
+{
+	int size = 0;
+    if(array == NULL || *array == NULL) return;
+	size = get_carr_size(*array);
+	for(int i = size - 1; i >= 0; i--) 
+	{
+		pfree((*array)[i]);
+		(*array)[i] = NULL;
+	}
+	pfree(*array);
+	*array = NULL;
+}
+
 void free_file(FILE** file)
 {
 	if(*file == NULL) return;
@@ -223,6 +237,21 @@ bool in_array(char ** array, char * value)
 	for(int i = 0; array[i] != NULL; i++)
 	{
 		if(!strcmp(array[i], value)) return true;
+	}
+	return false;
+}
+
+bool array_has_intersect(char ** array1, char ** array2)
+{
+	for(int i = 0; array1[i] != NULL; i++)
+	{
+		for(int j = 0; array2[j] != NULL; j++)
+		{
+			if(!strcmp(array1[i], array2[j]))
+			{
+				return true;
+			}
+		}
 	}
 	return false;
 }
@@ -257,6 +286,15 @@ size_t array_push(char *** array, char *value)
 	size_t n_el = array_count(*array);
 	*array = realloc(*array, sizeof(char*) * (n_el + 2));
 	(*array)[n_el] = strdup(value);
+	(*array)[n_el + 1] = NULL;
+	return array_count(*array);
+}
+
+size_t array_pushp(char *** array, char *value)
+{
+	size_t n_el = array_count(*array);
+	*array = repalloc(*array, sizeof(char*) * (n_el + 2));
+	(*array)[n_el] = pstrdup(value);
 	(*array)[n_el + 1] = NULL;
 	return array_count(*array);
 }

@@ -269,7 +269,8 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		else if (strcmp("objectclass", def->defname) == 0)
 		{
 			//options->objectclass = defGetString(def);
-			if(value != NULL) options->objectclass = pstrdup(value);
+			//if(value != NULL) options->objectclass = pstrdup(value);
+			if(value != NULL) array_pushp(&(options->objectclasses), value);
 		}
 		else if (strcmp("schemadn", def->defname) == 0)
 		{
@@ -1713,7 +1714,9 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	
 	j++;
 	
-	single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, "objectClass", objectclass_values);
+	//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, "objectClass", objectclass_values);
+	
+	single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, "objectClass", fmstate->ldapConn->options->objectclasses);
 	append_ldap_mod(&insert_data, single_ldap_mod);
 	free_ldap_mod(single_ldap_mod);
 	single_ldap_mod = NULL;
@@ -2316,7 +2319,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	ForeignServer	*server;
 	UserMapping		*user;
 	StringInfoData 	buf;
-	char			*objectClass = NULL;
+	char			**objectClass = NULL;
 	size_t			num_attrs = 0;
 	LDAPMessage 	*schema = NULL, *entry = NULL;
 	server = GetForeignServer(serverOid);
@@ -2333,7 +2336,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		else if(!strcmp(def->defname, "password")) ldapConn->options->password = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "basedn")) ldapConn->options->basedn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "filter")) ldapConn->options->filter = pstrdup(defGetString(def));
-		else if(!strcmp(def->defname, "objectclass")) ldapConn->options->objectclass = pstrdup(defGetString(def));
+		//else if(!strcmp(def->defname, "objectclass")) ldapConn->options->objectclass = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "objectclass")) array_push(&(ldapConn->options->objectclasses), defGetString(def));
 		else if(!strcmp(def->defname, "schemadn")) ldapConn->options->schemadn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "scope")) scope = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "tablename")) tablename = pstrdup(defGetString(def));
@@ -2359,7 +2363,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	
 	//columns = (char**)malloc(sizeof(char*) * 2);
 	
-	num_attrs = fetch_ldap_typemap(&attr_typemap, &columns, ldapConn->ldap, ldapConn->options->objectclass, ldapConn->options->schemadn);
+	num_attrs = fetch_ldap_typemap(&attr_typemap, &columns, ldapConn->ldap, ldapConn->options->objectclasses, ldapConn->options->schemadn);
 	
 	fill_AttrListType(&attr_typemap, typemap);
 	
@@ -2378,7 +2382,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	for(int i = 0; columns[i] != NULL; i++)
 	{
 		char * attrType = getAttrTypeByAttrName(&attr_typemap, columns[i]);
-		strmcat_multi(&createStr, columns[i], " ", attrType, " ", (columns[i + 1] != NULL?", ":""));
+		strmcat_multi(&createStr, "\"", columns[i], "\"", " ", attrType, " ", (columns[i + 1] != NULL?", ":""));
 	}
 	
 	strmcat_multi(&createStr, ") SERVER ", server->servername, " OPTIONS(");
@@ -2392,8 +2396,22 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	}
 	if(scope != NULL)
 	{
-		strmcat_multi(&createStr, "', scope '" , scope, "',");
+		strmcat_multi(&createStr, " scope '" , scope, "',");
 	}
+	
+	/*if(ldapConn->options->objectclasses != NULL)
+	{
+		strmcat_multi(&createStr, " objectclass '", ldapConn->options->objectclass, "',");
+	}*/
+	
+	/*if(ldapConn->options->objectclasses != NULL)
+	{
+		for(int i = 0; ldapConn->options->objectclasses[i] != NULL; i++)
+		{
+			strmcat_multi(&createStr, " objectclass '", ldapConn->options->objectclasses[i], "',");
+		}
+	}*/
+	
 	if(createStr[strlen(createStr) - 1] == ',') createStr[strlen(createStr) - 1] = 0;
 	strmcat_multi(&createStr, ");");
 	
@@ -2402,8 +2420,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	free_carr_n(&columns);
 	
 	
-	//if(recreate) commands = lappend(commands, pstrdup(dropStr));
-	//commands = lappend(commands, pstrdup(createStr));
+	if(recreate) commands = lappend(commands, pstrdup(dropStr));
+	commands = lappend(commands, pstrdup(createStr));
 	
 	free(dropStr);
 	free(createStr);
