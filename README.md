@@ -1,12 +1,12 @@
 # pg_ldap_fdw2
 LDAP Foreign Data Wrapper for PostgreSQL with write support.
-Warning: Don't use it in production systems. This fdw is not enough tested and needs a lot of work.
+Warning: Don't use it in production systems. This fdw is not enough tested and still needs a lot of work.
 
 ## TODO
 Memory management, returning written/deleted rows, code reworking, error handling, write documentation...
 
 ## Usage (a better instruction guide will follow)
-    - Back Up your data!
+    - Set up your test system
     - install postgresql and openldap dev packages
     - setup postgresql and ldap server
     - git clone this repo
