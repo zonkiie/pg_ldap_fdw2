@@ -2017,7 +2017,9 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 						  TupleTableSlot *planSlot)
 {
 	LdapFdwModifyState *fmstate = fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
+	HeapTuple	tuple;
 	Datum       attr_value, datum;
+	Datum		*d_values;
 	bool		isNull = false;
 	Oid			foreignTableId;
 	Oid			typoid;
@@ -2026,11 +2028,13 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	int rc = 0;
 	int i = 0;
 	int dn_index = -1;
+	bool *null_values;
 	ForeignTable *table;
 	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	TupleDesc tupdesc = RelationGetDescr(rel);
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
+	
 	for(i = 0; i < RelationGetDescr(rel)->natts; i++)
 	{
 		columnName = get_attname(foreignTableId, i + 1, false);
@@ -2047,6 +2051,36 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	datum = ExecGetJunkAttribute(planSlot, dn_index + 1, &isNull);
 	//datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
 	char *value_str = DatumGetCString(DirectFunctionCall1(textout, datum));
+	
+	// Store returning * value here
+	// TODO: Finish work
+
+	d_values = (Datum*)palloc(sizeof(Datum) * RelationGetDescr(rel)->natts + 1);
+	memset(d_values, 0, (RelationGetDescr(rel)->natts + 1 ) * sizeof(Datum*));
+	
+	null_values = (bool*)palloc(sizeof(bool) * RelationGetDescr(rel)->natts + 1);
+	memset(null_values, 0, (RelationGetDescr(rel)->natts + 1 ) * sizeof(bool));
+	
+	for(i = 0; i < RelationGetDescr(rel)->natts; i++)
+	{
+		//d_values[i] = ExecGetJunkAttribute(slot, i + 1, &isNull);
+		if(i == dn_index)
+		{
+			d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(value_str));
+			null_values[i] = false;
+		}
+		else
+		{
+			d_values[i] = PointerGetDatum(NULL);
+			//null_values[i] = isNull;
+			null_values[i] = true;
+		}
+	}
+	
+	tuple = heap_form_tuple(tupdesc, d_values, null_values);
+	ExecStoreHeapTuple(tuple, slot, false);
+	
+	// End store for returning value
 
 	//if(asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->ldapConn->options->basedn) > 0)
 	if(dn = strdup(value_str))
@@ -2102,8 +2136,6 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	/* The type of first column of MongoDB's foreign table must be NAME */
 	/*if (typoid != NAMEOID)
 		elog(ERROR, "type of first column of MongoDB's foreign table must be \"NAME\"");*/
-	
-	
 	
 	
 	return slot;
