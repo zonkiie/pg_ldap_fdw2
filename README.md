@@ -56,6 +56,7 @@ Memory management, returning written/deleted rows, code reworking, error handlin
 
 ## License
 will be decided in the near future
+provisionally GPLv3
 
 # dump ldap packages
     tcpdump -i lo -q -A port 389
