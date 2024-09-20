@@ -1,6 +1,17 @@
 # pg_ldap_fdw2
-LDAP Foreign Data Wrapper for PostgreSQL.  
-I will try to implement a Read AND Write FDW.
+LDAP Foreign Data Wrapper for PostgreSQL with write support.
+Warning: Don't use it in production systems. This fdw is not enough tested and needs a lot of work.
+
+## TODO
+Memory management, returning written/deleted rows, code reworking, error handling, write documentation...
+
+## Usage (a better instruction guide will follow)
+    - Back Up your data!
+    - install postgresql and openldap dev packages
+    - setup postgresql and ldap server
+    - git clone this repo
+    - cd <cloned dir>
+    - make install
 
 ## Install
     DROP EXTENSION IF EXISTS ldap2_fdw CASCADE;
@@ -8,6 +19,8 @@ I will try to implement a Read AND Write FDW.
     CREATE SERVER IF NOT EXISTS ldap FOREIGN DATA WRAPPER ldap2_fdw OPTIONS (uri 'ldap://localhost');
     CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER SERVER ldap OPTIONS(username 'cn=admin,dc=nodomain', password 'password');
     CREATE FOREIGN TABLE IF NOT EXISTS names (id uuid NOT NULL, dn varchar NOT NULL, cn varchar NOT NULL, sn varchar NOT NULL) SERVER ldap OPTIONS(basedn 'dc=nodomain', filter '(objectclass=*)', scope 'LDAP_SCOPE_CHILDREN');
+## Remote Schema Import
+    IMPORT FOREIGN SCHEMA "dc=nodomain" FROM SERVER ldap INTO public OPTIONS(basedn 'dc=nodomain', objectclass 'person', objectclass 'inetOrgPerson', schemadn 'cn=subschema', tablename 'names', scope 'LDAP_SCOPE_CHILDREN', filter '(objectClass=*)');
 ## Uninstall
     DROP FOREIGN TABLE IF EXISTS names;
     DROP SERVER IF EXISTS ldap CASCADE;
@@ -41,6 +54,8 @@ I will try to implement a Read AND Write FDW.
 
 [https://www.openldap.com/lists/openldap-devel/200108/msg00006.html](https://www.openldap.com/lists/openldap-devel/200108/msg00006.html)
 
+## License
+will be decided in the near future
 
 # dump ldap packages
     tcpdump -i lo -q -A port 389
