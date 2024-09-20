@@ -20,6 +20,7 @@ Memory management, returning written/deleted rows, code reworking, error handlin
     CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER SERVER ldap OPTIONS(username 'cn=admin,dc=nodomain', password 'password');
 ## Creating foreign table entry
     CREATE FOREIGN TABLE IF NOT EXISTS names (id uuid NOT NULL, dn varchar NOT NULL, cn varchar NOT NULL, sn varchar NOT NULL) SERVER ldap OPTIONS(basedn 'dc=nodomain', filter '(objectclass=*)', scope 'LDAP_SCOPE_CHILDREN');
+## or
 ## Remote Schema Import
     IMPORT FOREIGN SCHEMA "dc=nodomain" FROM SERVER ldap INTO public OPTIONS(basedn 'dc=nodomain', objectclass 'person', objectclass 'inetOrgPerson', schemadn 'cn=subschema', tablename 'names', scope 'LDAP_SCOPE_CHILDREN', filter '(objectClass=*)');
 Important: You need always an attribute "dn", which is the primary identifier for every ldap entry.
