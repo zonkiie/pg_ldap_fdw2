@@ -58,6 +58,7 @@ static LdapFdwConn * create_LdapFdwConn();
 static LdapFdwOptions * create_LdapFdwOptions();
 static void initLdapConnectionStruct(LdapFdwConn *);
 static void bindLdapStruct(LdapFdwConn *);
+static TupleTableSlot fetchLdapEntryByDnIntoSlot(LdapFdwConn *, char *);
 
 PG_MODULE_MAGIC;
 
@@ -613,6 +614,11 @@ static void bindLdapStruct(LdapFdwConn * ldap_fdw_connection)
 				errhint("Could not bind to ldap server. Is username and password correct?")));
 		return;
 	}
+	
+}
+
+static TupleTableSlot fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldap_fdw_connection, char * dn)
+{
 	
 }
 
@@ -1895,9 +1901,10 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 }
 */
 
-/*
+/**
  * ldap2_fdw_ExecForeignUpdate
  *		Update one row in a foreign table
+ * TODO: LDAP Rename/move on dn change
  */
 static TupleTableSlot *
 ldap2_fdw_ExecForeignUpdate(EState *estate,
@@ -2077,8 +2084,12 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 		}
 	}
 	
+	// slot = fetchLdapEntryByDnIntoSlot
+	
 	tuple = heap_form_tuple(tupdesc, d_values, null_values);
 	ExecStoreHeapTuple(tuple, slot, false);
+	
+	return slot;
 	
 	// End store for returning value
 
