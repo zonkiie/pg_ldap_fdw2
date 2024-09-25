@@ -622,7 +622,7 @@ static void bindLdapStruct(LdapFdwConn * ldap_fdw_connection)
  */
 static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid foreignTableId, char * dn)
 {
-	return NULL;
+	//return NULL;
 	ForeignTable *foreignTable;
 	ForeignServer *foreignServer;
 	UserMapping *mapping;
@@ -635,7 +635,7 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	LDAPMessage   *ldap_message_result;
 	Oid varchar_oid = get_type_oid("character varying");
 	struct berval **vals = NULL;
-	int attnum, num_attrs = tupdesc->natts, rc, i, res;
+	int attnum, num_attrs = tupdesc->natts, rc, i;
 	bool		typeByValue;
 	char		typeAlignment;
 	int16		typeLength;
@@ -679,12 +679,13 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	mapping = GetUserMapping(GetUserId(), foreignTable->serverid);
 	if(!asprintf(&filter, "(dn=%s)", dn)) elog(ERROR, "could not assign filter in line %d", __LINE__);
 	
-	
 	rc = ldap_search_ext_s( ldapConn->ldap, ldapConn->options->basedn, ldapConn->options->scope, filter /*ldapConn->options->filter*/ , columns, 0, ldapConn->serverctrls, ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &ldapMsg );
-	DEBUGPOINT;
+	
+	free(filter);
 	
 	if(rc != LDAP_SUCCESS) return slot;
-	entry = ldap_first_entry(ldapConn->ldap, res);
+	entry = ldap_first_entry(ldapConn->ldap, ldapMsg);
+	DEBUGPOINT;
 	while(entry)
 	{
 	DEBUGPOINT;
