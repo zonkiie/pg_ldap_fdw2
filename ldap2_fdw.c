@@ -8,6 +8,7 @@
 #include "access/sysattr.h"
 #include "access/htup_details.h"
 #include "access/table.h"
+#include "access/tableam.h"
 #include "nodes/pg_list.h"
 #include "nodes/makefuncs.h"
 #include "nodes/nodeFuncs.h"
@@ -71,7 +72,7 @@ PG_MODULE_MAGIC;
 
 // LOG: log to postgres log
 // INFO: write to stdout
-#define DEBUGPOINT elog(INFO, "ereport Func %s, Line %d\n", __FUNCTION__, __LINE__)
+#define DEBUGPOINT elog(INFO, "ereport File %s, Func %s, Line %d\n", __FILE__, __FUNCTION__, __LINE__)
 
 extern Datum ldap2_fdw_handler(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(ldap2_fdw_handler);
@@ -630,15 +631,16 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	TupleTableSlot *slot = NULL;
 	Relation rel = RelationIdGetRelation(foreignTableId);
 	TupleDesc tupdesc = RelationGetDescr(rel);
-	LDAPMessage *ldapMsg = NULL;
-	LDAPMessage    * entry;
-	LDAPMessage   *ldap_message_result;
+	int msgId = 0;
+	LDAPMessage 	*ldapMsg = NULL;
+	LDAPMessage    * entry = NULL;
 	Oid varchar_oid = get_type_oid("character varying");
 	struct berval **vals = NULL;
 	int attnum, num_attrs = tupdesc->natts, rc, i;
 	bool		typeByValue;
 	char		typeAlignment;
 	int16		typeLength;
+	bool found = false;
 	bool *null_values = (bool*)palloc(sizeof(bool) * (num_attrs + 1));
 	Datum *d_values = (Datum*)palloc(sizeof(Datum) * (num_attrs + 1));
 	char       **columns = (char**)palloc(sizeof(char*) * tupdesc->natts);
@@ -677,20 +679,30 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	foreignTable = GetForeignTable(foreignTableId);
 	foreignServer = GetForeignServer(foreignTable->serverid);
 	mapping = GetUserMapping(GetUserId(), foreignTable->serverid);
-	if(!asprintf(&filter, "(dn=%s)", dn)) elog(ERROR, "could not assign filter in line %d", __LINE__);
+	filter = strdup("(objectClass=*)");
+	//if(!asprintf(&filter, "(dn=%s)", dn)) elog(ERROR, "could not assign filter in line %d", __LINE__);
+	elog(INFO, "Filter = %s", filter);
 	
-	rc = ldap_search_ext_s( ldapConn->ldap, ldapConn->options->basedn, ldapConn->options->scope, filter /*ldapConn->options->filter*/ , columns, 0, ldapConn->serverctrls, ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &ldapMsg );
-	
-	free(filter);
-	
-	if(rc != LDAP_SUCCESS) return slot;
-	entry = ldap_first_entry(ldapConn->ldap, ldapMsg);
+	rc = ldap_search_ext( ldapConn->ldap, ldapConn->options->basedn, ldapConn->options->scope, filter /*ldapConn->options->filter*/ , columns, 0, ldapConn->serverctrls, ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &msgId );
 	DEBUGPOINT;
-	while(entry)
+	
+	//if(rc != LDAP_SUCCESS) return slot;
+	if(rc != LDAP_SUCCESS)  goto fetchLdapEntryByDnIntoSlotFinish;
+	if(filter) free(filter);
+	filter = NULL;
+	DEBUGPOINT;
+	
+	while((rc = ldap_result( ldapConn->ldap, msgId, LDAP_MSG_ONE, &timeout_struct, &entry )) == LDAP_RES_SEARCH_ENTRY)
 	{
-	DEBUGPOINT;
+		DEBUGPOINT;
 		i = 0;
 		entrydn = ldap_get_dn(ldapConn->ldap, entry);
+		if(strcmp(entrydn, dn) != 0)
+		{
+			ldap_memfree(entrydn);
+			continue;
+		}
+		found = true;
 		for(char **a = columns; *a != NULL; a++)
 		{
 			elog(INFO, "a: %s", *a);
@@ -702,7 +714,7 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 				i++;
 				continue;
 			}
-			if((vals = ldap_get_values_len(ldapConn->ldap, ldap_message_result, *a)) != NULL)
+			if((vals = ldap_get_values_len(ldapConn->ldap, entry, *a)) != NULL)
 			{
 				int values_length = ldap_count_values_len(vals);
 				//if(ldap_count_values_len(vals) == 0)
@@ -718,7 +730,7 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 						d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(vals[0]->bv_val));
 					} else {
 						ArrayType* array_values;
-						Datum* item_values = (Datum*)palloc(sizeof(Datum) * values_length + 2);
+						Datum* item_values = (Datum*)palloc(sizeof(Datum) * (values_length + 2));
 						memset(item_values, 0, (values_length + 1 ) * sizeof(Datum));
 
 						for (int vi = 0; vals[ vi ] != NULL; vi++ ) {
@@ -745,10 +757,17 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 		ldap_memfree(entry);
 		entry = ldap_next_entry(ldapConn->ldap, entry);
 	}
+
+	if(found)
+	{
+		tuple = heap_form_tuple(tupdesc, d_values, null_values);
+		ExecStoreHeapTuple(tuple, slot, false);
+	}
 	
-	tuple = heap_form_tuple(tupdesc, d_values, null_values);
-	ExecStoreHeapTuple(tuple, slot, false);
-	
+fetchLdapEntryByDnIntoSlotFinish:
+	DEBUGPOINT;
+	if(filter) free(filter);
+	filter = NULL;
 	return slot;
 }
 
@@ -2224,9 +2243,9 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	if(dn = strdup(value_str))
 	{
 		
-		slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
+		//slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
 		
-		return slot;
+		//return slot;
 		
 		//rc = ldap_delete_s(fmstate->ldapConn->ldap, dn);
 		rc = ldap_delete_ext_s(fmstate->ldapConn->ldap, dn, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
