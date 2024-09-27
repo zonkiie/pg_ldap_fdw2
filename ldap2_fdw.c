@@ -684,17 +684,12 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	elog(INFO, "Filter = %s", filter);
 	
 	rc = ldap_search_ext( ldapConn->ldap, ldapConn->options->basedn, ldapConn->options->scope, filter /*ldapConn->options->filter*/ , columns, 0, ldapConn->serverctrls, ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &msgId );
-	DEBUGPOINT;
 	
 	//if(rc != LDAP_SUCCESS) return slot;
 	if(rc != LDAP_SUCCESS)  goto fetchLdapEntryByDnIntoSlotFinish;
-	if(filter) free(filter);
-	filter = NULL;
-	DEBUGPOINT;
 	
 	while((rc = ldap_result( ldapConn->ldap, msgId, LDAP_MSG_ONE, &timeout_struct, &entry )) == LDAP_RES_SEARCH_ENTRY)
 	{
-		DEBUGPOINT;
 		i = 0;
 		entrydn = ldap_get_dn(ldapConn->ldap, entry);
 		if(strcmp(entrydn, dn) != 0)
@@ -705,7 +700,6 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 		found = true;
 		for(char **a = columns; *a != NULL; a++)
 		{
-			elog(INFO, "a: %s", *a);
 			bool column_type_is_array = (column_types[i])[0] == '_';
 			if(!strcasecmp(*a, "dn"))
 			{
@@ -754,8 +748,6 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 		ldap_memfree(entrydn);
 		entrydn = NULL;
 		
-		ldap_memfree(entry);
-		entry = ldap_next_entry(ldapConn->ldap, entry);
 	}
 
 	if(found)
@@ -2244,8 +2236,6 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	{
 		
 		//slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
-		
-		//return slot;
 		
 		//rc = ldap_delete_s(fmstate->ldapConn->ldap, dn);
 		rc = ldap_delete_ext_s(fmstate->ldapConn->ldap, dn, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
