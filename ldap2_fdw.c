@@ -624,12 +624,12 @@ static void bindLdapStruct(LdapFdwConn * ldap_fdw_connection)
 static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid foreignTableId, char * dn)
 {
 	//return NULL;
-	ForeignTable *foreignTable;
-	ForeignServer *foreignServer;
-	UserMapping *mapping;
+	ForeignTable *foreignTable = GetForeignTable(foreignTableId);
+	ForeignServer *foreignServer = GetForeignServer(foreignTable->serverid);
+	UserMapping *mapping = GetUserMapping(GetUserId(), foreignTable->serverid);
 	HeapTuple	tuple;
-	TupleTableSlot *slot = NULL;
 	Relation rel = RelationIdGetRelation(foreignTableId);
+	TupleTableSlot *slot = table_slot_create(rel, NULL);
 	TupleDesc tupdesc = RelationGetDescr(rel);
 	int msgId = 0;
 	LDAPMessage 	*ldapMsg = NULL;
@@ -653,7 +653,6 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	memset(null_values, 0, (num_attrs + 1 ) * sizeof(bool));
 	memset(d_values, 0, (num_attrs + 1 ) * sizeof(Datum*));
 	
-	slot = table_slot_create(rel, NULL);
 	//ExecClearTuple(slot);
 	for (attnum = 1; attnum <= tupdesc->natts; attnum++)
 	{
@@ -676,9 +675,6 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	}
 	columns[tupdesc->natts] = NULL;
 	
-	foreignTable = GetForeignTable(foreignTableId);
-	foreignServer = GetForeignServer(foreignTable->serverid);
-	mapping = GetUserMapping(GetUserId(), foreignTable->serverid);
 	filter = strdup("(objectClass=*)");
 	//if(!asprintf(&filter, "(dn=%s)", dn)) elog(ERROR, "could not assign filter in line %d", __LINE__);
 	elog(INFO, "Filter = %s", filter);
@@ -2241,6 +2237,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 		rc = ldap_delete_ext_s(fmstate->ldapConn->ldap, dn, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
 
 		free(dn);
+		DEBUGPOINT;
 	
 		if(rc != LDAP_SUCCESS)
 		{
@@ -2289,7 +2286,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	/*if (typoid != NAMEOID)
 		elog(ERROR, "type of first column of MongoDB's foreign table must be \"NAME\"");*/
 	
-	
+	DEBUGPOINT;
 	return slot;
 }
 
