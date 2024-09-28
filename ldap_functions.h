@@ -16,6 +16,7 @@ int LDAPMod_count(LDAPMod **);
 LDAPMod * create_new_ldap_mod();
 LDAPMod * copy_ldap_mod(LDAPMod *);
 LDAPMod * construct_new_ldap_mod(int, char *, char **);
+char * ldap_dn2filter(char *);
 void free_ldap_mod(LDAPMod * );
 int fetch_attribute_type();
 int fetch_schema(LDAP *);

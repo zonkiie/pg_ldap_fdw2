@@ -114,6 +114,34 @@ void free_ldap_mod(LDAPMod * ldap_mod)
 	free(ldap_mod);
 }
 
+/**
+ * NOTE: This Method does not work, why?
+ */
+char * ldap_dn2filter(char *dn)
+{
+	if(dn == NULL) return NULL;
+	else
+	{
+		char *retval = calloc(sizeof(char*), 1);
+		strmcat_multi(&retval, "(&");
+		char **dn_els = ldap_explode_dn(dn, 0);
+		for(int i = 0; dn_els[i] != NULL; i++)
+		{
+			
+			//char **rdn_els = ldap_explode_rdn(dn_els[i], 0);
+			char **rdn_els = NULL;
+			str_split(&rdn_els, dn_els[i], "=");
+			if(rdn_els == NULL) continue;
+			strmcat_multi(&retval, "(", rdn_els[0], ":dn:=", rdn_els[1], ")");
+			//ldap_value_free(rdn_els);
+			free_carr_n(&rdn_els);
+		}
+		ldap_value_free(dn_els);
+		strmcat_multi(&retval, ")");
+		return retval;
+	}
+}
+
 int fetch_attribute_type()
 {
 	return 0;

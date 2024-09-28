@@ -620,6 +620,7 @@ static void bindLdapStruct(LdapFdwConn * ldap_fdw_connection)
 
 /**
  * @see https://gist.github.com/syzdek/1459007/31c0561747bdbb88e7c3bbcb7d205e0f6d1972e7
+ * @see https://postgrespro.com/list/thread-id/2545516
  */
 static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid foreignTableId, char * dn)
 {
@@ -653,6 +654,8 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	memset(null_values, 0, (num_attrs + 1 ) * sizeof(bool));
 	memset(d_values, 0, (num_attrs + 1 ) * sizeof(Datum*));
 	
+	get_typlenbyvalalign(varchar_oid, &typeLength, &typeByValue, &typeAlignment);
+	
 	//ExecClearTuple(slot);
 	for (attnum = 1; attnum <= tupdesc->natts; attnum++)
 	{
@@ -675,9 +678,31 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	}
 	columns[tupdesc->natts] = NULL;
 	
-	filter = strdup("(objectClass=*)");
-	//if(!asprintf(&filter, "(dn=%s)", dn)) elog(ERROR, "could not assign filter in line %d", __LINE__);
-	elog(INFO, "Filter = %s", filter);
+	// Own Scope to supress warnings, will be later changed
+	{
+		char *filter2 = calloc(sizeof(char*), 1);
+		strmcat_multi(&filter2, "(&");
+		char **dn_els = ldap_explode_dn(dn, 0);
+		for(int i = 0; dn_els[i] != NULL; i++)
+		{
+			char **rdn_els = NULL;
+			str_split(&rdn_els, dn_els[i], "=");
+			if(rdn_els == NULL) continue;
+			strmcat_multi(&filter2, "(", rdn_els[0], ":dn:=", rdn_els[1], ")");
+			free_carr_n(&rdn_els);
+		}
+		ldap_value_free(dn_els);
+		strmcat_multi(&filter2, ")");
+		
+		//filter = pstrdup("(objectClass=*)");
+		//filter = psprintf("(&(objectClass:=*)(dn:=%s)", dn);
+		//char filter2 = ldap_dn2filter(dn);
+		//elog(INFO, "Filter2 = %s", filter2);
+		filter = pstrdup(filter2);
+		//char *filter2 = psprintf("(dn=%s)", dn);
+		//elog(INFO, "Filter = %s", filter);
+		free(filter2);
+	}
 	
 	rc = ldap_search_ext( ldapConn->ldap, ldapConn->options->basedn, ldapConn->options->scope, filter /*ldapConn->options->filter*/ , columns, 0, ldapConn->serverctrls, ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &msgId );
 	
@@ -688,12 +713,11 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	{
 		i = 0;
 		entrydn = ldap_get_dn(ldapConn->ldap, entry);
-		if(strcmp(entrydn, dn) != 0)
+		if(strcmp(entrydn, dn)) // dn does not equal entrydn, so continue
 		{
 			ldap_memfree(entrydn);
 			continue;
 		}
-		found = true;
 		for(char **a = columns; *a != NULL; a++)
 		{
 			bool column_type_is_array = (column_types[i])[0] == '_';
@@ -724,6 +748,7 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 						memset(item_values, 0, (values_length + 1 ) * sizeof(Datum));
 
 						for (int vi = 0; vals[ vi ] != NULL; vi++ ) {
+							null_values[i] = 0;
 							item_values[vi] = DirectFunctionCall1(textin, CStringGetDatum(vals[ vi ]->bv_val));
 						}
 						array_values = construct_array(item_values, values_length, varchar_oid, typeLength, typeByValue, typeAlignment);
@@ -741,9 +766,13 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 			i++;
 		}
 		
+		found = true;
+		
 		ldap_memfree(entrydn);
 		entrydn = NULL;
 		
+		ldap_msgfree(entry);
+		entry = NULL;
 	}
 
 	if(found)
@@ -753,9 +782,14 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	}
 	
 fetchLdapEntryByDnIntoSlotFinish:
-	DEBUGPOINT;
-	if(filter) free(filter);
+	pfree(filter);
 	filter = NULL;
+#if PG_VERSION_NUM < 130000
+	heap_close(rel, NoLock);
+#else
+	table_close(rel, NoLock);
+#endif
+	ReleaseTupleDesc(tupdesc);
 	return slot;
 }
 
@@ -1541,7 +1575,6 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 							 &retrieved_attrs);*/
 			break;
 		case CMD_DELETE:
-			DEBUGPOINT;
 			deparseDeleteSql(&sql, root, resultRelation, rel,
 							 returningList,
 							 &retrieved_attrs);
@@ -1753,40 +1786,7 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	//initLdapWithOptions(fmstate->ldapConn);
 	initLdapConnectionStruct(fmstate->ldapConn);
 
-	//p_values = (const char **) palloc(sizeof(char *) * fmstate->p_nums);
-	//insert_data = ( LDAPMod ** ) palloc(( fmstate->p_nums + 1 ) * sizeof( LDAPMod * ));
-
-// 	insert_data = ( LDAPMod ** ) palloc(( tupdesc->natts + 2 ) * sizeof( LDAPMod * ));
-// 	memset(insert_data, 0, sizeof(LDAPMod **)*(tupdesc->natts + 2));
-// 	
-// 	for ( i = 0; i < tupdesc->natts + 1; i++ ) {
-// 
-// 		if (( insert_data[ i ] = ( LDAPMod * ) palloc( sizeof( LDAPMod ))) == NULL ) {
-// 			elog(ERROR, "Could not allocate Memory for accocating ldap mods!");
-// 		}
-// 		insert_data[i]->mod_op = LDAP_MOD_ADD;
-// 	}
-// 	
-// 	elog(INFO, "fmstate->p_nums: %d, tupdesc->natts:%d", fmstate->p_nums, tupdesc->natts);
-// 
-// 	j = 0;
-// 	
-// 	// Attribute für objectClass erstellen
-	char *objectclass_values[] = { "inetOrgPerson", NULL };
-// 	
-//     insert_data[j]->mod_type = "objectClass";
-//     insert_data[j]->mod_values = objectclass_values;
-	
 	j++;
-	
-	//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, "objectClass", objectclass_values);
-	
-	/*
-	single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, "objectClass", fmstate->ldapConn->options->objectclasses);
-	append_ldap_mod(&insert_data, single_ldap_mod);
-	free_ldap_mod(single_ldap_mod);
-	single_ldap_mod = NULL;
-	*/
 	
     // Durchlaufe alle Attribute des Tuples
     for (i = 0; i < tupdesc->natts; i++) {
@@ -1808,26 +1808,6 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 			if(!strcmp(att_name, "dn")) dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
 			else
 			{
-				elog(INFO, "Func: %s, i: %d, j: %d, Attribut: %s, Wert: %s", __FUNCTION__, i, j, att_name, value_str);
-				DEBUGPOINT;
-				//p_values[i] = pstrdup(value_str);
-				/*
-				insert_data[i]->mod_type = pstrdup(att_name);
-				insert_data[i]->mod_values = (char**)palloc( sizeof(char*)*2);
-				memset(insert_data[i]->mod_values, 0, sizeof(char*)*2);
-				insert_data[i]->mod_values[0] = pstrdup(value_str);
-				insert_data[i]->mod_values[1] = NULL;
-				*/
-				
-				/*
-				insert_data[j]->mod_type = pstrdup(att_name);
-				insert_data[j]->mod_values = (char**)palloc( sizeof(char*)*2);
-				memset(insert_data[j]->mod_values, 0, sizeof(char*)*2);
-				insert_data[j]->mod_values[0] = pstrdup(value_str);
-				insert_data[j]->mod_values[1] = NULL;
-				j++;
-				*/
-				
 				char ** values_array = extract_array_from_datum(attr_value, tupdesc->attrs[i].atttypid);
 				
 				//single_ldap_mod = construct_new_ldap_mod(LDAP_MOD_ADD, att_name, (char*[]){value_str, NULL});
@@ -1864,7 +1844,6 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 		//ldap_add_ext(ld, dn, NULL, NULL, NULL);
 	}*/
 	
-	elog(INFO, "ldap add: dn: %s", dn);
 	rc = ldap_add_ext_s( fmstate->ldapConn->ldap, dn, insert_data, NULL, NULL );
 
 	if ( rc != LDAP_SUCCESS ) {
@@ -1878,8 +1857,12 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 
 	}
 	
+	slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
+	
 	pfree(dn);
 	free( insert_data );
+	
+	
 	return slot;
 }
 
@@ -2147,7 +2130,9 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 		modify_data = NULL;
 	}
 	
-	return NULL;
+	slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
+	
+	return slot;
 }
 
 /*
@@ -2176,7 +2161,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	ForeignTable *table;
 	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
-	TupleDesc tupdesc = RelationGetDescr(rel);
+	//TupleDesc tupdesc = RelationGetDescr(rel);
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
 	
 	for(i = 0; i < RelationGetDescr(rel)->natts; i++)
@@ -2196,48 +2181,14 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	//datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
 	char *value_str = DatumGetCString(DirectFunctionCall1(textout, datum));
 	
-// 	// Store returning * value here
-// 	// TODO: Finish work
-// 
-// 	d_values = (Datum*)palloc(sizeof(Datum) * RelationGetDescr(rel)->natts + 1);
-// 	memset(d_values, 0, (RelationGetDescr(rel)->natts + 1 ) * sizeof(Datum*));
-// 	
-// 	null_values = (bool*)palloc(sizeof(bool) * RelationGetDescr(rel)->natts + 1);
-// 	memset(null_values, 0, (RelationGetDescr(rel)->natts + 1 ) * sizeof(bool));
-// 	
-// 	for(i = 0; i < RelationGetDescr(rel)->natts; i++)
-// 	{
-// 		//d_values[i] = ExecGetJunkAttribute(slot, i + 1, &isNull);
-// 		if(i == dn_index)
-// 		{
-// 			d_values[i] = DirectFunctionCall1(textin, CStringGetDatum(value_str));
-// 			null_values[i] = false;
-// 		}
-// 		else
-// 		{
-// 			d_values[i] = PointerGetDatum(NULL);
-// 			//null_values[i] = isNull;
-// 			null_values[i] = true;
-// 		}
-// 	}
-// 	
-// 	
-// 	tuple = heap_form_tuple(tupdesc, d_values, null_values);
-// 	ExecStoreHeapTuple(tuple, slot, false);
-// 	
-// 	// End store for returning value
-
-	//if(asprintf(&dn, "%s=%s,%s", columnName, value_str, fmstate->ldapConn->options->basedn) > 0)
-	if(dn = strdup(value_str))
+	if(dn = pstrdup(value_str))
 	{
 		
-		//slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
+		slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
 		
-		//rc = ldap_delete_s(fmstate->ldapConn->ldap, dn);
 		rc = ldap_delete_ext_s(fmstate->ldapConn->ldap, dn, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
 
-		free(dn);
-		DEBUGPOINT;
+		pfree(dn);
 	
 		if(rc != LDAP_SUCCESS)
 		{
@@ -2286,7 +2237,6 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	/*if (typoid != NAMEOID)
 		elog(ERROR, "type of first column of MongoDB's foreign table must be \"NAME\"");*/
 	
-	DEBUGPOINT;
 	return slot;
 }
 
