@@ -123,8 +123,8 @@ char * ldap_dn2filter(char *dn)
 	else
 	{
 		char *retval = calloc(sizeof(char*), 1);
-		strmcat_multi(&retval, "(&");
 		char **dn_els = ldap_explode_dn(dn, 0);
+		strmcat_multi(&retval, "(&");
 		for(int i = 0; dn_els[i] != NULL; i++)
 		{
 			
@@ -136,8 +136,7 @@ char * ldap_dn2filter(char *dn)
 			//ldap_value_free(rdn_els);
 			free_carr_n(&rdn_els);
 		}
-		ldap_memvfree(dn_els);
-		//ldap_value_free(dn_els);
+		ldap_value_free(dn_els);
 		strmcat_multi(&retval, ")");
 		return retval;
 	}

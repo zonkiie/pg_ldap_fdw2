@@ -2128,20 +2128,14 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 						  TupleTableSlot *planSlot)
 {
 	LdapFdwModifyState *fmstate = fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
-	HeapTuple	tuple;
-	Datum       attr_value, datum;
-	Datum		*d_values;
+	Datum       datum;
 	bool		isNull = false;
 	Oid			foreignTableId;
-	Oid			typoid;
 	char *dn = NULL;
 	char *columnName = NULL;
 	int rc = 0;
 	int i = 0;
 	int dn_index = -1;
-	bool *null_values;
-	ForeignTable *table;
-	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	//TupleDesc tupdesc = RelationGetDescr(rel);
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
@@ -2341,15 +2335,10 @@ static List *
 ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 {
 	List			*commands = NIL;
-	List			*commands_drop = NIL;
-	List	   		*schema_list = NIL;
 	List			*options = NIL;
 	ListCell		*lc;
-	ListCell		*table_lc;
-	ListCell		*column_lc;
 	AttrListType	**attr_typemap = Create_AttrListType();
 	bool			recreate = false;
-	bool			first_column;
 	char			**columns = NULL;
 	char			*tablename = NULL;
 	char			*schemaname = NULL;
@@ -2359,10 +2348,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	char			**objectClasses = NULL;
 	ForeignServer	*server;
 	UserMapping		*user;
-	StringInfoData 	buf;
-	char			**objectClass = NULL;
 	size_t			num_attrs = 0;
-	LDAPMessage 	*schema = NULL, *entry = NULL;
+	int				len = 0;
 	server = GetForeignServer(serverOid);
 	user = GetUserMapping(GetUserId(), server->serverid);
 	LdapFdwConn *ldapConn = create_LdapFdwConn();
@@ -2422,8 +2409,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", i, attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
 	}*/
 	
-	int len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\";", tablename);
-	//int len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\".\"%s\";", schemaname, tablename);
+	len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\";", tablename);
+	//len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\".\"%s\";", schemaname, tablename);
 	if(len == 0) elog(ERROR, "Cound not create drop string!");
 	
 	createStr = strdup("");

@@ -30,5 +30,6 @@ extern struct timeval timeout_struct;
 extern LdapFdwOptions *option_params;
 
 int ldap_simple_bind_s(LDAP *, const char *, const char *);
+void ldap_value_free(char **);
 
 #endif
