@@ -6,6 +6,30 @@
 struct         timeval  zerotime = {.tv_sec = 0L, .tv_usec = 0L};
 const size_t blocksize = 1024;
 
+/**
+ * Split a string for kv pairs. Don't split more after the first separator was found.
+ */
+int str_split_kv(char ***dest, char *str, char *separator)
+{
+	int el_count = 2;
+	int index = 0;
+	char *walker, *trailer;
+	*dest = (char**)malloc((el_count + 1) * sizeof(char*));
+	memset((*dest), 0, (el_count + 1));
+	
+	walker = strstr(str, separator);
+	trailer = str;
+	
+	if(walker != NULL)
+	{
+		(*dest)[index++] = strndup(trailer, walker - trailer);
+		trailer = walker + strlen(separator);
+	}
+	(*dest)[index++] = strdup(trailer);
+	(*dest)[index] = NULL;
+	return index;
+}
+
 int str_split(char ***dest, char *str, char *separator)
 {
 	int el_count = substr_count(str, separator) + 1;

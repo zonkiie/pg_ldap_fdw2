@@ -130,7 +130,7 @@ char * ldap_dn2filter(char *dn)
 			
 			//char **rdn_els = ldap_explode_rdn(dn_els[i], 0);
 			char **rdn_els = NULL;
-			str_split(&rdn_els, dn_els[i], "=");
+			str_split_kv(&rdn_els, dn_els[i], "=");
 			if(rdn_els == NULL) continue;
 			strmcat_multi(&retval, "(", rdn_els[0], ":dn:=", rdn_els[1], ")");
 			//ldap_value_free(rdn_els);
