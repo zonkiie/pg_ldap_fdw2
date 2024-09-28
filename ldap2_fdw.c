@@ -411,7 +411,7 @@ static char ** extract_array_from_datum(Datum datum, Oid oid)
 
 static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 {
-	int rows = 0, rc = 0, msgid = 0, finished = 0;
+	int rows = 0, rc = 0, msgid = 0;
 	char *error_msg = NULL;
 	LDAPMessage   *res;
 	
@@ -445,21 +445,14 @@ static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
 			);
 		}
 	}
-	while(!finished)
+	
+	while((rc = ldap_result( ldap, msgid, LDAP_MSG_ONE, &zerotime, &res )) == LDAP_RES_SEARCH_ENTRY)
 	{
-		rc = ldap_result( ldap, msgid, LDAP_MSG_ONE, &zerotime, &res );
-		switch( rc )
-		{
-			case LDAP_RES_SEARCH_ENTRY:
-				rows++;
-				break;
-			default:
-				finished = 1;
-				break;
-		}
+		rows++;
 		ldap_msgfree(res);
 		res = NULL;
 	}
+	
 	return rows;
 }
 
@@ -2409,13 +2402,13 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		elog(INFO, "attr_typemap[%d] {attr_name: %s, ldap_type: %s, pg_type: %s, isarray: %d", i, attr_typemap[i]->attr_name, attr_typemap[i]->ldap_type, attr_typemap[i]->pg_type, attr_typemap[i]->isarray);
 	}*/
 	
-	len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\";", tablename);
-	//len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\".\"%s\";", schemaname, tablename);
+	//len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\";", tablename);
+	len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\".\"%s\";", schemaname, tablename);
 	if(len == 0) elog(ERROR, "Cound not create drop string!");
 	
 	createStr = strdup("");
-	strmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", tablename, "\" (");
-	//strmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"%s\".\"", schemaname, tablename, "\" (");
+	//strmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", tablename, "\" (");
+	strmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", schemaname, "\".\"", tablename, "\" (");
 	
 	for(int i = 0; columns[i] != NULL; i++)
 	{

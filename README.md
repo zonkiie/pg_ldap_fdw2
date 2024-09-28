@@ -1,5 +1,8 @@
 # pg_ldap_fdw2
 LDAP Foreign Data Wrapper for PostgreSQL with write support.
+
+Please note that not every LDAP Structure might be mapped to a relational model.
+
 Warning: Don't use it in production systems. This fdw is not enough tested and still needs a lot of work.
 
 ## TODO
