@@ -3,7 +3,7 @@ LDAP Foreign Data Wrapper for PostgreSQL with write support.
 Warning: Don't use it in production systems. This fdw is not enough tested and still needs a lot of work.
 
 ## TODO
-Memory management, returning written/deleted rows, code reworking, error handling, write documentation...
+Memory management, code reworking, error handling, write documentation, query planing to ldap filters...
 
 ## Usage (a better instruction guide will follow)
     - Set up your test system
