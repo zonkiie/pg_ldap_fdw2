@@ -680,27 +680,9 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	
 	// Own Scope to supress warnings, will be later changed
 	{
-		char *filter2 = calloc(sizeof(char*), 1);
-		strmcat_multi(&filter2, "(&");
-		char **dn_els = ldap_explode_dn(dn, 0);
-		for(int i = 0; dn_els[i] != NULL; i++)
-		{
-			char **rdn_els = NULL;
-			str_split(&rdn_els, dn_els[i], "=");
-			if(rdn_els == NULL) continue;
-			strmcat_multi(&filter2, "(", rdn_els[0], ":dn:=", rdn_els[1], ")");
-			free_carr_n(&rdn_els);
-		}
-		ldap_value_free(dn_els);
-		strmcat_multi(&filter2, ")");
-		
-		//filter = pstrdup("(objectClass=*)");
 		//filter = psprintf("(&(objectClass:=*)(dn:=%s)", dn);
-		//char filter2 = ldap_dn2filter(dn);
-		//elog(INFO, "Filter2 = %s", filter2);
+		char* filter2 = ldap_dn2filter(dn);
 		filter = pstrdup(filter2);
-		//char *filter2 = psprintf("(dn=%s)", dn);
-		//elog(INFO, "Filter = %s", filter);
 		free(filter2);
 	}
 	
