@@ -101,11 +101,9 @@ char * getAttrTypeByAttrName(AttrListType ***attrList, char * attrName)
 size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *ld, char **object_class, char *schema_dn)
 {
 	size_t size = 0;
-	char *a = NULL, * schema_entry_str = NULL;
+	char *a = NULL;
 	char **names = NULL;
-	int rc = 0, oclass_error = 0;
-	const char * oclass_error_text;
-	struct berval **vals = NULL;
+	int rc = 0;
 	LDAPMessage *schema = NULL, *entry = NULL;
 	BerElement *ber;
 	rc = ldap_search_ext_s(
@@ -130,6 +128,7 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 	array_push(attributes, "objectclass");
 	
 	for (entry = ldap_first_entry(ld, schema); entry != NULL; entry = ldap_next_entry(ld, entry)) {
+//		char * schema_entry_str = NULL;
 // 		schema_entry_str = ldap_get_dn(ld, entry);
 // 		elog(INFO, "Schema Str: %s", schema_entry_str);
 // 		ldap_memfree(schema_entry_str);
@@ -191,7 +190,7 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 		}
     }
     
-	// Aufräumen
+	// Cleanup
 	ldap_msgfree(schema);
 	
 	return size;

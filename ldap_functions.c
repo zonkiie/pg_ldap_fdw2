@@ -136,7 +136,8 @@ char * ldap_dn2filter(char *dn)
 			//ldap_value_free(rdn_els);
 			free_carr_n(&rdn_els);
 		}
-		ldap_value_free(dn_els);
+		ldap_memvfree(dn_els);
+		//ldap_value_free(dn_els);
 		strmcat_multi(&retval, ")");
 		return retval;
 	}
