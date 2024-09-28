@@ -2352,6 +2352,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	bool			first_column;
 	char			**columns = NULL;
 	char			*tablename = NULL;
+	char			*schemaname = NULL;
 	char			*dropStr = NULL;
 	char			*createStr = NULL;
 	char			*scope = NULL;
@@ -2388,6 +2389,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		else if(!strcmp(def->defname, "schemadn")) ldapConn->options->schemadn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "scope")) scope = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "tablename")) tablename = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "schemaname")) schemaname = pstrdup(defGetString(def));
 		else
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
@@ -2405,6 +2407,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	{
 		elog(ERROR, "tablename is NULL!");
 	}
+	
+	if(schemaname == NULL) schemaname = pstrdup("public");
 
 	initLdapConnectionStruct(ldapConn);
 	
@@ -2419,10 +2423,12 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	}*/
 	
 	int len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\";", tablename);
+	//int len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\".\"%s\";", schemaname, tablename);
 	if(len == 0) elog(ERROR, "Cound not create drop string!");
 	
 	createStr = strdup("");
 	strmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", tablename, "\" (");
+	//strmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"%s\".\"", schemaname, tablename, "\" (");
 	
 	for(int i = 0; columns[i] != NULL; i++)
 	{
