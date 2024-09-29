@@ -9,9 +9,6 @@
 #include "access/htup_details.h"
 #include "access/table.h"
 #include "access/tableam.h"
-#include "nodes/pg_list.h"
-#include "nodes/makefuncs.h"
-#include "nodes/nodeFuncs.h"
 #include "catalog/namespace.h"
 #include "catalog/pg_foreign_server.h"
 #include "catalog/pg_foreign_table.h"
@@ -24,10 +21,14 @@
 #include "foreign/foreign.h"
 #include "funcapi.h"
 #include "miscadmin.h"
+#include "nodes/pg_list.h"
 #include "nodes/makefuncs.h"
 #include "nodes/nodeFuncs.h"
+#include "nodes/execnodes.h"
+#include "nodes/nodes.h"
 #include "nodes/value.h"
 #include "optimizer/appendinfo.h"
+#include "optimizer/clauses.h"
 #include "optimizer/cost.h"
 #include "optimizer/pathnode.h"
 #include "optimizer/paths.h"
@@ -36,9 +37,11 @@
 #include "optimizer/restrictinfo.h"
 //#include "optimizer/var.h"
 #include "optimizer/optimizer.h"
+#include "parser/parse_func.h"
 #include "parser/parsetree.h"
 #include "optimizer/restrictinfo.h"
 #include "utils/builtins.h"
+#include "utils/formatting.h"
 #include "utils/guc.h"
 #include "utils/lsyscache.h"
 #include "utils/syscache.h"
@@ -949,6 +952,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	List *remote_exprs = NIL;
 	List *local_exprs = NIL;
 	List *fdw_private_list = NIL;
+	StringInfoData sql_buf;
+	
+    initStringInfo(&sql_buf);
 	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
 	
@@ -963,14 +969,33 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	//baserel->fdw_private = (void*)fdw_private;
 
 	scan_relid = baserel->relid;
-	/*foreach(cell, scan_clauses) {
-		DefElem *def = lfirst_node(DefElem, cell);
-		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
-		char * value = NULL;
-		DEBUGPOINT;
-		value = defGetString(def);
-		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
-	}*/
+// 	foreach(cell, scan_clauses) {
+// 		Node *clause = (Node *) lfirst(cell);
+//         
+//         // Convert the expression to string
+//         char *clause_sql = nodeToString(clause);
+// 		
+// 		appendStringInfoString(&sql_buf, clause_sql);
+// 		
+// 		pfree(clause_sql);
+// 		
+// 		// Optionally add a separator (like a space or comma) if desired
+//         if (lnext(scan_clauses, cell) != NULL)
+//         {
+//             appendStringInfoString(&sql_buf, " \nAND\n "); // or whatever separator is appropriate
+//         }
+// 		
+// 		/*
+// 		DefElem *def = lfirst_node(DefElem, cell);
+// 		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
+// 		char * value = NULL;
+// 		value = defGetString(def);
+// 		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
+// 		*/
+// 	}
+// 	
+// 	elog(INFO, "sql: %s", sql_buf.data);
+	
 	
 	/*
 	 * From MongoDB FDW
@@ -987,8 +1012,6 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	foreach(cell, scan_clauses)
 	{
 		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
-
-		Assert(IsA(rinfo, RestrictInfo));
 		
 		//ereport(INFO, errmsg_internal("%s ereport Line %d : List Cell ptr: %s\n", __FUNCTION__, __LINE__, (char*)cell->ptr_value));
 
@@ -1020,6 +1043,41 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	//ereport(INFO, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
 	
 	scan_clauses = extract_actual_clauses(scan_clauses, false);
+
+	/*
+	foreach(cell, scan_clauses) {
+		Node *clause = (Node *) lfirst(cell);
+		
+		//if (IsA(clause, Const))
+		//{
+		if (nodeTag(clause) == T_Const)
+		{
+			Const *constNode = (Const *) clause;
+			
+			Datum *value = constNode->constvalue;
+			
+			char *clause_sql = DatumGetCString(DirectFunctionCall1(textout, value));
+			
+			// Convert the expression to string
+			//char *clause_sql = nodeToString(clause);
+			
+			appendStringInfoString(&sql_buf, clause_sql);
+			
+			pfree(clause_sql);
+			
+			// Optionally add a separator (like a space or comma) if desired
+			if (lnext(scan_clauses, cell) != NULL)
+			{
+				appendStringInfoString(&sql_buf, " \nAND\n "); // or whatever separator is appropriate
+			}
+		}
+		
+	}
+	
+	elog(INFO, "sql: %s", sql_buf.data);
+	*/
+
+
 
 	//ereport(INFO, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
 	
