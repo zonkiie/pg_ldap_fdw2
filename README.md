@@ -33,7 +33,8 @@ Important: You need always an attribute "dn", which is the primary identifier fo
     DROP EXTENSION IF EXISTS ldap2_fdw CASCADE;
 
 ## Usage
-    
+### Generate many entries for speed test
+    INSERT INTO NAMES(dn, cn, sn, mail) SELECT 'uid=' || uuid_generate_v4()::text || ',dc=nodomain', array['FirstName'], array['LastName'], array['firstname.lastname@example1.com', 'firstname.lastname@example2.com']  FROM generate_series(1, 10);
 
 ## A list of Foreign Data Wrappers
 [https://wiki.postgresql.org/wiki/Foreign_data_wrappers](https://wiki.postgresql.org/wiki/Foreign_data_wrappers)
