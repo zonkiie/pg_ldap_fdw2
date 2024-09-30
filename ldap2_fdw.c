@@ -847,7 +847,8 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	
 	Path	   *path;
 	LdapFdwPlanState *fdw_private;
-	Cost		startup_cost = 0.0;
+	//Cost		startup_cost = 0.0;
+	Cost		startup_cost = 10.0;
 	Cost		total_cost = 0.0;
 	
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
@@ -862,19 +863,31 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 #if (PG_VERSION_NUM < 90500)
 	path = (Path *) create_foreignscan_path(root, baserel,
 						baserel->rows,
-						10,
-						0,
+						startup_cost,
+						totalCost,
 						NIL,
 						NULL,
 						NULL);
+#else if(PG_VERSION_NUM >= 170000)
+	path = (Path *) create_foreignscan_path(root, baserel,
+												   NULL,	/* default pathtarget */
+												   baserel->rows,
+												   startupCost,
+												   totalCost,
+												   NIL, /* no pathkeys */
+												   baserel->lateral_relids,
+												   NULL,	/* no extra plan */
+												   NIL, /* no fdw_restrictinfo list */
+												   NIL);	/* no fdw_private data */
+
 #else
 	path = (Path *) create_foreignscan_path(root, baserel,
 #if (PG_VERSION_NUM >= 90600)
 						NULL,
 #endif
 						baserel->rows,
-						10,
-						0,
+						startup_cost,
+						totalCost,
 						NIL,
 						NULL,
 						NULL,
