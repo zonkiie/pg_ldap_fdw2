@@ -847,7 +847,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	
 	Path	   *path;
 	LdapFdwPlanState *fdw_private;
-	//Cost		startup_cost = 0.0;
+	//Cost		startupCost = 0.0;
 	Cost		startup_cost = 10.0;
 	Cost		total_cost = 0.0;
 	
@@ -860,7 +860,28 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	//initLdapWithOptions(fdw_private->ldapConn);
 	//initLdapConnectionStruct(fdw_private->ldapConn);
 	
-#if (PG_VERSION_NUM < 90500)
+#if (PG_VERSION_NUM >= 170000)
+	path = (Path *) create_foreignscan_path(root, baserel,
+												   NULL,	/* default pathtarget */
+												   baserel->rows,
+												   startup_cost,
+												   total_cost,
+												   NIL, /* no pathkeys */
+												   baserel->lateral_relids,
+												   NULL,	/* no extra plan */
+												   NIL, /* no fdw_restrictinfo list */
+												   NIL);	/* no fdw_private data */
+#else
+	path = (Path *) create_foreignscan_path(root, baserel,
+												   NULL,	/* default pathtarget */
+												   baserel->rows,
+												   startup_cost,
+												   total_cost,
+												   NIL, /* no pathkeys */
+												   baserel->lateral_relids,
+												   NULL,	/* no extra plan */
+												   NIL);	/* no fdw_private list */
+/*#else if (PG_VERSION_NUM < 90500)
 	path = (Path *) create_foreignscan_path(root, baserel,
 						baserel->rows,
 						startup_cost,
@@ -868,17 +889,6 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						NIL,
 						NULL,
 						NULL);
-#else if(PG_VERSION_NUM >= 170000)
-	path = (Path *) create_foreignscan_path(root, baserel,
-												   NULL,	/* default pathtarget */
-												   baserel->rows,
-												   startupCost,
-												   totalCost,
-												   NIL, /* no pathkeys */
-												   baserel->lateral_relids,
-												   NULL,	/* no extra plan */
-												   NIL, /* no fdw_restrictinfo list */
-												   NIL);	/* no fdw_private data */
 
 #else
 	path = (Path *) create_foreignscan_path(root, baserel,
@@ -891,7 +901,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						NIL,
 						NULL,
 						NULL,
-						NIL);
+						NIL);*/
 #endif
 
 	/* Estimate costs */
