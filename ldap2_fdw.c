@@ -516,12 +516,11 @@ static bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Exp
 static LdapFdwConn * create_LdapFdwConn()
 {
 	LdapFdwConn* conn = (LdapFdwConn *)palloc0(sizeof(LdapFdwConn));
-	LDAPControl	*tmpc = NULL;
+	//LDAPControl	*tmpc = (LDAPControl*)palloc( sizeof( LDAPControl ));
 	
 	conn->options = create_LdapFdwOptions();
 	
 	/*
-	tmpc = (LDAPControl*)palloc( sizeof( LDAPControl ));
 	//tmpc->ldctl_oid = LDAP_CONTROL_SUBENTRIES;	
 	tmpc->ldctl_oid = LDAP_CONTROL_X_WHATFAILED;
 	tmpc->ldctl_iscritical = 1;
