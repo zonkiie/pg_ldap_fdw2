@@ -16,6 +16,7 @@ AttrTypemap typemap[] = {
 };
 
 static char* getPgTypeForLdapType(AttrTypemap map[], char *);
+static AttrListType * Build_SingleAttrListType(const char *, const char *, const char *, bool, bool);
 
 static char* getPgTypeForLdapType(AttrTypemap map[], char *ldapType)
 {
@@ -34,6 +35,24 @@ AttrListType ** Create_AttrListType()
 	AttrListType ** retval = (AttrListType **)malloc(sizeof(AttrListType*) * 2);
 	memset(retval, 0, sizeof(AttrListType**) * 2);
 	return retval;
+}
+
+AttrListType * Create_SingleAttrListType()
+{
+	AttrListType * attrData = (AttrListType *)malloc(sizeof(AttrListType) * 2);
+	memset(attrData, 0, sizeof(AttrListType) * 2);
+	return attrData;
+}
+
+AttrListType * Build_SingleAttrListType(const char * attr_name, const char * ldap_type, const char * pg_type, bool isarray, bool nullable)
+{
+	AttrListType * attrData = Create_SingleAttrListType();
+	if(attr_name) attrData->attr_name = strdup(attr_name);
+	if(ldap_type) attrData->ldap_type = strdup(ldap_type);
+	if(pg_type) attrData->pg_type = strdup(pg_type);
+	attrData->isarray = isarray;
+	attrData->nullable = nullable;
+	return attrData;
 }
 
 size_t AttrListTypeCount(AttrListType*** attrlist)
@@ -169,13 +188,23 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 						LDAPAttributeType *attribute_data = ldap_str2attributetype(vals[i]->bv_val, &attribute_error, &attribute_error_text, LDAP_SCHEMA_ALLOW_NONE);
 						int new_size = 0;
 						names = attribute_data->at_names;
-						AttrListType * attrData = (AttrListType *)malloc(sizeof(AttrListType) * 2);
-						memset(attrData, 0, sizeof(AttrListType) * 2);
-						attrData->attr_name = strdup(names[0]);
-						attrData->ldap_type = strdup(attribute_data->at_oid);
-						attrData->isarray = (attribute_data->at_single_value == 0);
+// 						AttrListType * attrData = (AttrListType *)malloc(sizeof(AttrListType) * 2);
+// 						memset(attrData, 0, sizeof(AttrListType) * 2);
+// 						attrData->attr_name = strdup(names[0]);
+// 						attrData->ldap_type = strdup(attribute_data->at_oid);
+// 						attrData->isarray = (attribute_data->at_single_value == 0);
+						
+						// New 20241001
+						for(int attrI = 0; names[attrI] != NULL; attrI++)
+						{
+							AttrListType * attrData = Build_SingleAttrListType
+										(names[attrI], attribute_data->at_oid, NULL, (attribute_data->at_single_value == 0), true);
+							new_size = AttrListTypeAppend(attrList, attrData);
+						}
+						// End New 20241001
+										
 						ldap_attributetype_free(attribute_data);
-						new_size = AttrListTypeAppend(attrList, attrData);
+						//new_size = AttrListTypeAppend(attrList, attrData);
 					}
 				}
 

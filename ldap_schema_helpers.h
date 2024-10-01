@@ -28,6 +28,7 @@ typedef struct AttrListType
 } AttrListType;
 
 AttrListType** Create_AttrListType();
+AttrListType * Create_SingleAttrListType();
 size_t AttrListTypeCount(AttrListType***);
 size_t AttrListTypeAppend(AttrListType***, AttrListType *);
 void AttrListTypeFreeSingle(AttrListType **);
