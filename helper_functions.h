@@ -50,10 +50,4 @@ size_t array_count(char **);
 size_t array_push(char ***, char *);
 size_t array_pushp(char ***, char *);
 
-size_t put_file_content_nm(char*, char*, size_t, char*);
-size_t put_file_content_n(char*, char*, size_t);
-size_t put_file_content(char*, char*);
-size_t append_file_content_n(char*, char*, size_t);
-size_t append_file_content(char*, char*);
-
 #endif
