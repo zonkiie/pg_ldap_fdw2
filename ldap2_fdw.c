@@ -1778,8 +1778,6 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 						  TupleTableSlot *planSlot)
 {
 	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
-	Oid			foreignTableId;
-	Oid			userid;
     const char **p_values;
 	char	   *columnName = NULL;
 	char *dn = NULL;
@@ -1790,6 +1788,8 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
     int         n_rows = 0, i = 0, j = 0, p_index = 0, rc = 0;
 	Form_pg_attribute attr;
 	Relation rel = resultRelInfo->ri_RelationDesc;
+	Oid			foreignTableId = RelationGetRelid(rel);
+	Oid			userid;
 	tupdesc = RelationGetDescr(rel);
     Datum       attr_value;
 	ForeignServer *server;
@@ -1804,7 +1804,6 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 //	RangeTblEntry *rte;
 //#endif
 
-//	foreignTableId = RelationGetRelid(rel);
 	
 //#if PG_VERSION_NUM >= 160000
 //	userid = fsplan->checkAsUser ? fsplan->checkAsUser : GetUserId();
