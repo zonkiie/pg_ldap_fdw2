@@ -39,6 +39,9 @@
 #include "optimizer/optimizer.h"
 #include "parser/parse_func.h"
 #include "parser/parsetree.h"
+#if PG_VERSION_NUM >= 160000
+#include "parser/parse_relation.h"
+#endif
 #include "optimizer/restrictinfo.h"
 #include "utils/builtins.h"
 #include "utils/formatting.h"
@@ -63,6 +66,7 @@ static LdapFdwOptions * create_LdapFdwOptions();
 static void initLdapConnectionStruct(LdapFdwConn *);
 static void bindLdapStruct(LdapFdwConn *);
 static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn *, Oid, char *);
+
 
 PG_MODULE_MAGIC;
 
@@ -871,9 +875,11 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 												   NULL,	/* no extra plan */
 												   NIL, /* no fdw_restrictinfo list */
 												   NIL);	/* no fdw_private data */
-#else
+#elif(PG_VERSION_NUM >= 90500 && PG_VERSION_NUM < 170000)
 	path = (Path *) create_foreignscan_path(root, baserel,
+#if (PG_VERSION_NUM >= 90600)
 												   NULL,	/* default pathtarget */
+#endif
 												   baserel->rows,
 												   startup_cost,
 												   total_cost,
@@ -881,7 +887,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 												   baserel->lateral_relids,
 												   NULL,	/* no extra plan */
 												   NIL);	/* no fdw_private list */
-/*#else if (PG_VERSION_NUM < 90500)
+#elif (PG_VERSION_NUM < 90500)
 	path = (Path *) create_foreignscan_path(root, baserel,
 						baserel->rows,
 						startup_cost,
@@ -890,37 +896,16 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 						NULL,
 						NULL);
 
-#else
-	path = (Path *) create_foreignscan_path(root, baserel,
-#if (PG_VERSION_NUM >= 90600)
-						NULL,
-#endif
-						baserel->rows,
-						startup_cost,
-						totalCost,
-						NIL,
-						NULL,
-						NULL,
-						NIL);*/
 #endif
 
 	/* Estimate costs */
 	estimate_costs(root, baserel, fdw_private, &startup_cost, &total_cost);
 	/* Create a ForeignPath node and add it as only possible path */
-	add_path(baserel, (Path *) create_foreignscan_path(root, baserel,
-							NULL,		/* default pathtarget */
-							baserel->rows,
-							startup_cost,
-							total_cost,
-							NIL,		/* no pathkeys */
-							NULL,		/* no outer rel either */
-							NULL,      /* no extra plan */
-							NIL));		/* no fdw_private data */
 	
-	// Eliminate Compiler warning
-	if(path)
-		;
 	
+		/* Add foreign path as the only possible path */
+	add_path(baserel, path);
+
 }
 
 /*
@@ -1810,26 +1795,28 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	ForeignServer *server;
 	ForeignTable *table;
     bool        isnull;
-#if PG_VERSION_NUM >= 160000
-	ForeignScan *fsplan = (ForeignScan *) mtstate->ps.plan;
-#else
-	//EState	   *estate = mtstate->ps.state;
-	RangeTblEntry *rte;
-#endif
-
-	foreignTableId = RelationGetRelid(rel);
 	
-#if PG_VERSION_NUM >= 160000
-	userid = fsplan->checkAsUser ? fsplan->checkAsUser : GetUserId();
-#else
-	rte = rt_fetch(resultRelInfo->ri_RangeTableIndex, estate->es_range_table);
-	userid = rte->checkAsUser ? rte->checkAsUser : GetUserId();
-#endif
+//#if PG_VERSION_NUM >= 160000
+//	//ForeignScan *fsplan = (ForeignScan *) mstate->ps.plan;
+//	ForeignScan *fsplan = (ForeignScan *) estate->ps.state;
+//#else
+//	//EState	   *estate = mtstate->ps.state;
+//	RangeTblEntry *rte;
+//#endif
 
-	/* Get info about foreign table. */
-	table = GetForeignTable(foreignTableId);
-	server = GetForeignServer(table->serverid);
-	user = GetUserMapping(userid, server->serverid);
+//	foreignTableId = RelationGetRelid(rel);
+	
+//#if PG_VERSION_NUM >= 160000
+//	userid = fsplan->checkAsUser ? fsplan->checkAsUser : GetUserId();
+//#else
+//	rte = rt_fetch(resultRelInfo->ri_RangeTableIndex, estate->es_range_table);
+//	userid = rte->checkAsUser ? rte->checkAsUser : GetUserId();
+//#endif
+
+//	/* Get info about foreign table. */
+//	table = GetForeignTable(foreignTableId);
+//	server = GetForeignServer(table->serverid);
+//	user = GetUserMapping(userid, server->serverid);*/
 
 	/* Begin constructing LdapFdwModifyState. */
 	fmstate = (LdapFdwModifyState *) palloc0(sizeof(LdapFdwModifyState));
