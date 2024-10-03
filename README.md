@@ -7,6 +7,7 @@ Warning: Don't use it in production systems. This fdw is not enough tested and s
 
 ## TODO
 Memory management, code reworking, error handling, write documentation, query planing to ldap filters...
+Current work: Fix Problem with many inserts.
 
 ## Usage (a better instruction guide will follow)
     - Set up your test system
@@ -18,6 +19,7 @@ Memory management, code reworking, error handling, write documentation, query pl
 
 ## Install
     DROP EXTENSION IF EXISTS ldap2_fdw CASCADE;
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
     CREATE EXTENSION IF NOT EXISTS ldap2_fdw;
     CREATE SERVER IF NOT EXISTS ldap FOREIGN DATA WRAPPER ldap2_fdw OPTIONS (uri 'ldap://localhost');
     CREATE USER MAPPING IF NOT EXISTS FOR CURRENT_USER SERVER ldap OPTIONS(username 'cn=admin,dc=nodomain', password 'password');
