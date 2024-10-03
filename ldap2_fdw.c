@@ -229,51 +229,38 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 	{
 		DefElem *def = lfirst_node(DefElem, cell);
 		
-		//ereport(INFO, errmsg_internal("ereport Func %s, Line %d, def: %s\n", __FUNCTION__, __LINE__, def->defname));
 		char * value = NULL;
 		if(nodeTag(def->arg) == T_String)
 		{
-			//DEBUGPOINT;
 			value = defGetString(def);
 		}
 		
 		if (strcmp("uri", def->defname) == 0)
 		{
-			//options->uri = defGetString(def);
 			if(value != NULL) options->uri = pstrdup(value);
 		}
 		else if(strcmp("hostname", def->defname) == 0)
 		{
-			//char * hostname = defGetString(def);
-			//options->uri = psprintf("ldap://%s", hostname);
-			//free(hostname);
 			if(value != NULL) options->uri = psprintf("ldap://%s", value);
 		}
 		else if (strcmp("username", def->defname) == 0)
 		{
-			//options->username = defGetString(def);
 			if(value != NULL) options->username = pstrdup(value);
 		}
 		else if (strcmp("password", def->defname) == 0)
 		{
-			//options->password = defGetString(def);
 			if(value != NULL) options->password = pstrdup(value);
 		}
 		else if (strcmp("basedn", def->defname) == 0)
 		{
-			//options->basedn = defGetString(def);
 			if(value != NULL) options->basedn = pstrdup(value);
 		}
 		else if (strcmp("filter", def->defname) == 0)
 		{
-			//options->filter = defGetString(def);
-			//char * filter = defGetString(def);
-			//if(filter != NULL) options->filter = pstrdup(filter);
 			if(value != NULL) options->filter = pstrdup(value);
 		}
 		else if (strcmp("schemadn", def->defname) == 0)
 		{
-			//options->schemadn = defGetString(def);
 			if(value != NULL) options->schemadn = pstrdup(value);
 		}
 		else if(strcmp("scope", def->defname) == 0)
@@ -289,6 +276,7 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 				errhint("Valid values for ldap2_fdw are \"LDAP_SCOPE_BASE\", \"LDAP_SCOPE_ONELEVEL\", \"LDAP_SCOPE_SUBTREE\", \"LDAP_SCOPE_CHILDREN\"."))
 			);
 			pfree(sscope);
+			sscope = NULL;
 		}
 		else
 		{
@@ -299,7 +287,10 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 				errhint("Valid table options for ldap2_fdw are \"uri\", \"hostname\", \"username\", \"password\", \"basedn\", \"filter\", \"objectclass\", \"schemadn\", \"scope\""))
 			);
 		}
+
+		/* Why does this work on ARM but not on x64?
 		pfree(value);
+		value = NULL;*/
 	}
 	options->use_sasl = 0;
 }
@@ -309,14 +300,6 @@ static LdapFdwOptions * GetOptionStruct(Oid foreignTableId)
 	LdapFdwOptions * options = create_LdapFdwOptions();
 	GetOptionStructr(options, foreignTableId);
 	return options;
-}
-
-void print_list(FILE *out_channel, List *list)
-{
-	for(int i = 0; i < list->length; i++)
-	{
-		fprintf(out_channel, "%s\n", (char*)list->elements[i].ptr_value);
-	}
 }
 
 static void print_options(LdapFdwOptions * options)
@@ -905,7 +888,6 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	
 		/* Add foreign path as the only possible path */
 	add_path(baserel, path);
-
 }
 
 /*
@@ -1310,15 +1292,12 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 			return slot;
 		case LDAP_RES_SEARCH_ENTRY:
 			//elog(INFO, "LDAP_RES_SEARCH_ENTRY");
-// 			DEBUGPOINT;
 			entrydn = ldap_get_dn(fdw_private->ldapConn->ldap, fdw_private->ldap_message_result);
 			i = 0;
 			ldap_get_option(fdw_private->ldapConn->ldap, LDAP_OPT_ERROR_NUMBER, &err);
 			
 			// former: *a++
 			for(char **a = fdw_private->columns; *a != NULL; a++) {
-				
-// 				DEBUGPOINT;
 				
 				column_type_is_array = (fdw_private->column_types[i])[0] == '_';
 				
@@ -1377,7 +1356,6 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	
 	tuple = heap_form_tuple(tupdesc, d_values, null_values);
 	ExecStoreHeapTuple(tuple, slot, false);
-	
 	return slot;
 
 }
