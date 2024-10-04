@@ -541,7 +541,7 @@ static LdapFdwOptions * create_LdapFdwConnForFt(Oid foreignTableId)
 
 static void initLdapConnectionStruct(LdapFdwConn * ldap_fdw_connection)
 {
-	int version = LDAP_VERSION3, rc = 0;
+	int version = LDAP_VERSION3, restart = 1, rc = 0;
 	//int debug_level = LDAP_DEBUG_TRACE;
 	
 	if(ldap_fdw_connection->options == NULL)
@@ -580,6 +580,16 @@ static void initLdapConnectionStruct(LdapFdwConn * ldap_fdw_connection)
 				errhint("Could not set ldap version option. Does ldap server accept the correct ldap version 3?")));
 		return;
 	}
+	
+	if ( ( rc = ldap_set_option( ldap_fdw_connection->ldap, LDAP_OPT_RESTART, &restart) ) != LDAP_SUCCESS )
+	{
+		ereport(ERROR,
+				(errcode(ERRCODE_FDW_ERROR),
+				errmsg("Could not set ldap restart option!"),
+				errhint("Could not set ldap restart option. Does ldap server accept the correct ldap restart option?")));
+		return;
+	}
+	
 
 	// removed ldap bind - call bind from another function
 	bindLdapStruct(ldap_fdw_connection);
@@ -1796,22 +1806,23 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 //	user = GetUserMapping(userid, server->serverid);*/
 
 	/* Begin constructing LdapFdwModifyState. */
-	fmstate = (LdapFdwModifyState *) palloc0(sizeof(LdapFdwModifyState));
+	//fmstate = (LdapFdwModifyState *) palloc0(sizeof(LdapFdwModifyState));
 
 	fmstate->rel = rel;
+	/*
 	//GetOptionStructr((fmstate->options), foreignTableId);
 	fmstate->ldapConn = create_LdapFdwConn();
 	GetOptionStructr(fmstate->ldapConn->options, foreignTableId);
 	//initLdapWithOptions(fmstate->ldapConn);
 	initLdapConnectionStruct(fmstate->ldapConn);
-
+	*/
 	j++;
 	
     // Durchlaufe alle Attribute des Tuples
     for (i = 0; i < tupdesc->natts; i++) {
         if (slot->tts_isnull[i]) {
             // Attribut ist NULL
-            elog(INFO, "Attribut %s ist NULL", NameStr(tupdesc->attrs[i].attname));
+            //elog(INFO, "Attribut %s ist NULL", NameStr(tupdesc->attrs[i].attname));
             continue;
         }
 
@@ -1870,11 +1881,12 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 
 	}
 	
-	for ( i = 0; i < fmstate->p_nums; i++ ) {
+	/*for ( i = 0; i < fmstate->p_nums; i++ ) {
 
 		free( insert_data[ i ] );
 
-	}
+	}*/
+	for(i = 0; insert_data[i] != NULL; i++) free(insert_data[i]);
 	
 	slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
 	
