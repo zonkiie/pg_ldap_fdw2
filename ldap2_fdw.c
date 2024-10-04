@@ -581,6 +581,7 @@ static void initLdapConnectionStruct(LdapFdwConn * ldap_fdw_connection)
 		return;
 	}
 	
+#warning why is LDAP_OPT_RESTART here neccessary?	
 	if ( ( rc = ldap_set_option( ldap_fdw_connection->ldap, LDAP_OPT_RESTART, &restart) ) != LDAP_SUCCESS )
 	{
 		ereport(ERROR,
