@@ -497,6 +497,7 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
  */
 static bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Expr *expression, bool is_having_cond)
 {
+#warning implement code
 	return true;
 }
 
@@ -817,6 +818,8 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   RelOptInfo *baserel,
 						   Oid foreignTableId)
 {
+	ListCell   *lc;
+	Bitmapset  *attrs_used = NULL;
 	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
 	memset(fdw_private, 0, sizeof(LdapFdwPlanState));
 	
@@ -824,6 +827,31 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	fdw_private->ldapConn = create_LdapFdwConn();
 	GetOptionStructr(fdw_private->ldapConn->options, foreignTableId);
 	initLdapConnectionStruct(fdw_private->ldapConn);
+	
+	pull_varattnos((Node *) baserel->reltarget->exprs, baserel->relid,
+				   &attrs_used);
+
+	foreach(lc, baserel->baserestrictinfo)
+	{
+		RestrictInfo *ri = (RestrictInfo *) lfirst(lc);
+
+		if (ldap_fdw_is_foreign_expr(root, baserel, ri->clause, false))
+			fdw_private->remote_conds = lappend(fdw_private->remote_conds, ri);
+		else
+			fdw_private->local_conds = lappend(fdw_private->local_conds, ri);
+	}
+
+	pull_varattnos((Node *) baserel->reltarget->exprs, baserel->relid,
+				   &fdw_private->attrs_used);
+
+	foreach(lc, fdw_private->local_conds)
+	{
+		RestrictInfo *rinfo = (RestrictInfo *) lfirst(lc);
+
+		pull_varattnos((Node *) rinfo->clause, baserel->relid,
+					   &fdw_private->attrs_used);
+	}
+
 	baserel->rows = estimate_size(fdw_private->ldapConn->ldap, fdw_private->ldapConn->options);
 	fdw_private->row = 0;
 	//elog(INFO, "Rows: %f", baserel->rows);
@@ -971,7 +999,6 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
 	//baserel->fdw_private = (void*)fdw_private;
 
-	scan_relid = baserel->relid;
 // 	foreach(cell, scan_clauses) {
 // 		Node *clause = (Node *) lfirst(cell);
 //         

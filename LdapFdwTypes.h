@@ -76,6 +76,7 @@ typedef struct LdapFdwPlanState
 	char       **columns;
 	char	   **column_types;
 	Oid		    *column_type_ids;
+	Bitmapset	*attrs_used;
 	AttInMetadata *attinmeta;
 	LDAPMessage   *ldap_message_result;
 	LDAPMessage	  *msg;
