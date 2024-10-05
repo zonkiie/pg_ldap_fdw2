@@ -948,10 +948,13 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	//Path	   *foreignPath;
 	Index		scan_relid = baserel->relid;
 	
-	ListCell *cell = NULL;
-	List *remote_exprs = NIL;
-	List *local_exprs = NIL;
-	List *fdw_private_list = NIL;
+	ListCell	*cell = NULL;
+	List 		*remote_exprs = NIL;
+	List		*local_exprs = NIL;
+	List 		*fdw_private_list = NIL;
+	List		*scan_var_list;
+	List		*fdw_scan_tlist = NIL;
+	List		*whole_row_lists = NIL;
 	StringInfoData sql_buf;
 	
     initStringInfo(&sql_buf);

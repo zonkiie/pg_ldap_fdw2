@@ -22,6 +22,7 @@
 #include "commands/defrem.h"
 #include "mb/pg_wchar.h"
 #include "nodes/nodeFuncs.h"
+#include "nodes/plannodes.h"
 #include "optimizer/tlist.h"
 #include "parser/parsetree.h"
 #include "utils/builtins.h"
