@@ -49,6 +49,8 @@
 
 #define QUOTE '"'
 
+bool ldap_fdw_is_foreign_expr(PlannerInfo *, RelOptInfo *, Expr *, bool);
+
 void
 deparseDeleteSql(StringInfo buf, PlannerInfo *root,
 				 Index rtindex, Relation rel,

@@ -492,15 +492,6 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 }*/
 
 
-/**
- * FROM mongo_query.c, function mongo_is_foreign_expr
- */
-static bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Expr *expression, bool is_having_cond)
-{
-#warning implement code
-	return true;
-}
-
 static LdapFdwConn * create_LdapFdwConn()
 {
 	LdapFdwConn* conn = (LdapFdwConn *)palloc0(sizeof(LdapFdwConn));
@@ -828,6 +819,8 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	GetOptionStructr(fdw_private->ldapConn->options, foreignTableId);
 	initLdapConnectionStruct(fdw_private->ldapConn);
 	
+	
+	/*
 	pull_varattnos((Node *) baserel->reltarget->exprs, baserel->relid,
 				   &attrs_used);
 
@@ -851,7 +844,9 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 		pull_varattnos((Node *) rinfo->clause, baserel->relid,
 					   &fdw_private->attrs_used);
 	}
-
+	*/
+	
+	
 	baserel->rows = estimate_size(fdw_private->ldapConn->ldap, fdw_private->ldapConn->options);
 	fdw_private->row = 0;
 	//elog(INFO, "Rows: %f", baserel->rows);
@@ -998,8 +993,63 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	//initLdapConnectionStruct(fdw_private->ldapConn);
 	
 	//baserel->fdw_private = (void*)fdw_private;
-
-// 	foreach(cell, scan_clauses) {
+	
+	
+	foreach(cell, scan_clauses) {
+	/*
+		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
+		HeapTuple	tuple;
+		Node *expr = (Node*)rinfo->clause;
+		ScalarArrayOpExpr *scalar_expr = (ScalarArrayOpExpr*)expr;
+		if(list_length(scalar_expr->args) == 2)
+		{
+			Expr		*arg1 = linitial(scalar_expr->args);
+			DEBUGPOINT;
+			Expr		*arg2 = lsecond(scalar_expr->args);
+			DEBUGPOINT;
+			Form_pg_operator form;
+			DEBUGPOINT;
+			char	   *opname;
+			
+			DEBUGPOINT;
+			
+			tuple = SearchSysCache1(OPEROID, ObjectIdGetDatum(scalar_expr->opno));
+			DEBUGPOINT;
+			if (!HeapTupleIsValid(tuple))
+				elog(ERROR, "cache lookup failed for operator %u", scalar_expr->opno);
+			form = (Form_pg_operator) GETSTRUCT(tuple);
+			opname = NameStr(form->oprname);
+			//if (strcmp(opname, "<>") == 0)
+			//	appendStringInfo(buf, " NOT");
+			//
+			DEBUGPOINT;
+			
+			if (IsA(arg2, Const))
+			{
+				Const	   *arrayconst = (Const *) arg2;
+				int 		i;
+				int			num_attr;
+				Datum	   *attr;
+				int16		elmlen;
+				bool		elmbyval;
+				bool		typIsVarlena;
+				char		elmalign;
+				Oid 		typOutput;
+				bool	   *nullsp = NULL;
+				Oid			elemtype;
+				ArrayType  *arrayval = DatumGetArrayTypeP(arrayconst->constvalue);
+				elemtype = ARR_ELEMTYPE(arrayval);
+				get_typlenbyvalalign(elemtype, &elmlen, &elmbyval, &elmalign);
+				deconstruct_array(arrayval, elemtype, elmlen, elmbyval,
+								elmalign, &attr, &nullsp, &num_attr);
+				getTypeOutputInfo(elemtype, &typOutput, &typIsVarlena);
+			}
+			
+			char *clause_string = nodeToString(expr);
+			
+			elog(INFO, "Line: %d, node2String: %s", __LINE__, nodeToString(expr));
+		}
+		*/
 // 		Node *clause = (Node *) lfirst(cell);
 //         
 //         // Convert the expression to string
@@ -1014,17 +1064,17 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 //         {
 //             appendStringInfoString(&sql_buf, " \nAND\n "); // or whatever separator is appropriate
 //         }
-// 		
-// 		/*
-// 		DefElem *def = lfirst_node(DefElem, cell);
-// 		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
-// 		char * value = NULL;
-// 		value = defGetString(def);
-// 		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
-// 		*/
-// 	}
-// 	
-// 	elog(INFO, "sql: %s", sql_buf.data);
+		
+		/*
+		DefElem *def = lfirst_node(DefElem, cell);
+		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
+		char * value = NULL;
+		value = defGetString(def);
+		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
+		*/
+	}
+	
+	//elog(INFO, "sql: %s", sql_buf.data);
 	
 	
 	/*
@@ -1634,9 +1684,9 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 							 &retrieved_attrs);*/
 			break;
 		case CMD_DELETE:
-			deparseDeleteSql(&sql, root, resultRelation, rel,
+			/*deparseDeleteSql(&sql, root, resultRelation, rel,
 							 returningList,
-							 &retrieved_attrs);
+							 &retrieved_attrs);*/
 			break;
 #if PG_VERSION_NUM >= 150000
 		case CMD_MERGE:
