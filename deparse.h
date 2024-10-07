@@ -50,6 +50,7 @@
 #define QUOTE '"'
 
 bool ldap_fdw_is_foreign_expr(PlannerInfo *, RelOptInfo *, Expr *, bool);
+void ldap2_fdw_log_nodeTags();
 
 void
 deparseDeleteSql(StringInfo buf, PlannerInfo *root,

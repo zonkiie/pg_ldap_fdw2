@@ -994,84 +994,95 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
 	//baserel->fdw_private = (void*)fdw_private;
 	
-	
 	foreach(cell, scan_clauses) {
-	/*
+	
+/*
 		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
 		HeapTuple	tuple;
+		DEBUGPOINT;
 		Node *expr = (Node*)rinfo->clause;
-		ScalarArrayOpExpr *scalar_expr = (ScalarArrayOpExpr*)expr;
-		if(list_length(scalar_expr->args) == 2)
+		elog(INFO, "Node Tag: %d", nodeTag(expr));
+		char *tag = nodeToString(expr);
+		elog(INFO, "RestrictInfo: %s", tag);
+		if(nodeTag(expr) == T_ScalarArrayOpExpr)
 		{
-			Expr		*arg1 = linitial(scalar_expr->args);
 			DEBUGPOINT;
-			Expr		*arg2 = lsecond(scalar_expr->args);
+			ScalarArrayOpExpr *scalar_expr = (ScalarArrayOpExpr*)expr;
 			DEBUGPOINT;
-			Form_pg_operator form;
-			DEBUGPOINT;
-			char	   *opname;
-			
-			DEBUGPOINT;
-			
-			tuple = SearchSysCache1(OPEROID, ObjectIdGetDatum(scalar_expr->opno));
-			DEBUGPOINT;
-			if (!HeapTupleIsValid(tuple))
-				elog(ERROR, "cache lookup failed for operator %u", scalar_expr->opno);
-			form = (Form_pg_operator) GETSTRUCT(tuple);
-			opname = NameStr(form->oprname);
-			//if (strcmp(opname, "<>") == 0)
-			//	appendStringInfo(buf, " NOT");
-			//
-			DEBUGPOINT;
-			
-			if (IsA(arg2, Const))
+			if(list_length(scalar_expr->args) == 2)
 			{
-				Const	   *arrayconst = (Const *) arg2;
-				int 		i;
-				int			num_attr;
-				Datum	   *attr;
-				int16		elmlen;
-				bool		elmbyval;
-				bool		typIsVarlena;
-				char		elmalign;
-				Oid 		typOutput;
-				bool	   *nullsp = NULL;
-				Oid			elemtype;
-				ArrayType  *arrayval = DatumGetArrayTypeP(arrayconst->constvalue);
-				elemtype = ARR_ELEMTYPE(arrayval);
-				get_typlenbyvalalign(elemtype, &elmlen, &elmbyval, &elmalign);
-				deconstruct_array(arrayval, elemtype, elmlen, elmbyval,
-								elmalign, &attr, &nullsp, &num_attr);
-				getTypeOutputInfo(elemtype, &typOutput, &typIsVarlena);
+				Expr		*arg1 = linitial(scalar_expr->args);
+				DEBUGPOINT;
+				Expr		*arg2 = lsecond(scalar_expr->args);
+				DEBUGPOINT;
+				Form_pg_operator form;
+				DEBUGPOINT;
+				char	   *opname;
+				
+				DEBUGPOINT;
+				
+				tuple = SearchSysCache1(OPEROID, ObjectIdGetDatum(scalar_expr->opno));
+				DEBUGPOINT;
+				if (!HeapTupleIsValid(tuple))
+					elog(ERROR, "cache lookup failed for operator %u", scalar_expr->opno);
+				form = (Form_pg_operator) GETSTRUCT(tuple);
+				opname = NameStr(form->oprname);
+				elog(INFO, "Opname: %s", opname);
+				//if (strcmp(opname, "<>") == 0)
+				//	appendStringInfo(buf, " NOT");
+				//
+				DEBUGPOINT;
+				
+				if (IsA(arg2, Const))
+				{
+					Const	   *arrayconst = (Const *) arg2;
+					int 		i;
+					int			num_attr;
+					Datum	   *attr;
+					int16		elmlen;
+					bool		elmbyval;
+					bool		typIsVarlena;
+					char		elmalign;
+					Oid 		typOutput;
+					bool	   *nullsp = NULL;
+					Oid			elemtype;
+					ArrayType  *arrayval = DatumGetArrayTypeP(arrayconst->constvalue);
+					elemtype = ARR_ELEMTYPE(arrayval);
+					get_typlenbyvalalign(elemtype, &elmlen, &elmbyval, &elmalign);
+					deconstruct_array(arrayval, elemtype, elmlen, elmbyval,
+									elmalign, &attr, &nullsp, &num_attr);
+					getTypeOutputInfo(elemtype, &typOutput, &typIsVarlena);
+				}
+				
+				char *clause_string = nodeToString(expr);
+				
+				elog(INFO, "Line: %d, node2String: %s", __LINE__, nodeToString(expr));
 			}
+			DEBUGPOINT;
 			
-			char *clause_string = nodeToString(expr);
+	// 		Node *clause = (Node *) lfirst(cell);
+	//         
+	//         // Convert the expression to string
+	//         char *clause_sql = nodeToString(clause);
+	// 		
+	// 		appendStringInfoString(&sql_buf, clause_sql);
+	// 		
+	// 		pfree(clause_sql);
+	// 		
+	// 		// Optionally add a separator (like a space or comma) if desired
+	//         if (lnext(scan_clauses, cell) != NULL)
+	//         {
+	//             appendStringInfoString(&sql_buf, " \nAND\n "); // or whatever separator is appropriate
+	//         }
 			
-			elog(INFO, "Line: %d, node2String: %s", __LINE__, nodeToString(expr));
-		}
-		*/
-// 		Node *clause = (Node *) lfirst(cell);
-//         
-//         // Convert the expression to string
-//         char *clause_sql = nodeToString(clause);
-// 		
-// 		appendStringInfoString(&sql_buf, clause_sql);
-// 		
-// 		pfree(clause_sql);
-// 		
-// 		// Optionally add a separator (like a space or comma) if desired
-//         if (lnext(scan_clauses, cell) != NULL)
-//         {
-//             appendStringInfoString(&sql_buf, " \nAND\n "); // or whatever separator is appropriate
-//         }
-		
-		/*
-		DefElem *def = lfirst_node(DefElem, cell);
-		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
-		char * value = NULL;
-		value = defGetString(def);
-		ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
-		*/
+			
+			DefElem *def = lfirst_node(DefElem, cell);
+			ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
+			char * value = NULL;
+			value = defGetString(def);
+			ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
+			
+		}*/
 	}
 	
 	//elog(INFO, "sql: %s", sql_buf.data);
@@ -2287,7 +2298,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	//datum = ExecGetJunkAttribute(planSlot, 1, &isNull);
 	char *value_str = DatumGetCString(DirectFunctionCall1(textout, datum));
 	
-	if(dn = pstrdup(value_str))
+	if((dn = pstrdup(value_str)))
 	{
 		
 		slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);

@@ -14,6 +14,25 @@ bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Expr *expr
 	return true;
 }
 
+
+void ldap2_fdw_log_nodeTags()
+{
+	elog(INFO, "T_Var: %d", T_Var);
+	elog(INFO, "T_Const: %d", T_Const);
+	elog(INFO, "T_Param: %d", T_Param);
+	elog(INFO, "T_SubscriptingRef: %d", T_SubscriptingRef);
+	elog(INFO, "T_FuncExpr: %d", T_FuncExpr);
+	elog(INFO, "T_OpExpr: %d", T_OpExpr);
+	elog(INFO, "T_DistinctExpr: %d", T_DistinctExpr);
+	elog(INFO, "T_ScalarArrayOpExpr: %d", T_ScalarArrayOpExpr);
+	elog(INFO, "T_RelabelType: %d", T_RelabelType);
+	elog(INFO, "T_BoolExpr: %d", T_BoolExpr);
+	elog(INFO, "T_NullTest: %d", T_NullTest);
+	elog(INFO, "T_Aggref: %d", T_Aggref);
+}	
+
+
+
 /*
  * from mysql_deparse_from_expr, mysql_fdw
  * 		Construct a FROM clause and, if needed, a WHERE clause, and
@@ -159,41 +178,41 @@ bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Expr *expr
 // 	switch (nodeTag(node))
 // 	{
 // 		case T_Var:
-// 			mysql_deparse_var((Var *) node, context);
+// 			ldap2_fdw_deparse_var((Var *) node, context);
 // 			break;
 // 		case T_Const:
-// 			mysql_deparse_const((Const *) node, context);
+// 			ldap2_fdw_deparse_const((Const *) node, context);
 // 			break;
 // 		case T_Param:
-// 			mysql_deparse_param((Param *) node, context);
+// 			ldap2_fdw_deparse_param((Param *) node, context);
 // 			break;
 // 		case T_SubscriptingRef:
-// 			mysql_deparse_array_ref((SubscriptingRef *) node, context);
+// 			ldap2_fdw_deparse_array_ref((SubscriptingRef *) node, context);
 // 			break;
 // 		case T_FuncExpr:
-// 			mysql_deparse_func_expr((FuncExpr *) node, context);
+// 			ldap2_fdw_deparse_func_expr((FuncExpr *) node, context);
 // 			break;
 // 		case T_OpExpr:
-// 			mysql_deparse_op_expr((OpExpr *) node, context);
+// 			ldap2_fdw_deparse_op_expr((OpExpr *) node, context);
 // 			break;
 // 		case T_DistinctExpr:
-// 			mysql_deparse_distinct_expr((DistinctExpr *) node, context);
+// 			ldap2_fdw_deparse_distinct_expr((DistinctExpr *) node, context);
 // 			break;
 // 		case T_ScalarArrayOpExpr:
-// 			mysql_deparse_scalar_array_op_expr((ScalarArrayOpExpr *) node,
+// 			ldap2_fdw_deparse_scalar_array_op_expr((ScalarArrayOpExpr *) node,
 // 											   context);
 // 			break;
 // 		case T_RelabelType:
-// 			mysql_deparse_relabel_type((RelabelType *) node, context);
+// 			ldap2_fdw_deparse_relabel_type((RelabelType *) node, context);
 // 			break;
 // 		case T_BoolExpr:
-// 			mysql_deparse_bool_expr((BoolExpr *) node, context);
+// 			ldap2_fdw_deparse_bool_expr((BoolExpr *) node, context);
 // 			break;
 // 		case T_NullTest:
-// 			mysql_deparse_null_test((NullTest *) node, context);
+// 			ldap2_fdw_deparse_null_test((NullTest *) node, context);
 // 			break;
 // 		case T_Aggref:
-// 			mysql_deparse_aggref((Aggref *) node, context);
+// 			ldap2_fdw_deparse_aggref((Aggref *) node, context);
 // 			break;
 // 		default:
 // 			elog(ERROR, "unsupported expression type for deparse: %d",
@@ -201,7 +220,9 @@ bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Expr *expr
 // 			break;
 // 	}
 // }
-// 
+
+
+
 
 
 /*
