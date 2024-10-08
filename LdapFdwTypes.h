@@ -75,6 +75,7 @@ typedef struct LdapFdwPlanState
 	List	   *remote_conds;
 	char       **columns;
 	char	   **column_types;
+	char		*dn_clauses;
 	Oid		    *column_type_ids;
 	Bitmapset	*attrs_used;
 	AttInMetadata *attinmeta;

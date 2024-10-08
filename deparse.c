@@ -1,6 +1,38 @@
 #include "deparse.h"
 
+#define DEBUGPOINT elog(INFO, "ereport File %s, Func %s, Line %d\n", __FILE__, __FUNCTION__, __LINE__)
 
+typedef struct deparse_expr_cxt
+{
+	PlannerInfo *root;			/* global planner state */
+	RelOptInfo *foreignrel;		/* the foreign relation we are planning for */
+	RelOptInfo *scanrel;		/* the underlying scan relation. Same as
+								 * foreignrel, when that represents a join or
+								 * a base relation. */
+	StringInfo	buf;			/* output buffer to append to */
+	List	  **params_list;	/* exprs that will become remote Params */
+	bool		is_not_distinct_op; /* True in case of IS NOT DISTINCT clause */
+	Oid 		foreignTableId;
+	char        *cbuf;
+	bool		remote_handle_able;
+} deparse_expr_cxt;
+
+static void deparseExpr(Expr *expr, deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_relation(StringInfo buf, Relation rel);
+static void ldap2_fdw_deparse_var(Var *node, deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_const(Const *node, deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_param(Param *node, deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_array_ref(SubscriptingRef *node,
+									deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_func_expr(FuncExpr *node, deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_op_expr(OpExpr *node, deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_distinct_expr(DistinctExpr *node,
+										deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_relabel_type(RelabelType *node,
+									   deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_bool_expr(BoolExpr *node, deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_null_test(NullTest *node, deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_aggref(Aggref *node, deparse_expr_cxt *context);
 //static void deparseRelation(StringInfo buf, Relation rel);
 // static void ldap2_fdw_deparse_from_expr(List *, deparse_expr_cxt *);
 // static void ldap2_fdw_append_conditions(List *, deparse_expr_cxt *);
@@ -11,120 +43,311 @@
 bool ldap_fdw_is_foreign_expr(PlannerInfo *root, RelOptInfo *baserel, Expr *expression, bool is_having_cond)
 {
 #warning implement code
-	return true;
+	return false;
 }
 
 
-void ldap2_fdw_log_nodeTags()
-{
-	elog(INFO, "T_Var: %d", T_Var);
-	elog(INFO, "T_Const: %d", T_Const);
-	elog(INFO, "T_Param: %d", T_Param);
-	elog(INFO, "T_SubscriptingRef: %d", T_SubscriptingRef);
-	elog(INFO, "T_FuncExpr: %d", T_FuncExpr);
-	elog(INFO, "T_OpExpr: %d", T_OpExpr);
-	elog(INFO, "T_DistinctExpr: %d", T_DistinctExpr);
-	elog(INFO, "T_ScalarArrayOpExpr: %d", T_ScalarArrayOpExpr);
-	elog(INFO, "T_RelabelType: %d", T_RelabelType);
-	elog(INFO, "T_BoolExpr: %d", T_BoolExpr);
-	elog(INFO, "T_NullTest: %d", T_NullTest);
-	elog(INFO, "T_Aggref: %d", T_Aggref);
-}	
 
 
-List * ldap2_fdw_extract_dn(List *scan_clauses)
+static void
+ldap2_fdw_deparse_relation(StringInfo buf, Relation rel)
 {
-	List * retval = NIL;
-	foreach(cell, scan_clauses) {
-	
-/*
-		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
-		HeapTuple	tuple;
-		DEBUGPOINT;
-		Node *expr = (Node*)rinfo->clause;
-		elog(INFO, "Node Tag: %d", nodeTag(expr));
-		char *tag = nodeToString(expr);
-		elog(INFO, "RestrictInfo: %s", tag);
-		if(nodeTag(expr) == T_ScalarArrayOpExpr)
-		{
-			DEBUGPOINT;
-			ScalarArrayOpExpr *scalar_expr = (ScalarArrayOpExpr*)expr;
-			DEBUGPOINT;
-			if(list_length(scalar_expr->args) == 2)
-			{
-				Expr		*arg1 = linitial(scalar_expr->args);
-				DEBUGPOINT;
-				Expr		*arg2 = lsecond(scalar_expr->args);
-				DEBUGPOINT;
-				Form_pg_operator form;
-				DEBUGPOINT;
-				char	   *opname;
-				
-				DEBUGPOINT;
-				
-				tuple = SearchSysCache1(OPEROID, ObjectIdGetDatum(scalar_expr->opno));
-				DEBUGPOINT;
-				if (!HeapTupleIsValid(tuple))
-					elog(ERROR, "cache lookup failed for operator %u", scalar_expr->opno);
-				form = (Form_pg_operator) GETSTRUCT(tuple);
-				opname = NameStr(form->oprname);
-				elog(INFO, "Opname: %s", opname);
-				//if (strcmp(opname, "<>") == 0)
-				//	appendStringInfo(buf, " NOT");
-				//
-				DEBUGPOINT;
-				
-				if (IsA(arg2, Const))
-				{
-					Const	   *arrayconst = (Const *) arg2;
-					int 		i;
-					int			num_attr;
-					Datum	   *attr;
-					int16		elmlen;
-					bool		elmbyval;
-					bool		typIsVarlena;
-					char		elmalign;
-					Oid 		typOutput;
-					bool	   *nullsp = NULL;
-					Oid			elemtype;
-					ArrayType  *arrayval = DatumGetArrayTypeP(arrayconst->constvalue);
-					elemtype = ARR_ELEMTYPE(arrayval);
-					get_typlenbyvalalign(elemtype, &elmlen, &elmbyval, &elmalign);
-					deconstruct_array(arrayval, elemtype, elmlen, elmbyval,
-									elmalign, &attr, &nullsp, &num_attr);
-					getTypeOutputInfo(elemtype, &typOutput, &typIsVarlena);
-				}
-				
-				char *clause_string = nodeToString(expr);
-				
-				elog(INFO, "Line: %d, node2String: %s", __LINE__, nodeToString(expr));
-			}
-			DEBUGPOINT;
-			
-	// 		Node *clause = (Node *) lfirst(cell);
-	//         
-	//         // Convert the expression to string
-	//         char *clause_sql = nodeToString(clause);
-	// 		
-	// 		appendStringInfoString(&sql_buf, clause_sql);
-	// 		
-	// 		pfree(clause_sql);
-	// 		
-	// 		// Optionally add a separator (like a space or comma) if desired
-	//         if (lnext(scan_clauses, cell) != NULL)
-	//         {
-	//             appendStringInfoString(&sql_buf, " \nAND\n "); // or whatever separator is appropriate
-	//         }
-			
-			
-			DefElem *def = lfirst_node(DefElem, cell);
-			ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s\n", __FUNCTION__, __LINE__, def->defname));
-			char * value = NULL;
-			value = defGetString(def);
-			ereport(INFO, errmsg_internal("%s ereport Line %d : name: %s, value: %s\n", __FUNCTION__, __LINE__, def->defname, value));
-			
-		}*/
+	ForeignTable *table;
+	const char *nspname = NULL;
+	const char *relname = NULL;
+	ListCell   *lc;
+
+	/* Obtain additional catalog information. */
+	table = GetForeignTable(RelationGetRelid(rel));
+
+	/*
+	 * Use value of FDW options if any, instead of the name of object itself.
+	 */
+	foreach(lc, table->options)
+	{
+		DefElem    *def = (DefElem *) lfirst(lc);
+
+		if (strcmp(def->defname, "dbname") == 0)
+			nspname = defGetString(def);
+		else if (strcmp(def->defname, "table_name") == 0)
+			relname = defGetString(def);
 	}
+
+	/*
+	 * Note: we could skip printing the schema name if it's pg_catalog, but
+	 * that doesn't seem worth the trouble.
+	 */
+	if (nspname == NULL)
+		nspname = get_namespace_name(RelationGetNamespace(rel));
+	if (relname == NULL)
+		relname = RelationGetRelationName(rel);
+
+	appendStringInfo(buf, "%s.%s", mysql_quote_identifier(nspname, '`'),
+					 mysql_quote_identifier(relname, '`'));
+}
+
+
+static void
+ldap2_fdw_deparse_var(Var *node, deparse_expr_cxt *context)
+{
+	//Relids		relids = context->scanrel->relids;
+	ForeignTable *table = GetForeignTable(context->foreignTableId);
+	RangeTblEntry *rte = planner_rt_fetch(node->varno, context->root);
+	char	*colname = get_attname(rte->relid, node->varno, false);
+	strmcat_multi(&(context->cbuf), "(", colname, "=");
+	//appendStringInfo(context->buf, "(%s=", colname);
+}
+
+static void
+ldap2_fdw_deparse_const(Const *node, deparse_expr_cxt *context)
+{
+	StringInfo	buf = context->buf;
+	Oid			typoutput;
+	bool		typIsVarlena;
+	char	   *extval;
+	
+	if (node->constisnull)
+	{
+		return;
+	}
+	
+	switch (node->consttype)
+	{
+		case INT2OID:
+		case INT4OID:
+		case INT8OID:
+		case OIDOID:
+		case FLOAT4OID:
+		case FLOAT8OID:
+		case NUMERICOID:
+			{
+				DEBUGPOINT;
+				extval = OidOutputFunctionCall(typoutput, node->constvalue);
+
+				/*
+				 * No need to quote unless it's a special value such as 'NaN'.
+				 * See comments in get_const_expr().
+				 */
+				if (strspn(extval, "0123456789+-eE.") == strlen(extval))
+				{
+					if (extval[0] == '+' || extval[0] == '-')
+						appendStringInfo(buf, "(%s)", extval);
+					else
+						appendStringInfoString(buf, extval);
+				}
+				else
+					appendStringInfo(buf, "'%s'", extval);
+			}
+			break;
+		case BITOID:
+		case VARBITOID:
+			DEBUGPOINT;
+			extval = OidOutputFunctionCall(typoutput, node->constvalue);
+			appendStringInfo(buf, "B'%s'", extval);
+			break;
+		case BOOLOID:
+			DEBUGPOINT;
+			extval = OidOutputFunctionCall(typoutput, node->constvalue);
+			if (strcmp(extval, "t") == 0)
+				appendStringInfoString(buf, "true");
+			else
+				appendStringInfoString(buf, "false");
+			break;
+		case INTERVALOID:
+			//deparse_interval(buf, node->constvalue);
+			elog(ERROR, "Cannot handle interval!");
+			break;
+		case BYTEAOID:
+			DEBUGPOINT;
+			/*
+			 * The string for BYTEA always seems to be in the format "\\x##"
+			 * where # is a hex digit, Even if the value passed in is
+			 * 'hi'::bytea we will receive "\x6869". Making this assumption
+			 * allows us to quickly convert postgres escaped strings to mysql
+			 * ones for comparison
+			 */
+			extval = OidOutputFunctionCall(typoutput, node->constvalue);
+			appendStringInfo(buf, "X\'%s\'", extval + 2);
+			break;
+		default:
+			//extval = OidOutputFunctionCall(typoutput, node->constvalue);
+			extval = DatumGetCString(DirectFunctionCall1(textout, node->constvalue));
+			//appendStringInfo(context->buf, "%s)", extval);
+			strmcat_multi(&(context->cbuf), extval, ")");
+			//mysql_deparse_string_literal(buf, extval);
+			break;
+	}
+}
+
+static void
+ldap2_fdw_deparse_param(Param *node, deparse_expr_cxt *context)
+{
+	DEBUGPOINT;
+}
+
+static void
+ldap2_fdw_deparse_array_ref(SubscriptingRef *node, deparse_expr_cxt *context)
+{
+	DEBUGPOINT;
+}
+
+static void
+ldap2_fdw_deparse_func_expr(FuncExpr *node, deparse_expr_cxt *context)
+{
+	DEBUGPOINT;
+}
+
+/**
+ * From mysql_deparse_op_expr
+ */
+static void
+ldap2_fdw_deparse_op_expr(OpExpr *node, deparse_expr_cxt *context)
+{
+	HeapTuple	tuple;
+	Form_pg_operator form;
+	ListCell   *arg;
+	char		oprkind;
+
+	tuple = SearchSysCache1(OPEROID, ObjectIdGetDatum(node->opno));
+	if (!HeapTupleIsValid(tuple))
+		elog(ERROR, "cache lookup failed for operator %u", node->opno);
+	form = (Form_pg_operator) GETSTRUCT(tuple);
+	oprkind = form->oprkind;
+	
+	char * opname = NameStr(form->oprname);
+	
+	elog(INFO, "Opname: %s", opname);
+	/* Deparse left operand. */
+	if (oprkind == 'r' || oprkind == 'b')
+	{
+		arg = list_head(node->args);
+		deparseExpr(lfirst(arg), context);
+		//appendStringInfoChar(buf, ' ');
+	}
+
+	/* Deparse right operand. */
+	if (oprkind == 'l' || oprkind == 'b')
+	{
+		arg = list_tail(node->args);
+		//appendStringInfoChar(buf, ' ');
+		deparseExpr(lfirst(arg), context);
+	}
+
+	if(strcmp(opname, "=")) context->remote_handle_able = false;
+	//appendStringInfoChar(buf, ')');
+
+	ReleaseSysCache(tuple);
+	
+}
+
+static void
+ldap2_fdw_deparse_distinct_expr(DistinctExpr *node, deparse_expr_cxt *context)
+{
+	DEBUGPOINT;
+}
+
+static void
+ldap2_fdw_deparse_scalar_array_op_expr(ScalarArrayOpExpr *node, deparse_expr_cxt *context)
+{
+	DEBUGPOINT;
+	if(list_length(node->args) == 2)
+	{
+		HeapTuple	tuple;
+		Expr		*arg1 = linitial(node->args);
+		DEBUGPOINT;
+		Expr		*arg2 = lsecond(node->args);
+		DEBUGPOINT;
+		Form_pg_operator form;
+		DEBUGPOINT;
+		char	   *opname;
+		
+		DEBUGPOINT;
+		
+		tuple = SearchSysCache1(OPEROID, ObjectIdGetDatum(node->opno));
+		DEBUGPOINT;
+		if (!HeapTupleIsValid(tuple))
+			elog(ERROR, "cache lookup failed for operator %u", node->opno);
+		form = (Form_pg_operator) GETSTRUCT(tuple);
+		opname = NameStr(form->oprname);
+		elog(INFO, "Opname: %s", opname);
+		//if (strcmp(opname, "<>") == 0)
+		//	appendStringInfo(buf, " NOT");
+		//
+		DEBUGPOINT;
+		
+		if (IsA(arg2, Const))
+		{
+			Const	   *arrayconst = (Const *) arg2;
+			int 		i;
+			int			num_attr;
+			Datum	   *attr;
+			int16		elmlen;
+			bool		elmbyval;
+			bool		typIsVarlena;
+			char		elmalign;
+			Oid 		typOutput;
+			bool	   *nullsp = NULL;
+			Oid			elemtype;
+			ArrayType  *arrayval = DatumGetArrayTypeP(arrayconst->constvalue);
+			elemtype = ARR_ELEMTYPE(arrayval);
+			get_typlenbyvalalign(elemtype, &elmlen, &elmbyval, &elmalign);
+			deconstruct_array(arrayval, elemtype, elmlen, elmbyval,
+							elmalign, &attr, &nullsp, &num_attr);
+			getTypeOutputInfo(elemtype, &typOutput, &typIsVarlena);
+		}
+	}
+	DEBUGPOINT;
+	
+}
+
+static void
+ldap2_fdw_deparse_relabel_type(RelabelType *node, deparse_expr_cxt *context)
+{
+	deparseExpr(node->arg, context);
+}
+
+static void
+ldap2_fdw_deparse_bool_expr(BoolExpr *node, deparse_expr_cxt *context)
+{
+	DEBUGPOINT;
+}
+
+static void
+ldap2_fdw_deparse_null_test(NullTest *node, deparse_expr_cxt *context)
+{
+	DEBUGPOINT;
+}
+
+static void
+ldap2_fdw_deparse_aggref(Aggref *node, deparse_expr_cxt *context)
+{
+	DEBUGPOINT;
+}
+
+/**
+ * aus mysql_deparse_select_stmt_for_rel
+ */
+char * ldap2_fdw_extract_dn(PlannerInfo * root, Oid foreignTableId, List *scan_clauses)
+{
+	deparse_expr_cxt context;
+	context.foreignTableId = foreignTableId;
+	context.root = root;
+	context.remote_handle_able = true;
+	initStringInfo(&(context.buf));
+	context.cbuf = strdup("");
+	ListCell *cell = NULL;
+	char * retval = NIL;
+	int count = 0;
+	foreach(cell, scan_clauses) {
+		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
+		Node *expr = (Node*)rinfo->clause;
+		deparseExpr(expr, &context);
+		count++;
+	}
+	elog(INFO, "count: %d", count);
+	retval = pstrdup(context.cbuf);
+	free(context.cbuf);
+	if(!context.remote_handle_able) return NULL;
 	return retval;
 	
 }
@@ -267,20 +490,21 @@ List * ldap2_fdw_extract_dn(List *scan_clauses)
  * scheme: anything more complex than a Var, Const, function call or cast
  * should be self-parenthesized.
  */
-// static void
-// deparseExpr(Expr *node, deparse_expr_cxt *context)
-// {
-// 	if (node == NULL)
-// 		return;
-// 
-// 	switch (nodeTag(node))
-// 	{
-// 		case T_Var:
-// 			ldap2_fdw_deparse_var((Var *) node, context);
-// 			break;
-// 		case T_Const:
-// 			ldap2_fdw_deparse_const((Const *) node, context);
-// 			break;
+static void
+deparseExpr(Expr *node, deparse_expr_cxt *context)
+{
+	if (node == NULL)
+		return;
+	context->remote_handle_able = true;
+
+	switch (nodeTag(node))
+	{
+		case T_Var:
+			ldap2_fdw_deparse_var((Var *) node, context);
+			break;
+		case T_Const:
+			ldap2_fdw_deparse_const((Const *) node, context);
+			break;
 // 		case T_Param:
 // 			ldap2_fdw_deparse_param((Param *) node, context);
 // 			break;
@@ -290,16 +514,15 @@ List * ldap2_fdw_extract_dn(List *scan_clauses)
 // 		case T_FuncExpr:
 // 			ldap2_fdw_deparse_func_expr((FuncExpr *) node, context);
 // 			break;
-// 		case T_OpExpr:
-// 			ldap2_fdw_deparse_op_expr((OpExpr *) node, context);
-// 			break;
+		case T_OpExpr:
+			ldap2_fdw_deparse_op_expr((OpExpr *) node, context);
+			break;
 // 		case T_DistinctExpr:
 // 			ldap2_fdw_deparse_distinct_expr((DistinctExpr *) node, context);
 // 			break;
-// 		case T_ScalarArrayOpExpr:
-// 			ldap2_fdw_deparse_scalar_array_op_expr((ScalarArrayOpExpr *) node,
-// 											   context);
-// 			break;
+		case T_ScalarArrayOpExpr:
+			ldap2_fdw_deparse_scalar_array_op_expr((ScalarArrayOpExpr *) node, context);
+			break;
 // 		case T_RelabelType:
 // 			ldap2_fdw_deparse_relabel_type((RelabelType *) node, context);
 // 			break;
@@ -312,12 +535,15 @@ List * ldap2_fdw_extract_dn(List *scan_clauses)
 // 		case T_Aggref:
 // 			ldap2_fdw_deparse_aggref((Aggref *) node, context);
 // 			break;
-// 		default:
-// 			elog(ERROR, "unsupported expression type for deparse: %d",
-// 				 (int) nodeTag(node));
-// 			break;
-// 	}
-// }
+		case T_ArrayCoerceExpr:
+			//elog(ERROR, "T_ArrayCoerceExpr expression not supported! NodeTag: %d", T_ArrayCoerceExpr);
+		default:
+			//elog(ERROR, "unsupported expression type for deparse: %d",
+			//	 (int) nodeTag(node));
+			context->remote_handle_able = false;
+			break;
+	}
+}
 
 
 

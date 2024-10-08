@@ -30,6 +30,7 @@
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/rel.h"
+#include "utils/syscache.h"
 #if (PG_VERSION_NUM >= 120000)
 #include "nodes/pathnodes.h"
 #include "access/table.h"
@@ -45,13 +46,12 @@
 #include "foreign/foreign.h"
 #include "lib/stringinfo.h"
 #include "utils/rel.h"
-#include "funcapi.h"
+#include "helper_functions.h"
 
 #define QUOTE '"'
 
 bool ldap_fdw_is_foreign_expr(PlannerInfo *, RelOptInfo *, Expr *, bool);
-void ldap2_fdw_log_nodeTags();
-List * ldap2_fdw_extract_dn(List *);
+char * ldap2_fdw_extract_dn(PlannerInfo *, Oid, List *);
 
 void
 deparseDeleteSql(StringInfo buf, PlannerInfo *root,

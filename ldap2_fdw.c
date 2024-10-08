@@ -978,6 +978,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	List		*scan_var_list;
 	List		*fdw_scan_tlist = NIL;
 	List		*whole_row_lists = NIL;
+	char		*dn_clauses = NULL;
 	StringInfoData sql_buf;
 	
     initStringInfo(&sql_buf);
@@ -993,9 +994,13 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	//initLdapConnectionStruct(fdw_private->ldapConn);
 	
 	//baserel->fdw_private = (void*)fdw_private;
-	
+	//ldap2_fdw_log_nodeTags();
 	// call ldap2_fdw_extract_dn(List *scan_clauses) here
-	//elog(INFO, "sql: %s", sql_buf.data);
+	
+	// Working on ldap filtering
+	
+	/*dn_clauses = ldap2_fdw_extract_dn(root, foreignTableId, scan_clauses);
+	fdw_private_list = list_make1(makeString(dn_clauses));*/
 	
 	
 	/*
@@ -1161,7 +1166,7 @@ ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
 static void
 ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 {
-	//ForeignScan *fsplan = (ForeignScan *) node->ss.ps.plan;
+	ForeignScan *fsplan = (ForeignScan *) node->ss.ps.plan;
 	//Relation *frel = node->ss.ss_currentRelation;
 	// Oid foreignTableId = fsplan->scanRel->relid;
 	// Oid foreignTableId = fsplan->scan.scanrelid;
@@ -1173,7 +1178,15 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	ForeignTable *table;
 	ForeignServer *server;
 	UserMapping *user;
+	char * dn_clauses = NULL;
+	
 	int attnum;
+	
+	/*List	   *fdw_private_list = fsplan->fdw_private;
+	if (list_length(fdw_private_list) > 0)
+	{
+		dn_clauses = strVal(list_nth(fsplan->fdw_private, 0));
+	}*/
 	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
 	
@@ -1230,6 +1243,9 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	// from:     dynamodb_fdw/dynamodb_impl.cpp line 800
 	// LDAP search
 	//rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
+	
+	elog(INFO, "Applying filters: %s", dn_clauses);
+	
 	fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, fdw_private->ldapConn->options->filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fdw_private->msgid) );
 	if ( fdw_private->rc != LDAP_SUCCESS ) {
 
