@@ -14,7 +14,9 @@ typedef struct deparse_expr_cxt
 	bool		is_not_distinct_op; /* True in case of IS NOT DISTINCT clause */
 	Oid 		foreignTableId;
 	char        *cbuf;
+	char		*colname;
 	bool		remote_handle_able;
+	List		*dn_list;
 } deparse_expr_cxt;
 
 static void deparseExpr(Expr *expr, deparse_expr_cxt *context);
@@ -94,6 +96,8 @@ ldap2_fdw_deparse_var(Var *node, deparse_expr_cxt *context)
 	ForeignTable *table = GetForeignTable(context->foreignTableId);
 	RangeTblEntry *rte = planner_rt_fetch(node->varno, context->root);
 	char	*colname = get_attname(rte->relid, node->varno, false);
+	context->colname = pstrdup(colname);
+	//elog(INFO, "Colname: %s", colname);
 	strmcat_multi(&(context->cbuf), "(", colname, "=");
 	//appendStringInfo(context->buf, "(%s=", colname);
 }
@@ -172,11 +176,13 @@ ldap2_fdw_deparse_const(Const *node, deparse_expr_cxt *context)
 		default:
 			//extval = OidOutputFunctionCall(typoutput, node->constvalue);
 			extval = DatumGetCString(DirectFunctionCall1(textout, node->constvalue));
+			if(!strcmp(context->colname, "dn")) context->dn_list = list_make1(makeString(extval));
 			//appendStringInfo(context->buf, "%s)", extval);
-			strmcat_multi(&(context->cbuf), extval, ")");
+			strmcat_multi(&(context->cbuf), extval);
 			//mysql_deparse_string_literal(buf, extval);
 			break;
 	}
+	strmcat_multi(&(context->cbuf), ")");
 }
 
 static void
@@ -216,7 +222,7 @@ ldap2_fdw_deparse_op_expr(OpExpr *node, deparse_expr_cxt *context)
 	
 	char * opname = NameStr(form->oprname);
 	
-	elog(INFO, "Opname: %s", opname);
+	//elog(INFO, "Opname: %s", opname);
 	/* Deparse left operand. */
 	if (oprkind == 'r' || oprkind == 'b')
 	{
@@ -233,7 +239,11 @@ ldap2_fdw_deparse_op_expr(OpExpr *node, deparse_expr_cxt *context)
 		deparseExpr(lfirst(arg), context);
 	}
 
-	if(strcmp(opname, "=")) context->remote_handle_able = false;
+	if(strcmp(opname, "="))
+	{
+		context->remote_handle_able = false;
+		DEBUGPOINT;
+	}
 	//appendStringInfoChar(buf, ')');
 
 	ReleaseSysCache(tuple);
@@ -344,10 +354,37 @@ char * ldap2_fdw_extract_dn(PlannerInfo * root, Oid foreignTableId, List *scan_c
 		deparseExpr(expr, &context);
 		count++;
 	}
-	elog(INFO, "count: %d", count);
+	elog(INFO, "context.cbuf: %s, count: %d, remote_handle_able: %d", context.cbuf, count, context.remote_handle_able);
 	retval = pstrdup(context.cbuf);
 	free(context.cbuf);
+	context.cbuf = NULL;
 	if(!context.remote_handle_able) return NULL;
+	if(count > 1) return NULL;
+	if(retval[0] == ')') return NULL;
+	return retval;
+	
+}
+
+char * ldap2_fdw_extract_dn_value(PlannerInfo * root, Oid foreignTableId, List *scan_clauses)
+{
+	deparse_expr_cxt context;
+	context.foreignTableId = foreignTableId;
+	context.root = root;
+	context.remote_handle_able = true;
+	initStringInfo(&(context.buf));
+	context.cbuf = strdup("");
+	ListCell *cell = NULL;
+	char * retval = NULL;
+	int count = 0;
+	foreach(cell, scan_clauses) {
+		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
+		Node *expr = (Node*)rinfo->clause;
+		deparseExpr(expr, &context);
+		count++;
+	}
+	if (list_length(context.dn_list) > 0) retval = strVal(list_nth(context.dn_list, 0));
+	if(!context.remote_handle_able) return NULL;
+	if(count > 1) return NULL;
 	return retval;
 	
 }
@@ -495,7 +532,6 @@ deparseExpr(Expr *node, deparse_expr_cxt *context)
 {
 	if (node == NULL)
 		return;
-	context->remote_handle_able = true;
 
 	switch (nodeTag(node))
 	{
@@ -523,9 +559,9 @@ deparseExpr(Expr *node, deparse_expr_cxt *context)
 		case T_ScalarArrayOpExpr:
 			ldap2_fdw_deparse_scalar_array_op_expr((ScalarArrayOpExpr *) node, context);
 			break;
-// 		case T_RelabelType:
-// 			ldap2_fdw_deparse_relabel_type((RelabelType *) node, context);
-// 			break;
+		case T_RelabelType:
+			ldap2_fdw_deparse_relabel_type((RelabelType *) node, context);
+			break;
 // 		case T_BoolExpr:
 // 			ldap2_fdw_deparse_bool_expr((BoolExpr *) node, context);
 // 			break;
@@ -540,6 +576,7 @@ deparseExpr(Expr *node, deparse_expr_cxt *context)
 		default:
 			//elog(ERROR, "unsupported expression type for deparse: %d",
 			//	 (int) nodeTag(node));
+			elog(INFO, "unsupported expression type for deparse: %d", (int) nodeTag(node));
 			context->remote_handle_able = false;
 			break;
 	}

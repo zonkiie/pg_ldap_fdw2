@@ -52,6 +52,7 @@
 
 bool ldap_fdw_is_foreign_expr(PlannerInfo *, RelOptInfo *, Expr *, bool);
 char * ldap2_fdw_extract_dn(PlannerInfo *, Oid, List *);
+char * ldap2_fdw_extract_dn_value(PlannerInfo *, Oid, List *);
 
 void
 deparseDeleteSql(StringInfo buf, PlannerInfo *root,

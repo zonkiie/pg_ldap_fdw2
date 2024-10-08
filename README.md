@@ -5,6 +5,8 @@ Please note that not every LDAP Structure might be mapped to a relational model.
 
 Warning: Don't use it in production systems. This fdw is not enough tested and still needs a lot of work.
 
+Remote filtering works if you give the dn in a where condition of a query with no other conditions and only one value.
+
 ## TODO
 Memory management, code reworking, error handling, write documentation, query planing to ldap filters...
 Current work: Fix Problem with many inserts.

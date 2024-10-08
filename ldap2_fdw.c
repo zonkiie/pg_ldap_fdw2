@@ -999,8 +999,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
 	// Working on ldap filtering
 	
-	/*dn_clauses = ldap2_fdw_extract_dn(root, foreignTableId, scan_clauses);
-	fdw_private_list = list_make1(makeString(dn_clauses));*/
+	//dn_clauses = ldap2_fdw_extract_dn(root, foreignTableId, scan_clauses);
+	dn_clauses = ldap2_fdw_extract_dn_value(root, foreignTableId, scan_clauses);
+	fdw_private_list = list_make1(makeString(dn_clauses));
 	
 	
 	/*
@@ -1179,14 +1180,13 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	ForeignServer *server;
 	UserMapping *user;
 	char * dn_clauses = NULL;
+	char * filter = NULL;
 	
 	int attnum;
 	
-	/*List	   *fdw_private_list = fsplan->fdw_private;
-	if (list_length(fdw_private_list) > 0)
-	{
-		dn_clauses = strVal(list_nth(fsplan->fdw_private, 0));
-	}*/
+	List	   *fdw_private_list = fsplan->fdw_private;
+	if (list_length(fdw_private_list) > 0) dn_clauses = strVal(list_nth(fsplan->fdw_private, 0));
+
 	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
 	
@@ -1244,9 +1244,25 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	// LDAP search
 	//rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
 	
-	elog(INFO, "Applying filters: %s", dn_clauses);
+	//elog(INFO, "Remote DN Clauses: %s", dn_clauses);
 	
-	fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, fdw_private->ldapConn->options->filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fdw_private->msgid) );
+	/* defined filter has always priority */
+	//if(dn_clauses != NULL && fdw_private->ldapConn->options->filter == NULL) filter = dn_clauses;
+	//else if(fdw_private->ldapConn->options->filter != NULL) filter = fdw_private->ldapConn->options->filter;
+	//else filter = fdw_private->ldapConn->options->filter;
+	if(dn_clauses != NULL)
+	{
+		//filter = dn_clauses;
+		//elog(INFO, "dn clauses: %s", dn_clauses);
+		char* filter2 = ldap_dn2filter(dn_clauses);
+		filter = pstrdup(filter2);
+		free(filter2);
+	}
+	else filter = fdw_private->ldapConn->options->filter;
+	//elog(INFO, "Applying filters: %s", filter);
+	
+	//fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, fdw_private->ldapConn->options->filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fdw_private->msgid) );
+	fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fdw_private->msgid) );
 	if ( fdw_private->rc != LDAP_SUCCESS ) {
 
 		elog(INFO, "ldap_search_ext_s: %s\n", ldap_err2string( fdw_private->rc ) );
