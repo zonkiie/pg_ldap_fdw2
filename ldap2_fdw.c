@@ -265,7 +265,12 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		}
 		else if(strcmp("use_remotefiltering", def->defname) == 0)
 		{
-			if(value != NULL) parse_int(value, &(options->use_remotefiltering), 0, NULL);
+			if(value != NULL)
+			{
+				if(!strcasecmp(value, "true") || !strcasecmp(value, "t")) options->use_remotefiltering = true;
+				else if(!strcasecmp(value, "false") || !strcasecmp(value, "f")) options->use_remotefiltering = false;
+				else parse_int(value, &(options->use_remotefiltering), 0, NULL);
+			}
 		}
 		else if(strcmp("scope", def->defname) == 0)
 		{

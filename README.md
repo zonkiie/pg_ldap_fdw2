@@ -9,7 +9,7 @@ Remote filtering works if you give the dn in a where condition of a query with n
 
 ## TODO
 Memory management, code reworking, error handling, write documentation, query planing to ldap filters...
-Current work: Fix Problem with many inserts.
+Current work: Make remote filtering optional
 
 ## Usage (a better instruction guide will follow)
     - Set up your test system
@@ -29,7 +29,7 @@ Current work: Fix Problem with many inserts.
     CREATE FOREIGN TABLE IF NOT EXISTS names (id uuid NOT NULL, dn varchar NOT NULL, cn varchar NOT NULL, sn varchar NOT NULL) SERVER ldap OPTIONS(basedn 'dc=nodomain', filter '(objectclass=*)', scope 'LDAP_SCOPE_CHILDREN');
 ## or
 ## Remote Schema Import
-    IMPORT FOREIGN SCHEMA "dc=nodomain" FROM SERVER ldap INTO public OPTIONS(basedn 'dc=nodomain', objectclass 'person', objectclass 'inetOrgPerson', schemadn 'cn=subschema', tablename 'names', scope 'LDAP_SCOPE_CHILDREN', filter '(objectClass=*)');
+    IMPORT FOREIGN SCHEMA "dc=nodomain" FROM SERVER ldap INTO public OPTIONS(basedn 'dc=nodomain', objectclass 'person', objectclass 'inetOrgPerson', schemadn 'cn=subschema', tablename 'names', scope 'LDAP_SCOPE_CHILDREN', filter '(objectClass=*)', use_remotefiltering '1');
 Important: You need always an attribute "dn", which is the primary identifier for every ldap entry.
 ## Uninstall
     DROP FOREIGN TABLE IF EXISTS names;
