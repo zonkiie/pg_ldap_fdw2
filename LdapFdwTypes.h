@@ -23,6 +23,7 @@ typedef struct LdapFdwOptions
 	char * schemadn;
 	int scope;
 	int use_sasl;
+	int use_remotefiltering;
 } LdapFdwOptions;
 
 typedef struct LdapFdwConn

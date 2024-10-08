@@ -263,6 +263,10 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 		{
 			if(value != NULL) options->schemadn = pstrdup(value);
 		}
+		else if(strcmp("use_remotefiltering", def->defname) == 0)
+		{
+			if(value != NULL) parse_int(value, &(options->use_remotefiltering), 0, NULL);
+		}
 		else if(strcmp("scope", def->defname) == 0)
 		{
 			char *sscope = pstrdup(defGetString(def)); // strdup(def->arg);
@@ -982,7 +986,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	StringInfoData sql_buf;
 	
     initStringInfo(&sql_buf);
-	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
+	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
 	
 	//if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
@@ -993,6 +997,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	////initLdapWithOptions(fdw_private->ldapConn);
 	//initLdapConnectionStruct(fdw_private->ldapConn);
 	
+	if(fdw_private->ldapConn->use_remotefiltering)
+	{
+	
 	//baserel->fdw_private = (void*)fdw_private;
 	//ldap2_fdw_log_nodeTags();
 	// call ldap2_fdw_extract_dn(List *scan_clauses) here
@@ -1000,9 +1007,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	// Working on ldap filtering
 	
 	//dn_clauses = ldap2_fdw_extract_dn(root, foreignTableId, scan_clauses);
-	dn_clauses = ldap2_fdw_extract_dn_value(root, foreignTableId, scan_clauses);
-	fdw_private_list = list_make1(makeString(dn_clauses));
-	
+		dn_clauses = ldap2_fdw_extract_dn_value(root, foreignTableId, scan_clauses);
+		fdw_private_list = list_make1(makeString(dn_clauses));
+	}
 	
 	/*
 	 * From MongoDB FDW
@@ -1244,14 +1251,15 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	// LDAP search
 	//rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
 	
+	if(fdw_private->ldapConn->use_remotefiltering && dn_clauses != NULL)
+	{
+	
 	//elog(INFO, "Remote DN Clauses: %s", dn_clauses);
 	
 	/* defined filter has always priority */
 	//if(dn_clauses != NULL && fdw_private->ldapConn->options->filter == NULL) filter = dn_clauses;
 	//else if(fdw_private->ldapConn->options->filter != NULL) filter = fdw_private->ldapConn->options->filter;
 	//else filter = fdw_private->ldapConn->options->filter;
-	if(dn_clauses != NULL)
-	{
 		//filter = dn_clauses;
 		//elog(INFO, "dn clauses: %s", dn_clauses);
 		char* filter2 = ldap_dn2filter(dn_clauses);
@@ -2428,6 +2436,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	char			*dropStr = NULL;
 	char			*createStr = NULL;
 	char			*scope = NULL;
+	char			*use_remotefiltering = NULL;
 	char			**objectClasses = NULL;
 	ForeignServer	*server;
 	UserMapping		*user;
@@ -2460,6 +2469,11 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		else if(!strcmp(def->defname, "scope")) scope = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "tablename")) tablename = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "schemaname")) schemaname = pstrdup(defGetString(def));
+		else if(!strcmp(def->defname, "use_remotefiltering"))
+		{
+			use_remotefiltering = pstrdup(defGetString(def));
+			parse_int(use_remotefiltering, &(ldapConn->use_remotefiltering), 0, NULL);
+		}
 		else
 			ereport(ERROR,
 				(errcode(ERRCODE_FDW_INVALID_OPTION_NAME),
@@ -2535,6 +2549,11 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	if(scope != NULL)
 	{
 		strmcat_multi(&createStr, " scope '" , scope, "',");
+	}
+	
+	if(use_remotefiltering != NULL)
+	{
+		strmcat_multi(&createStr, " use_remotefiltering '", use_remotefiltering, "',");
 	}
 	
 	if(createStr[strlen(createStr) - 1] == ',') createStr[strlen(createStr) - 1] = 0;
