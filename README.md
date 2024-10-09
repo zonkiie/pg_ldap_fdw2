@@ -9,11 +9,11 @@ Remote filtering works if you give the dn in a where condition of a query with n
 
 ## TODO
 Memory management, code reworking, error handling, write documentation, query planing to ldap filters...
-Current work: Make remote filtering optional
+Current work: Performance testing
 
 ## Usage (a better instruction guide will follow)
     - Set up your test system
-    - install postgresql and openldap dev packages
+    - install postgresql and openldap with dev packages
     - setup postgresql and ldap server
     - git clone this repo
     - cd <cloned dir>
@@ -39,6 +39,15 @@ Important: You need always an attribute "dn", which is the primary identifier fo
 ## Usage
 ### Generate many entries for speed test
     INSERT INTO NAMES(dn, cn, sn, mail) SELECT 'uid=' || uuid_generate_v4()::text || ',dc=nodomain', array['FirstName'], array['LastName'], array['firstname.lastname@example1.com', 'firstname.lastname@example2.com']  FROM generate_series(1, 10);
+    
+## FAQs
+Why not using existing LDAP FDWs?
+- No write support
+- No schema usage
+Why not using Multicorn oder JDBC?
+- Performance
+- Schema import
+- A lot of dependencies
 
 ## A list of Foreign Data Wrappers
 [https://wiki.postgresql.org/wiki/Foreign_data_wrappers](https://wiki.postgresql.org/wiki/Foreign_data_wrappers)
