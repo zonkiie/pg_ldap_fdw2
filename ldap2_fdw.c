@@ -1002,9 +1002,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	////initLdapWithOptions(fdw_private->ldapConn);
 	//initLdapConnectionStruct(fdw_private->ldapConn);
 	
-	if(fdw_private->ldapConn->use_remotefiltering)
+	if(fdw_private->ldapConn->options->use_remotefiltering)
 	{
-	
 	//baserel->fdw_private = (void*)fdw_private;
 	//ldap2_fdw_log_nodeTags();
 	// call ldap2_fdw_extract_dn(List *scan_clauses) here
@@ -1256,10 +1255,10 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	// LDAP search
 	//rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
 	
-	if(fdw_private->ldapConn->use_remotefiltering && dn_clauses != NULL)
+	if(fdw_private->ldapConn->options->use_remotefiltering && dn_clauses != NULL)
 	{
 	
-	//elog(INFO, "Remote DN Clauses: %s", dn_clauses);
+		//elog(INFO, "Use remote Filtering. Remote DN Clauses: %s", dn_clauses);
 	
 	/* defined filter has always priority */
 	//if(dn_clauses != NULL && fdw_private->ldapConn->options->filter == NULL) filter = dn_clauses;
@@ -1268,8 +1267,11 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 		//filter = dn_clauses;
 		//elog(INFO, "dn clauses: %s", dn_clauses);
 		char* filter2 = ldap_dn2filter(dn_clauses);
-		filter = pstrdup(filter2);
-		free(filter2);
+		if(filter2 != NULL) {
+			filter = pstrdup(filter2);
+			free(filter2);
+		}
+		else filter = fdw_private->ldapConn->options->filter;
 	}
 	else filter = fdw_private->ldapConn->options->filter;
 	//elog(INFO, "Applying filters: %s", filter);
@@ -2477,7 +2479,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		else if(!strcmp(def->defname, "use_remotefiltering"))
 		{
 			use_remotefiltering = pstrdup(defGetString(def));
-			parse_int(use_remotefiltering, &(ldapConn->use_remotefiltering), 0, NULL);
+			parse_int(use_remotefiltering, &(ldapConn->options->use_remotefiltering), 0, NULL);
 		}
 		else
 			ereport(ERROR,

@@ -9,7 +9,6 @@ typedef struct deparse_expr_cxt
 	RelOptInfo *scanrel;		/* the underlying scan relation. Same as
 								 * foreignrel, when that represents a join or
 								 * a base relation. */
-	StringInfo	buf;			/* output buffer to append to */
 	List	  **params_list;	/* exprs that will become remote Params */
 	bool		is_not_distinct_op; /* True in case of IS NOT DISTINCT clause */
 	Oid 		foreignTableId;
@@ -84,8 +83,7 @@ ldap2_fdw_deparse_relation(StringInfo buf, Relation rel)
 	if (relname == NULL)
 		relname = RelationGetRelationName(rel);
 
-	appendStringInfo(buf, "%s.%s", mysql_quote_identifier(nspname, '`'),
-					 mysql_quote_identifier(relname, '`'));
+	//appendStringInfo(buf, "%s.%s", mysql_quote_identifier(nspname, '`'),  mysql_quote_identifier(relname, '`'));
 }
 
 
@@ -99,13 +97,11 @@ ldap2_fdw_deparse_var(Var *node, deparse_expr_cxt *context)
 	context->colname = pstrdup(colname);
 	//elog(INFO, "Colname: %s", colname);
 	strmcat_multi(&(context->cbuf), "(", colname, "=");
-	//appendStringInfo(context->buf, "(%s=", colname);
 }
 
 static void
 ldap2_fdw_deparse_const(Const *node, deparse_expr_cxt *context)
 {
-	StringInfo	buf = context->buf;
 	Oid			typoutput;
 	bool		typIsVarlena;
 	char	   *extval;
@@ -132,30 +128,31 @@ ldap2_fdw_deparse_const(Const *node, deparse_expr_cxt *context)
 				 * No need to quote unless it's a special value such as 'NaN'.
 				 * See comments in get_const_expr().
 				 */
-				if (strspn(extval, "0123456789+-eE.") == strlen(extval))
+				/*if (strspn(extval, "0123456789+-eE.") == strlen(extval))
 				{
 					if (extval[0] == '+' || extval[0] == '-')
-						appendStringInfo(buf, "(%s)", extval);
+						//appendStringInfo(buf, "(%s)", extval);
 					else
-						appendStringInfoString(buf, extval);
+						//appendStringInfoString(buf, extval);
 				}
 				else
-					appendStringInfo(buf, "'%s'", extval);
+					//appendStringInfo(buf, "'%s'", extval);
+				*/
 			}
 			break;
 		case BITOID:
 		case VARBITOID:
 			DEBUGPOINT;
 			extval = OidOutputFunctionCall(typoutput, node->constvalue);
-			appendStringInfo(buf, "B'%s'", extval);
+			//appendStringInfo(buf, "B'%s'", extval);
 			break;
 		case BOOLOID:
 			DEBUGPOINT;
 			extval = OidOutputFunctionCall(typoutput, node->constvalue);
-			if (strcmp(extval, "t") == 0)
+			/*if (strcmp(extval, "t") == 0)
 				appendStringInfoString(buf, "true");
 			else
-				appendStringInfoString(buf, "false");
+				appendStringInfoString(buf, "false");*/
 			break;
 		case INTERVALOID:
 			//deparse_interval(buf, node->constvalue);
@@ -171,7 +168,7 @@ ldap2_fdw_deparse_const(Const *node, deparse_expr_cxt *context)
 			 * ones for comparison
 			 */
 			extval = OidOutputFunctionCall(typoutput, node->constvalue);
-			appendStringInfo(buf, "X\'%s\'", extval + 2);
+			//appendStringInfo(buf, "X\'%s\'", extval + 2);
 			break;
 		default:
 			//extval = OidOutputFunctionCall(typoutput, node->constvalue);
@@ -343,15 +340,15 @@ char * ldap2_fdw_extract_dn(PlannerInfo * root, Oid foreignTableId, List *scan_c
 	context.foreignTableId = foreignTableId;
 	context.root = root;
 	context.remote_handle_able = true;
-	initStringInfo(&(context.buf));
 	context.cbuf = strdup("");
 	ListCell *cell = NULL;
-	char * retval = NIL;
+	char * retval = NULL;
 	int count = 0;
 	foreach(cell, scan_clauses) {
 		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
-		Node *expr = (Node*)rinfo->clause;
-		deparseExpr(expr, &context);
+		//Node *expr = (Node*)rinfo->clause;
+		//deparseExpr(expr, &context);
+		deparseExpr(rinfo->clause, &context);
 		count++;
 	}
 	elog(INFO, "context.cbuf: %s, count: %d, remote_handle_able: %d", context.cbuf, count, context.remote_handle_able);
@@ -371,15 +368,15 @@ char * ldap2_fdw_extract_dn_value(PlannerInfo * root, Oid foreignTableId, List *
 	context.foreignTableId = foreignTableId;
 	context.root = root;
 	context.remote_handle_able = true;
-	initStringInfo(&(context.buf));
 	context.cbuf = strdup("");
 	ListCell *cell = NULL;
 	char * retval = NULL;
 	int count = 0;
 	foreach(cell, scan_clauses) {
 		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
-		Node *expr = (Node*)rinfo->clause;
-		deparseExpr(expr, &context);
+		//Node *expr = (Node*)rinfo->clause;
+		//deparseExpr(expr, &context);
+		deparseExpr(rinfo->clause, &context);
 		count++;
 	}
 	if (list_length(context.dn_list) > 0) retval = strVal(list_nth(context.dn_list, 0));

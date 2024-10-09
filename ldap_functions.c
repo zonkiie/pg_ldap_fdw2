@@ -119,15 +119,15 @@ void free_ldap_mod(LDAPMod * ldap_mod)
  */
 char * ldap_dn2filter(char *dn)
 {
-	if(dn == NULL) return NULL;
+	if(dn == NULL || !strcmp(dn, "")) return NULL;
 	else
 	{
-		char *retval = calloc(sizeof(char*), 1);
 		char **dn_els = ldap_explode_dn(dn, 0);
+		if(dn_els == NULL) return NULL;
+		char *retval = calloc(sizeof(char*), 1);
 		strmcat_multi(&retval, "(&");
 		for(int i = 0; dn_els[i] != NULL; i++)
 		{
-			
 			//char **rdn_els = ldap_explode_rdn(dn_els[i], 0);
 			char **rdn_els = NULL;
 			str_split_kv(&rdn_els, dn_els[i], "=");
