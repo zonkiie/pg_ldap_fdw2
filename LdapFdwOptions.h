@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include "LdapFdwTypes.h"
 
-LdapFdwOptions * createLdapFdwOptions();
+LdapFdwOptions * createLdapFdwOptions(void);
 void initLdapFdwOptions(LdapFdwOptions *);
 void free_options(LdapFdwOptions *);
 

@@ -60,7 +60,6 @@
 
 static void GetOptionStructr(LdapFdwOptions *, Oid);
 static LdapFdwOptions * GetOptionStruct(Oid);
-void print_list(FILE *, List *);
 static LdapFdwConn * create_LdapFdwConn();
 static LdapFdwOptions * create_LdapFdwOptions();
 static void initLdapConnectionStruct(LdapFdwConn *);
@@ -618,16 +617,15 @@ static void bindLdapStruct(LdapFdwConn * ldap_fdw_connection)
  */
 static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid foreignTableId, char * dn)
 {
-	//return NULL;
-	ForeignTable *foreignTable = GetForeignTable(foreignTableId);
-	ForeignServer *foreignServer = GetForeignServer(foreignTable->serverid);
+#warning Remove unused vars or rewrite code to use it
+	//ForeignTable *foreignTable = GetForeignTable(foreignTableId);
+	//ForeignServer *foreignServer = GetForeignServer(foreignTable->serverid);
 	UserMapping *mapping = GetUserMapping(GetUserId(), foreignTable->serverid);
 	HeapTuple	tuple;
 	Relation rel = RelationIdGetRelation(foreignTableId);
 	TupleTableSlot *slot = table_slot_create(rel, NULL);
 	TupleDesc tupdesc = RelationGetDescr(rel);
 	int msgId = 0;
-	LDAPMessage 	*ldapMsg = NULL;
 	LDAPMessage    * entry = NULL;
 	Oid varchar_oid = get_type_oid("character varying");
 	struct berval **vals = NULL;
@@ -641,7 +639,7 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 	char       **columns = (char**)palloc(sizeof(char*) * tupdesc->natts);
 	char	   **column_types = (char**)palloc(sizeof(char*) * tupdesc->natts);
 	Oid		    *column_type_ids = (Oid*)palloc(sizeof(Oid) * tupdesc->natts);
-	char		*attribute = NULL, *entrydn = NULL, *filter = NULL;
+	char		*entrydn = NULL, *filter = NULL;
 	memset(columns, 0, (tupdesc->natts) * sizeof(char*));
 	memset(column_types, 0, (tupdesc->natts) * sizeof(char*));
 	memset(column_type_ids, 0, (tupdesc->natts) * sizeof(Oid));
@@ -1048,7 +1046,6 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 */
 	}
 	
-	//print_list(stderr, scan_clauses);
 	if(scan_clauses == NULL)
 	{
 		//DEBUGPOINT;
@@ -1814,8 +1811,8 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
-	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
     const char **p_values;
+    Datum       attr_value;
 	char	   *columnName = NULL;
 	char *dn = NULL;
 	UserMapping *user;
@@ -1824,11 +1821,11 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	TupleDesc	tupdesc;
     int         n_rows = 0, i = 0, j = 0, p_index = 0, rc = 0;
 	Form_pg_attribute attr;
+	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	Oid			foreignTableId = RelationGetRelid(rel);
 	Oid			userid;
 	tupdesc = RelationGetDescr(rel);
-    Datum       attr_value;
 	ForeignServer *server;
 	ForeignTable *table;
     bool        isnull;

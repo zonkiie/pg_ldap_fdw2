@@ -1,6 +1,8 @@
 #include "LdapFdwOptions.h"
 
-LdapFdwOptions * createLdapFdwOptions()
+LdapFdwOptions * createLdapFdwOptions(void);
+
+LdapFdwOptions * createLdapFdwOptions(void)
 {
 	return (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions));
 }

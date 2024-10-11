@@ -4,6 +4,9 @@
 
 #define DEBUGPOINT elog(INFO, "ereport File %s, Func %s, Line %d\n", __FILE__, __FUNCTION__, __LINE__)
 
+LDAPMod * create_new_ldap_mod(void);
+int fetch_attribute_type(void);
+
 int common_ldap_bind(LDAP *ld, const char *username, const char *password, int use_sasl)
 {
 	//_cleanup_berval_ 
@@ -73,7 +76,7 @@ int LDAPMod_count(LDAPMod ** array)
 	return count;
 }
 
-LDAPMod * create_new_ldap_mod()
+LDAPMod * create_new_ldap_mod(void)
 {
 	LDAPMod * new_value = (LDAPMod*)malloc(sizeof(LDAPMod));
 	memset(new_value, 0, sizeof(LDAPMod));
@@ -142,7 +145,7 @@ char * ldap_dn2filter(char *dn)
 	}
 }
 
-int fetch_attribute_type()
+int fetch_attribute_type(void)
 {
 	return 0;
 }

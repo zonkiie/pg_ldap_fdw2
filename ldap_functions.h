@@ -13,12 +13,12 @@ void free_ber(BerElement **);
 void free_berval(struct berval **);
 int append_ldap_mod(LDAPMod ***, LDAPMod *);
 int LDAPMod_count(LDAPMod **);
-LDAPMod * create_new_ldap_mod();
+LDAPMod * create_new_ldap_mod(void);
 LDAPMod * copy_ldap_mod(LDAPMod *);
 LDAPMod * construct_new_ldap_mod(int, char *, char **);
 char * ldap_dn2filter(char *);
 void free_ldap_mod(LDAPMod * );
-int fetch_attribute_type();
+int fetch_attribute_type(void);
 int fetch_schema(LDAP *);
 
 #define _cleanup_ldap_ __attribute((cleanup(free_ldap)))
