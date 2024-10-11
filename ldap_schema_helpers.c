@@ -30,14 +30,14 @@ static char* getPgTypeForLdapType(AttrTypemap map[], char *ldapType)
 	return "varchar";
 }
 
-AttrListType ** Create_AttrListType()
+AttrListType ** Create_AttrListType(void)
 {
 	AttrListType ** retval = (AttrListType **)malloc(sizeof(AttrListType*) * 2);
 	memset(retval, 0, sizeof(AttrListType**) * 2);
 	return retval;
 }
 
-AttrListType * Create_SingleAttrListType()
+AttrListType * Create_SingleAttrListType(void)
 {
 	AttrListType * attrData = (AttrListType *)malloc(sizeof(AttrListType) * 2);
 	memset(attrData, 0, sizeof(AttrListType) * 2);

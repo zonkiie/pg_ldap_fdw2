@@ -60,8 +60,8 @@
 
 static void GetOptionStructr(LdapFdwOptions *, Oid);
 static LdapFdwOptions * GetOptionStruct(Oid);
-static LdapFdwConn * create_LdapFdwConn();
-static LdapFdwOptions * create_LdapFdwOptions();
+static LdapFdwConn * create_LdapFdwConn(void);
+static LdapFdwOptions * create_LdapFdwOptions(void);
 static void initLdapConnectionStruct(LdapFdwConn *);
 static void bindLdapStruct(LdapFdwConn *);
 static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn *, Oid, char *);
@@ -500,7 +500,7 @@ static void estimate_costs(PlannerInfo *root, RelOptInfo *baserel,
 }*/
 
 
-static LdapFdwConn * create_LdapFdwConn()
+static LdapFdwConn * create_LdapFdwConn(void)
 {
 	LdapFdwConn* conn = (LdapFdwConn *)palloc0(sizeof(LdapFdwConn));
 	//LDAPControl	*tmpc = (LDAPControl*)palloc( sizeof( LDAPControl ));
@@ -526,7 +526,7 @@ static LdapFdwConn * create_LdapFdwConn()
 	return conn;
 }
 
-static LdapFdwOptions * create_LdapFdwOptions()
+static LdapFdwOptions * create_LdapFdwOptions(void)
 {
 	LdapFdwOptions * options = (LdapFdwOptions *)palloc0(sizeof(LdapFdwOptions));
 	initLdapFdwOptions(options);
@@ -620,7 +620,7 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 #warning Remove unused vars or rewrite code to use it
 	//ForeignTable *foreignTable = GetForeignTable(foreignTableId);
 	//ForeignServer *foreignServer = GetForeignServer(foreignTable->serverid);
-	UserMapping *mapping = GetUserMapping(GetUserId(), foreignTable->serverid);
+	//UserMapping *mapping = GetUserMapping(GetUserId(), foreignTable->serverid);
 	HeapTuple	tuple;
 	Relation rel = RelationIdGetRelation(foreignTableId);
 	TupleTableSlot *slot = table_slot_create(rel, NULL);
@@ -657,8 +657,8 @@ static TupleTableSlot * fetchLdapEntryByDnIntoSlot(LdapFdwConn * ldapConn, Oid f
 		{
 			// Hole den Spaltennamen
 			char *colname = NameStr(tupdesc->attrs[attnum - 1].attname);
-			char * type;
-			int is_array;
+			char * type = NULL;
+			int is_array = -1;
 			
 			columns[attnum - 1] = pstrdup(colname);
 			
@@ -1820,15 +1820,15 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	LDAPMod		* single_ldap_mod = NULL;
 	TupleDesc	tupdesc;
     int         n_rows = 0, i = 0, j = 0, p_index = 0, rc = 0;
+	Oid			userid;
+	ForeignServer *server;
+	ForeignTable *table;
+    bool        isnull;
 	Form_pg_attribute attr;
 	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	Oid			foreignTableId = RelationGetRelid(rel);
-	Oid			userid;
 	tupdesc = RelationGetDescr(rel);
-	ForeignServer *server;
-	ForeignTable *table;
-    bool        isnull;
 	
 //#if PG_VERSION_NUM >= 160000
 //	//ForeignScan *fsplan = (ForeignScan *) mstate->ps.plan;

@@ -27,8 +27,8 @@ typedef struct AttrListType
 	bool nullable;
 } AttrListType;
 
-AttrListType** Create_AttrListType();
-AttrListType * Create_SingleAttrListType();
+AttrListType** Create_AttrListType(void);
+AttrListType * Create_SingleAttrListType(void);
 size_t AttrListTypeCount(AttrListType***);
 size_t AttrListTypeAppend(AttrListType***, AttrListType *);
 void AttrListTypeFreeSingle(AttrListType **);
