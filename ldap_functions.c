@@ -126,8 +126,9 @@ char * ldap_dn2filter(char *dn)
 	else
 	{
 		char **dn_els = ldap_explode_dn(dn, 0);
+		char *retval = NULL;
 		if(dn_els == NULL) return NULL;
-		char *retval = calloc(sizeof(char*), 1);
+		retval = calloc(sizeof(char*), 1);
 		strmcat_multi(&retval, "(&");
 		for(int i = 0; dn_els[i] != NULL; i++)
 		{

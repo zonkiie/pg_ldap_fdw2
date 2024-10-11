@@ -134,8 +134,8 @@ char * strmcat_multi_alloc_with_null(char * arg1, ...)
 {
 	char * targetstr = strdup(arg1);
 	va_list args;
-    va_start(args, arg1);
 	char * argument;
+    va_start(args, arg1);
 	while((argument = va_arg(args, char*)) != NULL)
 	{
 		if(!strcmp(argument, "")) continue;
@@ -149,8 +149,8 @@ char * strmcat_multi_alloc_with_null(char * arg1, ...)
 void strmcat_multi_with_null(char **targetstr, ...)
 {
 	va_list args;
-    va_start(args, targetstr);
 	char * argument;
+    va_start(args, targetstr);
 	while((argument = va_arg(args, char*)) != NULL)
 	{
 		if(!strcmp(argument, "")) continue;

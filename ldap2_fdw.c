@@ -59,7 +59,6 @@
 #include "deparse.h"
 
 static void GetOptionStructr(LdapFdwOptions *, Oid);
-static LdapFdwOptions * GetOptionStruct(Oid);
 static LdapFdwConn * create_LdapFdwConn(void);
 static LdapFdwOptions * create_LdapFdwOptions(void);
 static void initLdapConnectionStruct(LdapFdwConn *);
@@ -303,22 +302,6 @@ static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
 	options->use_sasl = 0;
 }
 
-static LdapFdwOptions * GetOptionStruct(Oid foreignTableId)
-{
-	LdapFdwOptions * options = create_LdapFdwOptions();
-	GetOptionStructr(options, foreignTableId);
-	return options;
-}
-
-static void print_options(LdapFdwOptions * options)
-{
-	if(options->uri != NULL) elog(INFO, "uri: %s", options->uri);
-	if(options->username != NULL) elog(INFO, "username: %s", options->username);
-	if(options->basedn != NULL) elog(INFO, "basedn: %s", options->basedn);
-	if(options->filter != NULL) elog(INFO, "filter: %s", options->filter);
-	//if(options->objectclass != NULL) elog(INFO, "objectclass: %s", options->objectclass);
-}
-
 static void get_column_type(char ** type, int * is_array, Form_pg_attribute att)
 {
 	// Zunächst den Typ der Spalte abfragen
@@ -334,17 +317,6 @@ static void get_column_type(char ** type, int * is_array, Form_pg_attribute att)
 		// Column Name: NameStr(att->attname)
 		ReleaseSysCache(tup);
 	}	
-}
-/**
- * @see https://postgrespro.com/list/thread-id/2520489
- */
-static Oid get_type_oid_ns(char * typename, char * schemaname)
-{
-	bool missing_ok = false;
-	Oid namespaceId = LookupExplicitNamespace(schemaname, missing_ok);
-	Oid type_oid = GetSysCacheOid2(TYPENAMENSP, Anum_pg_type_oid, PointerGetDatum(typename), ObjectIdGetDatum(namespaceId));
-	//elog(INFO, "namespace id: %d", namespaceId);
-	return type_oid;
 }
 
 static Oid get_type_oid(char * typename)
@@ -816,8 +788,9 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 						   RelOptInfo *baserel,
 						   Oid foreignTableId)
 {
-	ListCell   *lc;
-	Bitmapset  *attrs_used = NULL;
+#warning remove unused vars or rewrite code
+	//ListCell   *lc;
+	//Bitmapset  *attrs_used = NULL;
 	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
 	memset(fdw_private, 0, sizeof(LdapFdwPlanState));
 	
@@ -977,19 +950,23 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 {
 	//Path	   *foreignPath;
 	Index		scan_relid = baserel->relid;
+	LdapFdwPlanState *fdw_private = NULL;
 	
 	ListCell	*cell = NULL;
+	List 		*fdw_private_list = NIL;
+#warning remove unused vars or rewrite code
+	/*
 	List 		*remote_exprs = NIL;
 	List		*local_exprs = NIL;
-	List 		*fdw_private_list = NIL;
 	List		*scan_var_list;
 	List		*fdw_scan_tlist = NIL;
 	List		*whole_row_lists = NIL;
+	*/
 	char		*dn_clauses = NULL;
 	StringInfoData sql_buf;
 	
     initStringInfo(&sql_buf);
-	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
+	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
 	
 	//if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
@@ -1184,9 +1161,10 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	Relation rel;
 	TupleDesc tupdesc;
-	ForeignTable *table;
+#warning remove unused vars or rewrite code
+	/*ForeignTable *table;
 	ForeignServer *server;
-	UserMapping *user;
+	UserMapping *user;*/
 	char * dn_clauses = NULL;
 	char * filter = NULL;
 	
@@ -1531,10 +1509,12 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 	CmdType		operation = plan->operation;
 	RangeTblEntry *rte = planner_rt_fetch(resultRelation, root);
 	List	   *targetAttrs = NIL;
-	List	   *returningList = NIL;
-	List	   *retrieved_attrs = NIL;
 	TupleDesc	tupdesc;
-	Oid			array_element_type = InvalidOid;
+	List	   *returningList = NIL;
+#warning remove unused vars or rewrite code
+	/*
+	List	   *retrieved_attrs = NIL;
+	Oid			array_element_type = InvalidOid;*/
 	Relation	rel = NULL;
 	//Oid			foreignTableId;
 	StringInfoData sql;
@@ -1709,11 +1689,14 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	bool		isvarlena = false;
 	//List		*attrs_list;
 	ListCell   *lc;
-	Oid			foreignTableId;
-	Oid			userid;
-	ForeignServer *server;
-	//UserMapping *user;
+	Oid			foreignTableId = 0;
+	Oid			userid = 0;
+	ForeignServer *server = NULL;
 	ForeignTable *table;
+#warning remove unused vars or rewrite code
+	/*
+	UserMapping *user;
+	*/
 #if PG_VERSION_NUM >= 160000
 	ForeignScan *fsplan = (ForeignScan *) mtstate->ps.plan;
 #else
@@ -1740,8 +1723,9 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	/* Get info about foreign table. */
 	table = GetForeignTable(foreignTableId);
 	server = GetForeignServer(table->serverid);
+#warning work on user-mapping
 	//user = GetUserMapping(userid, server->serverid);
-
+	
 	fmstate->rel = rel;
 	//GetOptionStructr((fmstate->options), foreignTableId);
 	fmstate->ldapConn = create_LdapFdwConn();
@@ -1811,20 +1795,23 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
-    const char **p_values;
     Datum       attr_value;
-	char	   *columnName = NULL;
-	char *dn = NULL;
-	UserMapping *user;
+	char 		*dn = NULL;
+    bool        isnull;
 	LDAPMod		**insert_data = NULL;
 	LDAPMod		* single_ldap_mod = NULL;
 	TupleDesc	tupdesc;
-    int         n_rows = 0, i = 0, j = 0, p_index = 0, rc = 0;
+    int         i = 0, j = 0, rc = 0;
+#warning remove unused vars or rewrite code
+	/*
+	char		*columnName = NULL;
+    const char **p_values;
+	int			n_rows = 0, p_index = 0;
 	Oid			userid;
+	UserMapping *user;
 	ForeignServer *server;
 	ForeignTable *table;
-    bool        isnull;
-	Form_pg_attribute attr;
+	*/
 	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	Oid			foreignTableId = RelationGetRelid(rel);
@@ -1864,10 +1851,10 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	*/
 	j++;
 	
-    // Durchlaufe alle Attribute des Tuples
+    // Iterate all attribute of the tuple
     for (i = 0; i < tupdesc->natts; i++) {
         if (slot->tts_isnull[i]) {
-            // Attribut ist NULL
+            // Attribute is NULL
             //elog(INFO, "Attribut %s ist NULL", NameStr(tupdesc->attrs[i].attname));
             continue;
         }
@@ -1876,9 +1863,9 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
         attr_value = slot_getattr(slot, i + 1, &isnull);
 
         if (!isnull) {
-            // Eindeutigen Namen des Attributs erhalten
+			// Retrieve unique name of attribute
             char *att_name = pstrdup(NameStr(tupdesc->attrs[i].attname));
-            // Wert des Attributs formatieren (z.B. für Logging)
+			// Format the value of the attribute
             char *value_str = DatumGetCString(DirectFunctionCall1(textout, attr_value));
 			//if(!strcmp(att_name, "dn")) dn = pstrdup(value_str);
 			if(!strcmp(att_name, "dn")) dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
@@ -1894,12 +1881,13 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 				single_ldap_mod = NULL;
 
 			}
-            pfree(value_str);  // Freigeben des String-Puffers
+            pfree(value_str);
 			pfree(att_name);
         }
     }
 	/*if (slot != NULL && fmstate->target_attrs != NIL)
 	{
+		Form_pg_attribute attr;
 		ListCell   *lc;
 		foreach(lc, fmstate->target_attrs)
 		{
@@ -2109,23 +2097,26 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
-	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Datum       attr_value, datum;
 	bool		isNull = false;
 	Oid			foreignTableId;
 	Oid			typoid;
 	char *dn = NULL;
-	char *columnName = NULL;
 	int rc = 0;
 	int i = 0, j = 0, op_success = 0;
 	LDAPMod		**modify_data = NULL;
 	LDAPMod		**single_mod_array = NULL;
 	LDAPMod		* single_ldap_mod = NULL;
+	
+	/*
+	char *columnName = NULL;
 	ForeignTable *table;
 	Form_pg_attribute attr;
+	ListCell   *lc = NULL;
+	*/
+	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	TupleDesc tupdesc = RelationGetDescr(rel);
-	ListCell   *lc = NULL;
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
 	datum = ExecGetJunkAttribute(planSlot, fmstate->rowidAttno, &isNull);
 	typoid = get_atttype(foreignTableId, 1);

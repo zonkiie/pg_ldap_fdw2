@@ -8,7 +8,7 @@ Warning: Don't use it in production systems. This fdw is not enough tested and s
 Remote filtering works if you give the dn in a where condition of a query with no other conditions and only one value.
 
 ## TODO
-Memory management, code reworking, error handling, write documentation, query planing to ldap filters...
+Memory management, code reworking, error handling, write documentation, work on user-mapping, query planing to ldap filters...
 Current work: Performance testing
 
 ## Usage (a better instruction guide will follow)

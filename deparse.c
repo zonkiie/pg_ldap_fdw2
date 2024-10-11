@@ -91,7 +91,7 @@ static void
 ldap2_fdw_deparse_var(Var *node, deparse_expr_cxt *context)
 {
 	//Relids		relids = context->scanrel->relids;
-	ForeignTable *table = GetForeignTable(context->foreignTableId);
+	//ForeignTable *table = GetForeignTable(context->foreignTableId);
 	RangeTblEntry *rte = planner_rt_fetch(node->varno, context->root);
 	char	*colname = get_attname(rte->relid, node->varno, false);
 	context->colname = pstrdup(colname);
@@ -103,7 +103,7 @@ static void
 ldap2_fdw_deparse_const(Const *node, deparse_expr_cxt *context)
 {
 	Oid			typoutput;
-	bool		typIsVarlena;
+	//bool		typIsVarlena;
 	char	   *extval;
 	
 	if (node->constisnull)
@@ -209,15 +209,15 @@ ldap2_fdw_deparse_op_expr(OpExpr *node, deparse_expr_cxt *context)
 	HeapTuple	tuple;
 	Form_pg_operator form;
 	ListCell   *arg;
-	char		oprkind;
+	char		oprkind, * opname = NULL;
 
 	tuple = SearchSysCache1(OPEROID, ObjectIdGetDatum(node->opno));
 	if (!HeapTupleIsValid(tuple))
 		elog(ERROR, "cache lookup failed for operator %u", node->opno);
 	form = (Form_pg_operator) GETSTRUCT(tuple);
+	opname = NameStr(form->oprname);
 	oprkind = form->oprkind;
 	
-	char * opname = NameStr(form->oprname);
 	
 	//elog(INFO, "Opname: %s", opname);
 	/* Deparse left operand. */
@@ -260,18 +260,12 @@ ldap2_fdw_deparse_scalar_array_op_expr(ScalarArrayOpExpr *node, deparse_expr_cxt
 	if(list_length(node->args) == 2)
 	{
 		HeapTuple	tuple;
-		Expr		*arg1 = linitial(node->args);
-		DEBUGPOINT;
+		//Expr		*arg1 = linitial(node->args);
 		Expr		*arg2 = lsecond(node->args);
-		DEBUGPOINT;
 		Form_pg_operator form;
-		DEBUGPOINT;
 		char	   *opname;
 		
-		DEBUGPOINT;
-		
 		tuple = SearchSysCache1(OPEROID, ObjectIdGetDatum(node->opno));
-		DEBUGPOINT;
 		if (!HeapTupleIsValid(tuple))
 			elog(ERROR, "cache lookup failed for operator %u", node->opno);
 		form = (Form_pg_operator) GETSTRUCT(tuple);
@@ -280,12 +274,11 @@ ldap2_fdw_deparse_scalar_array_op_expr(ScalarArrayOpExpr *node, deparse_expr_cxt
 		//if (strcmp(opname, "<>") == 0)
 		//	appendStringInfo(buf, " NOT");
 		//
-		DEBUGPOINT;
 		
 		if (IsA(arg2, Const))
 		{
 			Const	   *arrayconst = (Const *) arg2;
-			int 		i;
+			//int 		i;
 			int			num_attr;
 			Datum	   *attr;
 			int16		elmlen;
@@ -336,14 +329,14 @@ ldap2_fdw_deparse_aggref(Aggref *node, deparse_expr_cxt *context)
  */
 char * ldap2_fdw_extract_dn(PlannerInfo * root, Oid foreignTableId, List *scan_clauses)
 {
+	ListCell *cell = NULL;
+	char * retval = NULL;
+	int count = 0;
 	deparse_expr_cxt context;
 	context.foreignTableId = foreignTableId;
 	context.root = root;
 	context.remote_handle_able = true;
 	context.cbuf = strdup("");
-	ListCell *cell = NULL;
-	char * retval = NULL;
-	int count = 0;
 	foreach(cell, scan_clauses) {
 		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
 		//Node *expr = (Node*)rinfo->clause;
