@@ -35,6 +35,32 @@ Important: You need always an attribute "dn", which is the primary identifier fo
     DROP FOREIGN TABLE IF EXISTS names;
     DROP SERVER IF EXISTS ldap CASCADE;
     DROP EXTENSION IF EXISTS ldap2_fdw CASCADE;
+    
+## LDAP Tuning
+### Allow write access for admin user to the LDAP Database
+As root:
+    ldapmodify -Y EXTERNAL -H ldapi:///
+    
+    dn: olcDatabase={1}mdb,cn=config
+    changetype: modify
+    replace: olcAccess
+    olcAccess: to *
+      by dn="cn=admin,dc=nodomain" write
+      by users read
+      by * read
+
+### Create Index
+As root:
+    ldapmodify -Y EXTERNAL -H ldapi:///
+    
+    dn: olcDatabase={1}mdb,cn=config
+    changetype: modify
+    add: olcDbIndex
+    olcDbIndex: dc eq
+    -
+    add: olcDbIndex
+    olcDbIndex: dn eq
+
 
 ## Usage
 ### Generate many entries for speed test
