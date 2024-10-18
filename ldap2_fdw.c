@@ -2466,7 +2466,10 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		else if(!strcmp(def->defname, "schemaname")) schemaname = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "use_remotefiltering"))
 		{
-			use_remotefiltering = pstrdup(defGetString(def));
+			char * rf_value = defGetString(def);
+			if(!strcasecmp(rf_value, "t") || !strcasecmp(rf_value, "true")) use_remotefiltering = pstrdup("1");
+			else if(!strcasecmp(rf_value, "f") || !strcasecmp(rf_value, "false")) use_remotefiltering = pstrdup("0");
+			else use_remotefiltering = pstrdup(rf_value);
 			parse_int(use_remotefiltering, &(ldapConn->options->use_remotefiltering), 0, NULL);
 		}
 		else
