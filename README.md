@@ -31,6 +31,8 @@ Current work: Performance testing
 ## Remote Schema Import
     IMPORT FOREIGN SCHEMA "dc=nodomain" FROM SERVER ldap INTO public OPTIONS(basedn 'dc=nodomain', objectclass 'person', objectclass 'inetOrgPerson', schemadn 'cn=subschema', tablename 'names', scope 'LDAP_SCOPE_CHILDREN', filter '(objectClass=*)', use_remotefiltering '1');
 Important: You need always an attribute "dn", which is the primary identifier for every ldap entry.
+You can give as much objectclass values as you want. This values will be used as default values when creating a new entry.
+
 ## Uninstall
     DROP FOREIGN TABLE IF EXISTS names;
     DROP SERVER IF EXISTS ldap CASCADE;
