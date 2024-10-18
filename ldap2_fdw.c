@@ -1908,6 +1908,8 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 		//ldap_add_ext(ld, dn, NULL, NULL, NULL);
 	}*/
 	
+	if(dn == NULL || !strcmp(dn, "")) elog(ERROR, "dn is null!");
+	
 	rc = ldap_add_ext_s( fmstate->ldapConn->ldap, dn, insert_data, NULL, NULL );
 
 	if ( rc != LDAP_SUCCESS ) {
