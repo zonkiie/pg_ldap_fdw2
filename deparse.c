@@ -239,6 +239,7 @@ ldap2_fdw_deparse_op_expr(OpExpr *node, deparse_expr_cxt *context)
 	if(strcmp(opname, "="))
 	{
 		context->remote_handle_able = false;
+		elog(INFO, "opname: %s", opname);
 		DEBUGPOINT;
 	}
 	//appendStringInfoChar(buf, ')');
