@@ -307,9 +307,58 @@ ldap2_fdw_deparse_relabel_type(RelabelType *node, deparse_expr_cxt *context)
 	deparseExpr(node->arg, context);
 }
 
+/**
+ * from: mysql_deparse_bool_expr
+ */
 static void
 ldap2_fdw_deparse_bool_expr(BoolExpr *node, deparse_expr_cxt *context)
 {
+	const char *op = NULL;		/* keep compiler quiet */
+	bool		first;
+	ListCell   *lc;
+	Expr	   *arg;
+	switch (node->boolop)
+	{
+		case AND_EXPR:
+			op = "&";
+			break;
+		case OR_EXPR:
+			op = "|";
+			break;
+		case NOT_EXPR:
+			/*
+			 * Per transformAExprDistinct(), in the case of IS NOT DISTINCT
+			 * clause, it adds NOT on top of DistinctExpr.  However, in MySQL,
+			 * <=> is equivalent to IS NOT DISTINCT FROM clause, so do not
+			 * append NOT here if it is a DistinctExpr.
+			 */
+			arg = (Expr *) lfirst(list_head(node->args));
+			if (!IsA(arg, DistinctExpr))
+			{
+				strmcat_multi(&(context->cbuf), "(!");
+				deparseExpr(arg, context);
+				strmcat_multi(&(context->cbuf), ")");
+				return;
+			}
+
+			/* Mark that we are deparsing a IS NOT DISTINCT FROM clause. */
+			context->is_not_distinct_op = true;
+	}
+
+	strmcat_multi(&(context->cbuf), "(");
+	first = true;
+	foreach(lc, node->args)
+	{
+		if (first)
+			strmcat_multi(&(context->cbuf), op, "(");
+		deparseExpr((Expr *) lfirst(lc), context);
+		deparseExpr((Expr *) llast(lc), context);
+		if (first)
+			strmcat_multi(&(context->cbuf), ")");
+		first = false;
+	}
+	strmcat_multi(&(context->cbuf), ")");
+	
 	DEBUGPOINT;
 }
 
@@ -554,6 +603,7 @@ deparseExpr(Expr *node, deparse_expr_cxt *context)
 			ldap2_fdw_deparse_relabel_type((RelabelType *) node, context);
 			break;
 // 		case T_BoolExpr:
+// 			elog(INFO, "T_BoolExpr");
 // 			ldap2_fdw_deparse_bool_expr((BoolExpr *) node, context);
 // 			break;
 // 		case T_NullTest:
@@ -562,8 +612,8 @@ deparseExpr(Expr *node, deparse_expr_cxt *context)
 // 		case T_Aggref:
 // 			ldap2_fdw_deparse_aggref((Aggref *) node, context);
 // 			break;
-		case T_ArrayCoerceExpr:
-			//elog(ERROR, "T_ArrayCoerceExpr expression not supported! NodeTag: %d", T_ArrayCoerceExpr);
+//		case T_ArrayCoerceExpr:
+//			elog(INFO, "T_ArrayCoerceExpr expression not supported! NodeTag: %d", T_ArrayCoerceExpr);
 		default:
 			//elog(ERROR, "unsupported expression type for deparse: %d",
 			//	 (int) nodeTag(node));
