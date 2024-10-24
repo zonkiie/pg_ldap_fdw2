@@ -1249,7 +1249,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 		else filter = fdw_private->ldapConn->options->filter;
 	}
 	else filter = fdw_private->ldapConn->options->filter;
-	//elog(INFO, "Applying filters: %s", filter);
+	elog(INFO, "Applying filters: %s", filter);
 	
 	//fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, fdw_private->ldapConn->options->filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fdw_private->msgid) );
 	fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fdw_private->msgid) );
