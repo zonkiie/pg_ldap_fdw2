@@ -349,10 +349,10 @@ ldap2_fdw_deparse_bool_expr(BoolExpr *node, deparse_expr_cxt *context)
 	first = true;
 	foreach(lc, node->args)
 	{
+		DEBUGPOINT;
 		if (first)
 			strmcat_multi(&(context->cbuf), op, "(");
 		deparseExpr((Expr *) lfirst(lc), context);
-		deparseExpr((Expr *) llast(lc), context);
 		if (first)
 			strmcat_multi(&(context->cbuf), ")");
 		first = false;
@@ -602,10 +602,10 @@ deparseExpr(Expr *node, deparse_expr_cxt *context)
 		case T_RelabelType:
 			ldap2_fdw_deparse_relabel_type((RelabelType *) node, context);
 			break;
-// 		case T_BoolExpr:
-// 			elog(INFO, "T_BoolExpr");
-// 			ldap2_fdw_deparse_bool_expr((BoolExpr *) node, context);
-// 			break;
+		case T_BoolExpr:
+			elog(INFO, "T_BoolExpr");
+			ldap2_fdw_deparse_bool_expr((BoolExpr *) node, context);
+			break;
 // 		case T_NullTest:
 // 			ldap2_fdw_deparse_null_test((NullTest *) node, context);
 // 			break;
