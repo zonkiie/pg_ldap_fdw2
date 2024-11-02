@@ -2425,6 +2425,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 {
 	List			*commands = NIL;
 	List			*options = NIL;
+	// List 		*lcolumns = NIL;
 	ListCell		*lc;
 	AttrListType	**attr_typemap = Create_AttrListType();
 	bool			recreate = false;
@@ -2436,6 +2437,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	char			*scope = NULL;
 	char			*use_remotefiltering = NULL;
 	char			**objectClasses = NULL;
+	// List			*objectClasses = NIL;
 	ForeignServer	*server;
 	UserMapping		*user;
 	size_t			num_attrs = 0;
@@ -2463,6 +2465,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		else if(!strcmp(def->defname, "basedn")) ldapConn->options->basedn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "filter")) ldapConn->options->filter = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "objectclass")) array_push(&objectClasses, defGetString(def));
+		//else if(!strcmp(def->defname, "objectclass")) lappend(objectClasses, makeString(defGetString(def)));
 		else if(!strcmp(def->defname, "schemadn")) ldapConn->options->schemadn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "scope")) scope = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "tablename")) tablename = pstrdup(defGetString(def));
