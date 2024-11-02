@@ -57,7 +57,11 @@ size_t fetch_ldap_typemap_new(List* attrList, List* attributes, LDAP *ld, List* 
 									lappend(attributes, makeString(oclass->oc_at_oids_must[attributes_must_size]));
 									foreach(lc, attrList)
 									{
-										
+										AttrListType *value = (AttrListType*)lfirst(lc);
+										if(!strcmp(value->attr_name, oclass->oc_at_oids_must[attributes_must_size]))
+										{
+											value->nullable = false;
+										}
 									}
 									size++;
 								}
