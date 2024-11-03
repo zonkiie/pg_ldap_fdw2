@@ -223,6 +223,123 @@ size_t fetch_ldap_typemap(AttrListType *** attrList, char *** attributes, LDAP *
 	return size;
 }
 
+#warning under work
+size_t fetch_ldap_typemap_new(List* attrList, List* attributes, LDAP *ld, List* object_class, char *schema_dn)
+{
+	size_t size = 0;
+	char *a = NULL;
+	int rc = 0;
+	LDAPMessage *schema = NULL, *entry = NULL;
+	BerElement *ber;
+	rc = ldap_search_ext_s(
+		ld,
+		schema_dn,
+		LDAP_SCOPE_BASE, //LDAP_SCOPE_SUBTREE, //LDAP_SCOPE_BASE,
+		/*schema_filter, */ "(objectClass=*)",
+		(char*[]){ "attributeTypes", "objectClasses", NULL }, //(char*[]){ NULL },
+		0,
+		NULL,
+		NULL,
+		&timeout_struct,
+		1000000,
+		&schema );
+	if (rc != LDAP_SUCCESS) {
+		return -1;
+	}
+	
+	// Put the default columns into attributes list
+	attributes = lappend(attributes, makeString("dn"));
+	attributes = lappend(attributes, makeString("objectclass"));
+	
+	for (entry = ldap_first_entry(ld, schema); entry != NULL; entry = ldap_next_entry(ld, entry))
+	{
+		for ( a = ldap_first_attribute( ld, entry, &ber ); a != NULL; a = ldap_next_attribute( ld, entry, ber ) )
+		{
+			struct berval **vals = NULL;
+			if ((vals = ldap_get_values_len( ld, entry, a)) != NULL )
+			{
+				for (int i = 0; vals[i] != NULL; i++ )
+				{
+					if(!strcmp(a, "objectClasses"))
+					{
+						int oclass_error = 0;
+						const char * oclass_error_text;
+						List *intersect = NIL;
+						List *names = NIL;
+						LDAPObjectClass *oclass = ldap_str2objectclass(vals[i]->bv_val, &oclass_error, &oclass_error_text, LDAP_SCHEMA_ALLOW_ALL);
+						for(int ni = 0; oclass->oc_names[ni] != NULL; ni++)
+						{
+							names = lappend(names, makeString(oclass->oc_names[ni]));
+						}
+							
+						if((intersect = list_intersection(names, object_class)) != NIL)
+						{
+							int new_size = 0;
+							if(oclass != NULL && oclass->oc_at_oids_must != NULL)
+							{
+								for(int attributes_must_size = 0; oclass->oc_at_oids_must[attributes_must_size] != NULL; attributes_must_size++) {
+									ListCell *lc;
+									attributes = lappend(attributes, makeString(oclass->oc_at_oids_must[attributes_must_size]));
+									foreach(lc, attrList)
+									{
+										AttrListType *value = (AttrListType*)lfirst(lc);
+										if(!strcmp(value->attr_name, oclass->oc_at_oids_must[attributes_must_size]))
+										{
+											value->nullable = false;
+										}
+									}
+									size++;
+								}
+							}
+							if(oclass != NULL && oclass->oc_at_oids_may != NULL)
+							{
+								for(int attributes_may_size = 0; oclass->oc_at_oids_may[attributes_may_size] != NULL; attributes_may_size++) {
+									attributes = lappend(attributes, makeString(oclass->oc_at_oids_may[attributes_may_size]));
+									size++;
+								}
+							}
+						}
+						ldap_objectclass_free(oclass);
+					}
+					else if(!strcmp(a, "attributeTypes")) {
+						int attribute_error;
+						const char *  attribute_error_text;
+						LDAPAttributeType *attribute_data = ldap_str2attributetype(vals[i]->bv_val, &attribute_error, &attribute_error_text, LDAP_SCHEMA_ALLOW_NONE);
+						int new_size = 0;
+						char ** names = attribute_data->at_names;
+						
+						for(int attrI = 0; names[attrI] != NULL; attrI++)
+						{
+							AttrListType * attrData = Build_SingleAttrListType (
+								names[attrI],
+								attribute_data->at_oid,
+								NULL,
+								(attribute_data->at_single_value == 0),
+								true
+							);
+							attrList = lappend(attrList, PointerGetDatum(attrData));
+						}
+										
+						ldap_attributetype_free(attribute_data);
+					}
+				}
+
+				ber_bvecfree(vals);
+			}
+			ldap_memfree( a );
+		}
+		if ( ber != NULL ) {
+
+			ber_free( ber, 0 );
+
+		}
+    }
+    
+	// Cleanup
+	ldap_msgfree(schema);
+	
+	return size;
+}
 
 size_t fill_AttrListType(AttrListType*** attributes, AttrTypemap map[])
 {
@@ -237,6 +354,22 @@ size_t fill_AttrListType(AttrListType*** attributes, AttrTypemap map[])
 			strcat((*attributes)[size]->pg_type, "[]");
 		}
 //		elog(INFO, "pg_type: %s", (*attributes)[size]->pg_type);
+		size++;
+	}
+	return size;
+}
+
+
+size_t fill_AttrListType_new(List* attributes, AttrTypemap map[])
+{
+	size_t size = 0;
+	ListCell *lc;
+	if(attributes == NULL || attributes == NIL) return 0;
+	foreach(lc, attributes)
+	{
+		AttrListType *value = (AttrListType*)lfirst(lc);
+		value->pg_type = strdup(getPgTypeForLdapType(map, value->ldap_type));
+		if(value->isarray) strmcat(&(value->pg_type), "[]"); 
 		size++;
 	}
 	return size;
