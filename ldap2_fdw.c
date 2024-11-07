@@ -2425,19 +2425,20 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 {
 	List			*commands = NIL;
 	List			*options = NIL;
-	// List 		*lcolumns = NIL;
-	ListCell		*lc;
-	AttrListType	**attr_typemap = Create_AttrListType();
+	List			*columns = NIL;
+	List			*attr_typemap = NIL;
+	ListCell		*lc, *oc_lc;
+	//AttrListType	**attr_typemap = Create_AttrListType();
 	bool			recreate = false;
-	char			**columns = NULL;
+	//char			**columns = NULL;
 	char			*tablename = NULL;
 	char			*schemaname = NULL;
 	char			*dropStr = NULL;
 	char			*createStr = NULL;
 	char			*scope = NULL;
 	char			*use_remotefiltering = NULL;
-	char			**objectClasses = NULL;
-	// List			*objectClasses = NIL;
+	//char			**objectClasses = NULL;
+	List			*objectClasses = NIL;
 	ForeignServer	*server;
 	UserMapping		*user;
 	size_t			num_attrs = 0;
@@ -2464,8 +2465,8 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 		if (!strcmp(def->defname, "recreate")) recreate = defGetBoolean(def);
 		else if(!strcmp(def->defname, "basedn")) ldapConn->options->basedn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "filter")) ldapConn->options->filter = pstrdup(defGetString(def));
-		else if(!strcmp(def->defname, "objectclass")) array_push(&objectClasses, defGetString(def));
-		//else if(!strcmp(def->defname, "objectclass")) lappend(objectClasses, makeString(defGetString(def)));
+		//else if(!strcmp(def->defname, "objectclass")) array_push(&objectClasses, defGetString(def));
+		else if(!strcmp(def->defname, "objectclass")) objectClasses = lappend(objectClasses, pstrdup(defGetString(def)));
 		else if(!strcmp(def->defname, "schemadn")) ldapConn->options->schemadn = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "scope")) scope = pstrdup(defGetString(def));
 		else if(!strcmp(def->defname, "tablename")) tablename = pstrdup(defGetString(def));
@@ -2503,7 +2504,7 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	//num_attrs = fetch_ldap_typemap(&attr_typemap, &columns, ldapConn->ldap, ldapConn->options->objectclasses, ldapConn->options->schemadn);
 	num_attrs = fetch_ldap_typemap(&attr_typemap, &columns, ldapConn->ldap, objectClasses, ldapConn->options->schemadn);
 	
-	fill_AttrListType(&attr_typemap, typemap);
+	fill_AttrListType(attr_typemap, typemap);
 	
 	/*for(int i = 0; attr_typemap[i] != NULL; i++)
 	{
@@ -2511,66 +2512,78 @@ ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid)
 	}*/
 	
 	//len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\";", tablename);
-	len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\".\"%s\";", schemaname, tablename);
-	if(len == 0) elog(ERROR, "Cound not create drop string!");
+	//len = asprintf(&dropStr, "DROP FOREIGN TABLE IF EXISTS \"%s\".\"%s\";", schemaname, tablename);
+	dropStr = psprintf("DROP FOREIGN TABLE IF EXISTS \"%s\".\"%s\";", schemaname, tablename);
+	if(dropStr == NULL) elog(ERROR, "Cound not create drop string!");
+	//if(len == 0) elog(ERROR, "Cound not create drop string!");
 	
-	createStr = strdup("");
+	createStr = pstrdup("");
 	//strmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", tablename, "\" (");
-	strmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", schemaname, "\".\"", tablename, "\" (");
+	pstrmcat_multi(&createStr, "CREATE FOREIGN TABLE IF NOT EXISTS \"", schemaname, "\".\"", tablename, "\" (");
 	
-	for(int i = 0; columns[i] != NULL; i++)
+//	for(int i = 0; columns[i] != NULL; i++)
+	
+	foreach(lc, columns)
 	{
-		char * attrType = getAttrTypeByAttrName(&attr_typemap, columns[i]);
-		char * defaultValue = strdup("");
-		if(!strcasecmp(columns[i], "uid")) strmcat_multi(&defaultValue, "DEFAULT array[uuid_generate_v4()]");
-		else if(!strcasecmp(columns[i], "objectclass"))
+		char * columnName = lfirst(lc);
+		char * attrType = getAttrTypeByAttrName(attr_typemap, columnName);
+		bool nullable = getAttrNullableByAttrName(attr_typemap, columnName);
+		char * defaultValue = pstrdup("");
+		char * nullable_string = pstrdup(nullable?"NULL":"NOT NULL");
+		if(!strcasecmp(columnName, "uid")) pstrmcat_multi(&defaultValue, "DEFAULT array[uuid_generate_v4()]");
+		else if(!strcasecmp(columnName, "objectclass"))
 		{
 			if(objectClasses != NULL)
 			{
+				bool first = true;
 				attrType = "varchar[]";
-				for(int obj_i = 0; objectClasses[obj_i] != NULL; obj_i++)
+				//for(int obj_i = 0; objectClasses[obj_i] != NULL; obj_i++)
+				foreach(oc_lc, objectClasses)
 				{
-					if(obj_i == 0) strmcat_multi(&defaultValue, "DEFAULT array[");
-					strmcat_multi(&defaultValue, "'", objectClasses[obj_i], "',");
+					char *singleObjectClass = lfirst(oc_lc);
+					if(first) pstrmcat_multi(&defaultValue, "DEFAULT array[");
+					pstrmcat_multi(&defaultValue, "'", singleObjectClass, "',");
+					first = false;
 				}
 				if(defaultValue[strlen(defaultValue) - 1] == ',') defaultValue[strlen(defaultValue) - 1] = ']';
 			}
 		}
-		strmcat_multi(&createStr, "\"", columns[i], "\"", " ", attrType, " ", defaultValue, (columns[i + 1] != NULL?", ":""));
-		free(defaultValue);
+		pstrmcat_multi(&createStr, "\"", columnName, "\"", " ", attrType, " ", nullable_string, " ", defaultValue, ", ");
+		pfree(defaultValue);
+		pfree(nullable_string);
 		defaultValue = NULL;
 	}
 	
-	strmcat_multi(&createStr, ") SERVER ", server->servername, " OPTIONS(");
+	while(createStr[strlen(createStr) - 1] == ' ' || createStr[strlen(createStr) - 1] == ',')
+		createStr[strlen(createStr) - 1] = '\0';
+	
+	pstrmcat_multi(&createStr, ") SERVER ", server->servername, " OPTIONS(");
 	if(ldapConn->options->basedn != NULL)
 	{
-		strmcat_multi(&createStr, " basedn '", ldapConn->options->basedn, "',");
+		pstrmcat_multi(&createStr, " basedn '", ldapConn->options->basedn, "',");
 	}
 	if(ldapConn->options->filter != NULL)
 	{
-		strmcat_multi(&createStr, " filter '", ldapConn->options->filter, "',");
+		pstrmcat_multi(&createStr, " filter '", ldapConn->options->filter, "',");
 	}
 	if(scope != NULL)
 	{
-		strmcat_multi(&createStr, " scope '" , scope, "',");
+		pstrmcat_multi(&createStr, " scope '" , scope, "',");
 	}
 	
 	if(use_remotefiltering != NULL)
 	{
-		strmcat_multi(&createStr, " use_remotefiltering '", use_remotefiltering, "',");
+		pstrmcat_multi(&createStr, " use_remotefiltering '", use_remotefiltering, "',");
 	}
 	
 	if(createStr[strlen(createStr) - 1] == ',') createStr[strlen(createStr) - 1] = 0;
-	strmcat_multi(&createStr, ");");
-	
-	free_carr_n(&columns);
-	
+	pstrmcat_multi(&createStr, ");");
 	
 	if(recreate) commands = lappend(commands, pstrdup(dropStr));
 	commands = lappend(commands, pstrdup(createStr));
 	
-	free(dropStr);
-	free(createStr);
+	pfree(dropStr);
+	pfree(createStr);
 	
 	ldap_unbind_ext_s(ldapConn->ldap, NULL, NULL);
 	free_options(ldapConn->options);

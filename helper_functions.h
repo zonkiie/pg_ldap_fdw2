@@ -24,6 +24,8 @@ extern struct         timeval  zerotime;
 
 #define strmcat_multi(...) strmcat_multi_with_null(__VA_ARGS__, NULL)
 #define strmcat_multi_alloc(...) strmcat_multi_alloc_with_null(__VA_ARGS__, NULL)
+#define pstrmcat_multi(...) pstrmcat_multi_with_null(__VA_ARGS__, NULL)
+#define pstrmcat_multi_alloc(...) pstrmcat_multi_alloc_with_null(__VA_ARGS__, NULL)
 
 int str_split_kv(char ***, char *, char *);
 int str_split(char ***, char *, char *);
@@ -32,6 +34,9 @@ char * str_replace(const char *, const char *, const char *);
 char *trim(char *, char *);
 bool char_charlist(char , char *);
 int substr_count(char *, char *);
+void pstrmcat(char **, char *);
+void pstrmcat_multi_with_null(char **targetstr, ...);
+char * pstrmcat_multi_alloc_with_null(char * arg1, ...);
 void strmcat(char **, char *);
 void strmcat_multi_with_null(char **targetstr, ...);
 char * strmcat_multi_alloc_with_null(char * arg1, ...);

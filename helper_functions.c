@@ -123,6 +123,42 @@ char *trim(char *string, char *trimchars)
 	return strndup((string + start), copylen);
 }
 
+void pstrmcat(char **targetstr, char *tocat)
+{
+	int newsize = strlen((*targetstr)) + strlen(tocat);
+	(*targetstr) = (char*)repalloc((*targetstr), newsize + 2);
+	strcat((*targetstr), tocat);
+}
+
+char * pstrmcat_multi_alloc_with_null(char * arg1, ...)
+{
+	char * targetstr = strdup(arg1);
+	va_list args;
+	char * argument;
+    va_start(args, arg1);
+	while((argument = va_arg(args, char*)) != NULL)
+	{
+		if(!strcmp(argument, "")) continue;
+		targetstr = (char*)repalloc(targetstr, strlen(targetstr) + strlen(argument) + 2);
+		strcat(targetstr, argument);
+	}
+	return targetstr;
+}
+
+// Last Argument must be NULL if no error should occur
+void pstrmcat_multi_with_null(char **targetstr, ...)
+{
+	va_list args;
+	char * argument;
+    va_start(args, targetstr);
+	while((argument = va_arg(args, char*)) != NULL)
+	{
+		if(!strcmp(argument, "")) continue;
+		(*targetstr) = (char*)repalloc((*targetstr), strlen(*targetstr) + strlen(argument) + 2);
+		strcat((*targetstr), argument);
+	}
+}
+
 void strmcat(char **targetstr, char *tocat)
 {
 	int newsize = strlen((*targetstr)) + strlen(tocat);

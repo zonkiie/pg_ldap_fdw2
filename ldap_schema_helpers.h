@@ -27,16 +27,16 @@ typedef struct AttrListType
 	bool nullable;
 } AttrListType;
 
-AttrListType** Create_AttrListType(void);
+List * Create_AttrListType(void);
 AttrListType * Create_SingleAttrListType(void);
-size_t AttrListTypeCount(AttrListType***);
-size_t AttrListTypeAppend(AttrListType***, AttrListType *);
+size_t AttrListTypeAppend(List*, AttrListType *);
 void AttrListTypeFreeSingle(AttrListType **);
-void AttrListTypeFree(AttrListType***);
-char * getAttrTypeByAttrName(AttrListType ***, char *);
+void AttrListTypeFree(List * attrlist);
+char * getAttrTypeByAttrName(List*, char *);
+bool getAttrNullableByAttrName(List *, char *);
 
-size_t fetch_ldap_typemap(AttrListType***, char ***, LDAP *, char **, char *);
-size_t fill_AttrListType(AttrListType***, AttrTypemap[]);
+size_t fetch_ldap_typemap(List**, List**, LDAP *, List*, char *);
+size_t fill_AttrListType(List*, AttrTypemap[]);
 
 extern struct timeval timeout_struct;
 extern AttrTypemap typemap[];
