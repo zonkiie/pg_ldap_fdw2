@@ -260,8 +260,8 @@ size_t fill_AttrListType(List* attributes, AttrTypemap map[])
 	foreach(lc, attributes)
 	{
 		AttrListType *value = (AttrListType*)lfirst(lc);
-		value->pg_type = strdup(getPgTypeForLdapType(map, value->ldap_type));
-		if(value->isarray) strmcat(&(value->pg_type), "[]"); 
+		value->pg_type = pstrdup(getPgTypeForLdapType(map, value->ldap_type));
+		if(value->isarray) pstrmcat(&(value->pg_type), "[]"); 
 		size++;
 	}
 	return size;
