@@ -1909,7 +1909,11 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	}*/
 	
 #warning Throw error when dn is NULL
-	//if(dn == NULL || !strcmp(dn, "")) elog(ERROR, "dn is null!");
+	if(dn == NULL || !strcmp(dn, ""))
+	{
+		elog(ERROR, "dn is %s!", dn);
+		return NULL;
+	}
 	
 	rc = ldap_add_ext_s( fmstate->ldapConn->ldap, dn, insert_data, NULL, NULL );
 
@@ -2165,7 +2169,11 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	 *  TODO: Improve updates
 	 */
 	
-	if(dn == NULL) elog(ERROR, "dn is null!");
+	if(dn == NULL || !strcmp(dn, ""))
+	{
+		elog(ERROR, "dn is %s!", dn);
+		return NULL;
+	}
 	
 	if(modify_data != NULL)
 	{
