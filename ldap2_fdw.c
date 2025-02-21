@@ -1667,7 +1667,7 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 					  retrieved_attrs);*/
 	//return list_make1(targetAttrs);
 	return list_make2(targetAttrs,
-					  makeBoolean((returningList != NIL)));
+					  makeInteger((returningList != NIL)));
 }
 
 /*
@@ -1736,7 +1736,7 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	initLdapConnectionStruct(fmstate->ldapConn);
 
 	fmstate->target_attrs = (List *) list_nth(fdw_private, 0);
-	fmstate->has_returning = boolVal(list_nth(fdw_private, 1));
+	fmstate->has_returning = (bool)intVal(list_nth(fdw_private, 1));
 	
 	//fmstate->retrieved_attrs = (List *) list_nth(fdw_private, 3);
 
