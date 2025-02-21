@@ -1665,7 +1665,9 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 					  targetAttrs,
 					  makeInteger((returningList != NIL)),
 					  retrieved_attrs);*/
-	return list_make1(targetAttrs);
+	//return list_make1(targetAttrs);
+	return list_make2(targetAttrs,
+					  makeBoolean((returningList != NIL)));
 }
 
 /*
@@ -1734,6 +1736,7 @@ ldap2_fdw_BeginForeignModify(ModifyTableState *mtstate,
 	initLdapConnectionStruct(fmstate->ldapConn);
 
 	fmstate->target_attrs = (List *) list_nth(fdw_private, 0);
+	fmstate->has_returning = boolVal(list_nth(fdw_private, 1));
 	
 	//fmstate->retrieved_attrs = (List *) list_nth(fdw_private, 3);
 
@@ -1929,7 +1932,10 @@ ldap2_fdw_ExecForeignInsert(EState *estate,
 	}*/
 	for(i = 0; insert_data[i] != NULL; i++) free(insert_data[i]);
 	
-	slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
+	if(fmstate->has_returning)
+	{
+		slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
+	}
 	
 	pfree(dn);
 	free( insert_data );
@@ -2209,7 +2215,10 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 		modify_data = NULL;
 	}
 	
-	slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
+	if(fmstate->has_returning)
+	{
+		slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
+	}
 	
 	return slot;
 }
@@ -2256,8 +2265,10 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 	
 	if((dn = pstrdup(value_str)))
 	{
-		
-		slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
+		if(fmstate->has_returning)
+		{
+			slot = fetchLdapEntryByDnIntoSlot(fmstate->ldapConn, foreignTableId, dn);
+		}
 		
 		rc = ldap_delete_ext_s(fmstate->ldapConn->ldap, dn, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
 

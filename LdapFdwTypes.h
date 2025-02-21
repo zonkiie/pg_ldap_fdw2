@@ -42,6 +42,7 @@ typedef struct LdapFdwModifyState
 	Relation	rel;			/* relcache entry for the foreign table */
 	List	   *target_attrs;	/* list of target attribute numbers */
 	List	   *retrieved_attrs;
+	bool		has_returning;
 
 	/* Info about parameters for prepared statement */
 	int			p_nums;			/* number of parameters to transmit */
