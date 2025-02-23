@@ -1597,8 +1597,8 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 			 * We also disallow updates to the first column which happens to
 			 * be the row identifier in MongoDb (_id)
 			 */
-			if (col == 1)		/* Shouldn't happen */
-				elog(ERROR, "row identifier column update is not supported");
+			//if (col == 1)		/* Shouldn't happen */
+			//	elog(ERROR, "row identifier column update is not supported");
 
 			targetAttrs = lappend_int(targetAttrs, col);
 		}
@@ -2110,11 +2110,11 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
-	Datum       attr_value, datum;
+	Datum       attr_value, datum, id_value;
 	bool		isNull = false;
 	Oid			foreignTableId;
 	Oid			typoid;
-	char *dn = NULL;
+	char *dn = NULL, *old_dn = NULL;
 	int rc = 0;
 	int i = 0, j = 0, op_success = 0;
 	LDAPMod		**modify_data = NULL;
@@ -2132,7 +2132,16 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	TupleDesc tupdesc = RelationGetDescr(rel);
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
 	datum = ExecGetJunkAttribute(planSlot, fmstate->rowidAttno, &isNull);
+	if(!isNull)
+	{
+		old_dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, datum)));
+		elog(INFO, "old dn value: %s\n", old_dn);
+	}
 	typoid = get_atttype(foreignTableId, 1);
+	
+	//id_value = slot_getattr(slot, i + 1, &isNull);
+	//old_dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
+	
 	// Durchlaufe alle Attribute des Tuples
     for (i = 0; i < tupdesc->natts; i++) {
         attr_value = slot_getattr(slot, i + 1, &isNull);
@@ -2179,6 +2188,27 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	{
 		elog(ERROR, "dn is %s!", dn);
 		return NULL;
+	}
+	
+	
+	/*
+	 * Change of dn requested
+	 */
+	if(old_dn != NULL && strcasecmp(dn, old_dn))
+	{
+		char * comma = index(dn, ','), * parent_rdn = NULL, * child_rdn = NULL;
+		if(comma != NULL) 
+		{
+			parent_rdn = pstrdup(comma + 1);
+			child_rdn = pnstrdup(dn, comma - dn);
+		}
+		else
+		{
+			child_rdn = pstrdup(dn);
+		}
+		
+		rc = ldap_rename_s(fmstate->ldapConn->ldap, old_dn, child_rdn, parent_rdn, 1, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
+		if(rc == LDAP_SUCCESS) op_success++;
 	}
 	
 	if(modify_data != NULL)
