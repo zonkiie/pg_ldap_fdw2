@@ -2132,11 +2132,8 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	TupleDesc tupdesc = RelationGetDescr(rel);
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
 	datum = ExecGetJunkAttribute(planSlot, fmstate->rowidAttno, &isNull);
-	if(!isNull)
-	{
-		old_dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, datum)));
-		elog(INFO, "old dn value: %s\n", old_dn);
-	}
+	if(!isNull) old_dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, datum)));
+	
 	typoid = get_atttype(foreignTableId, 1);
 	
 	//id_value = slot_getattr(slot, i + 1, &isNull);
@@ -2192,7 +2189,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	
 	
 	/*
-	 * Change of dn requested
+	 * Change of dn requested?
 	 */
 	if(old_dn != NULL && strcasecmp(dn, old_dn))
 	{
@@ -2209,6 +2206,8 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 		
 		rc = ldap_rename_s(fmstate->ldapConn->ldap, old_dn, child_rdn, parent_rdn, 1, fmstate->ldapConn->serverctrls, fmstate->ldapConn->clientctrls);
 		if(rc == LDAP_SUCCESS) op_success++;
+		pfree(parent_rdn);
+		pfree(child_rdn);
 	}
 	
 	if(modify_data != NULL)
