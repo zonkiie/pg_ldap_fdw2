@@ -1593,13 +1593,6 @@ ldap2_fdw_PlanForeignModify(PlannerInfo *root,
 			if (col <= InvalidAttrNumber)	/* Shouldn't happen */
 				elog(ERROR, "system-column update is not supported");
 
-			/*
-			 * We also disallow updates to the first column which happens to
-			 * be the row identifier in MongoDb (_id)
-			 */
-			//if (col == 1)		/* Shouldn't happen */
-			//	elog(ERROR, "row identifier column update is not supported");
-
 			targetAttrs = lappend_int(targetAttrs, col);
 		}
 		/* We also want the rowid column to be available for the update */
