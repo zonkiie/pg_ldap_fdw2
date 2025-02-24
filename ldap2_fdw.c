@@ -2103,7 +2103,7 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
-	Datum       attr_value, datum, id_value;
+	Datum       attr_value, id_value;
 	bool		isNull = false;
 	Oid			foreignTableId;
 	Oid			typoid;
@@ -2124,13 +2124,10 @@ ldap2_fdw_ExecForeignUpdate(EState *estate,
 	Relation rel = resultRelInfo->ri_RelationDesc;
 	TupleDesc tupdesc = RelationGetDescr(rel);
 	foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
-	datum = ExecGetJunkAttribute(planSlot, fmstate->rowidAttno, &isNull);
-	if(!isNull) old_dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, datum)));
+	id_value = ExecGetJunkAttribute(planSlot, fmstate->rowidAttno, &isNull);
+	if(!isNull) old_dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, id_value)));
 	
 	typoid = get_atttype(foreignTableId, 1);
-	
-	//id_value = slot_getattr(slot, i + 1, &isNull);
-	//old_dn = pstrdup(DatumGetCString(DirectFunctionCall1(textout, attr_value)));
 	
 	// Durchlaufe alle Attribute des Tuples
     for (i = 0; i < tupdesc->natts; i++) {
