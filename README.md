@@ -3,6 +3,8 @@ LDAP Foreign Data Wrapper for PostgreSQL with write support.
 
 Please note that not every LDAP Structure might be mapped to a relational model.
 
+A server-configured size-limit can influence the number of results when selecting everything.
+
 Warning: Don't use it in production systems. This fdw is not enough tested and still needs a lot of work.
 
 Remote filtering works if you give the dn in a where condition of a query with no other conditions and only one value.
