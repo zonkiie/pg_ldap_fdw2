@@ -34,6 +34,7 @@ static void ldap2_fdw_deparse_relabel_type(RelabelType *node,
 static void ldap2_fdw_deparse_bool_expr(BoolExpr *node, deparse_expr_cxt *context);
 static void ldap2_fdw_deparse_null_test(NullTest *node, deparse_expr_cxt *context);
 static void ldap2_fdw_deparse_aggref(Aggref *node, deparse_expr_cxt *context);
+static void ldap2_fdw_deparse_limit(deparse_expr_cxt *context);
 //static void deparseRelation(StringInfo buf, Relation rel);
 // static void ldap2_fdw_deparse_from_expr(List *, deparse_expr_cxt *);
 // static void ldap2_fdw_append_conditions(List *, deparse_expr_cxt *);
@@ -556,6 +557,27 @@ char * ldap2_fdw_extract_dn_value(PlannerInfo * root, Oid foreignTableId, List *
 // 	}
 // }
 
+
+static void ldap2_fdw_deparse_limit(deparse_expr_cxt *context)
+{
+/*	PlannerInfo *root = context->root;
+	StringInfo	buf = context->buf;
+
+	if (root->parse->limitCount)
+	{
+		Const	   *c = (Const *) root->parse->limitOffset;
+
+		appendStringInfoString(buf, " LIMIT ");
+		deparseExpr((Expr *) root->parse->limitCount, context);
+
+		if (c && !c->constisnull)
+		{
+			appendStringInfoString(buf, " OFFSET ");
+			deparseExpr((Expr *) c, context);
+		}
+	}
+*/
+}
 
 /*
  * Deparse given expression into context->buf.

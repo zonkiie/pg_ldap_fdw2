@@ -199,6 +199,17 @@ enum FdwModifyPrivateIndex
     FdwModifyPrivateRetrievedAttrs
 };
 
+/**
+ * @from mysql_fdw
+ */
+enum FdwPathPrivateIndex
+{
+	/* has-final-sort flag (as an integer Value node) */
+	FdwPathPrivateHasFinalSort,
+	/* has-limit flag (as an integer Value node) */
+	FdwPathPrivateHasLimit
+};
+
 struct timeval timeout_struct = {.tv_sec = 10L, .tv_usec = 0L};
 
 static void GetOptionStructr(LdapFdwOptions * options, Oid foreignTableId)
@@ -775,6 +786,9 @@ Datum ldap2_fdw_handler(PG_FUNCTION_ARGS)
 
     fdw_routine->AnalyzeForeignTable = ldap2_fdw_AnalyzeForeignTable;
 	fdw_routine->ImportForeignSchema = ldap2_fdw_ImportForeignSchema;
+	
+	/* Support functions for upper relation push-down */
+	//fdwroutine->GetForeignUpperPaths = ldap2_fdw_GetForeignUpperPaths;
 
     PG_RETURN_POINTER(fdw_routine);
 }
@@ -964,9 +978,21 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	*/
 	char		*dn_clauses = NULL;
 	StringInfoData sql_buf;
+	bool		has_final_sort = false;
+	bool		has_limit = false;
 	
     initStringInfo(&sql_buf);
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
+	
+	if (best_path->fdw_private)
+	{
+		has_final_sort = intVal(list_nth(best_path->fdw_private, FdwPathPrivateHasFinalSort));
+		has_limit = intVal(list_nth(best_path->fdw_private, FdwPathPrivateHasLimit));
+	}
+	
+	
+	elog(INFO, "has_final_sort: %d, has_limit: %d", has_final_sort, has_limit);
+	
 	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
 	
 	//if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
