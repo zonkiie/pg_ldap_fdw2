@@ -11,6 +11,8 @@
 #include "funcapi.h"
 #include "miscadmin.h"
 #include "utils/builtins.h"
+#include "nodes/pathnodes.h"
+#include "utils/rel.h"
 
 typedef struct LdapFdwOptions
 {
@@ -73,6 +75,11 @@ typedef struct LdapFdwPlanState
 	int         rc;
 	int         msgid;
 	int         num_attrs;
+	bool		pushdown_safe;
+	
+	/* Upper relation information */
+	UpperRelationKind stage;
+	
 	List	   *local_conds;
 	List	   *remote_conds;
 	char       **columns;

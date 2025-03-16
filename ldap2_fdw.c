@@ -112,7 +112,7 @@ static void ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags);
 static TupleTableSlot *ldap2_fdw_IterateForeignScan(ForeignScanState *node);
 static void ldap2_fdw_ReScanForeignScan(ForeignScanState *node);
 static void ldap2_fdw_EndForeignScan(ForeignScanState *node);
-
+static void ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel, RelOptInfo *final_rel, FinalPathExtraData *extra);
 
 /*
  * FDW callback routines
@@ -165,7 +165,11 @@ static int ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
 							  HeapTuple *rows, int targrows,
 							  double *totalrows,
 							  double *totaldeadrows);
-
+static void ldap2_fdw_GetForeignUpperPaths(PlannerInfo *root,
+									  UpperRelationKind stage,
+									  RelOptInfo *input_rel,
+									  RelOptInfo *output_rel,
+									  void *extra);
 static List * ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt,
 							Oid serverOid);
 
@@ -788,7 +792,7 @@ Datum ldap2_fdw_handler(PG_FUNCTION_ARGS)
 	fdw_routine->ImportForeignSchema = ldap2_fdw_ImportForeignSchema;
 	
 	/* Support functions for upper relation push-down */
-	//fdwroutine->GetForeignUpperPaths = ldap2_fdw_GetForeignUpperPaths;
+	fdw_routine->GetForeignUpperPaths = ldap2_fdw_GetForeignUpperPaths;
 
     PG_RETURN_POINTER(fdw_routine);
 }
@@ -2477,6 +2481,86 @@ ldap2_fdw_AcquireSampleRowsFunc(Relation relation, int elevel,
   totalrows = 0;
   totaldeadrows = 0;
 	return 0;
+}
+
+/*
+ * from: mysqlGetForeignUpperPaths
+ */
+static void
+ldap2_fdw_GetForeignUpperPaths(PlannerInfo *root, UpperRelationKind stage,
+						  RelOptInfo *input_rel, RelOptInfo *output_rel,
+						  void *extra)
+{
+	LdapFdwPlanState *fpinfo;
+	
+	elog(INFO, "Function: %s", __FUNCTION__);
+	
+	/*
+	 * If input rel is not safe to pushdown, then simply return as we cannot
+	 * perform any post-join operations on the foreign server.
+	 */
+	if (!input_rel->fdw_private ||
+		!((LdapFdwPlanState *) input_rel->fdw_private)->pushdown_safe)
+		return;
+
+	elog(INFO, "Function: %s, Line: %d", __FUNCTION__, __LINE__);
+
+	/* Ignore stages we don't support; and skip any duplicate calls. */
+	if ((stage != UPPERREL_FINAL) || output_rel->fdw_private)
+		return;
+	
+	elog(INFO, "Function: %s, Line: %d", __FUNCTION__, __LINE__);
+
+	fpinfo = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
+	fpinfo->pushdown_safe = false;
+	fpinfo->stage = stage;
+	output_rel->fdw_private = fpinfo;
+
+	switch (stage)
+	{
+		case UPPERREL_FINAL:
+			ldap2_fdw_add_foreign_final_paths(root, input_rel, output_rel,
+										  (FinalPathExtraData *) extra);
+			break;
+		default:
+			elog(ERROR, "unexpected upper relation: %d", (int) stage);
+			break;
+	}
+}
+
+
+/*
+ * ldap2_fdw_add_foreign_final_paths from mysql_add_foreign_final_paths
+ *		Add foreign paths for performing the final processing remotely.
+ *
+ * Given input_rel contains the source-data Paths.  The paths are added to the
+ * given final_rel.
+ */
+static void
+ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
+							  RelOptInfo *final_rel, FinalPathExtraData *extra)
+{
+	Query	   *parse = root->parse;
+	LdapFdwPlanState *ifpinfo = (LdapFdwPlanState *) input_rel->fdw_private;
+	LdapFdwPlanState *fpinfo = (LdapFdwPlanState *) final_rel->fdw_private;
+	bool		has_final_sort = false;
+	List	   *pathkeys = NIL;
+	double		rows;
+	Cost		startup_cost;
+	Cost		total_cost;
+	List	   *fdw_private;
+	ForeignPath *final_path;
+	
+	
+	if (parse->limitCount)
+	{
+		elog(INFO, "Limit found!");
+	}
+	
+	if (parse->limitOffset)
+	{
+		elog(INFO, "Offset found!");
+	}
 }
 
 /**
