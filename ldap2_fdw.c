@@ -2492,8 +2492,41 @@ ldap2_fdw_GetForeignUpperPaths(PlannerInfo *root, UpperRelationKind stage,
 						  void *extra)
 {
 	LdapFdwPlanState *fpinfo;
+	Query	   *parse = root->parse;
 	
 	elog(INFO, "Function: %s", __FUNCTION__);
+	
+	if (parse->limitCount)
+	{
+		elog(INFO, "Limit found!");
+		int limitcount = -1;
+		if (IsA(parse->limitCount, Const)) {
+				Const *constNode = (Const *)parse->limitCount;
+
+			// Check if the value is not NULL and it is of integer type
+			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
+				// Extract the integer value
+				limitcount = DatumGetInt32(constNode->constvalue);
+			}
+		}
+		elog(INFO, "Limit Value: %d", limitcount);
+	}
+	
+	if (parse->limitOffset)
+	{
+		elog(INFO, "Offset found!");
+		int limitoffset = -1;
+		if (IsA(parse->limitOffset, Const)) {
+				Const *constNode = (Const *)parse->limitOffset;
+
+			// Check if the value is not NULL and it is of integer type
+			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
+				// Extract the integer value
+				limitoffset = DatumGetInt32(constNode->constvalue);
+			}
+		}
+		elog(INFO, "Offset Value: %d", limitoffset);
+	}
 	
 	/*
 	 * If input rel is not safe to pushdown, then simply return as we cannot
