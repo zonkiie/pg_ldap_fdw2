@@ -79,6 +79,12 @@ typedef struct LdapFdwPlanState
 	
 	/* Upper relation information */
 	UpperRelationKind stage;
+	bool		has_limit;
+	bool		has_offset;
+	int			limit_count;
+	int			limit_offset;
+	RelOptInfo	*outerrel;
+	RelOptInfo	*innerrel;
 	
 	List	   *local_conds;
 	List	   *remote_conds;

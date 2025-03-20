@@ -206,12 +206,19 @@ enum FdwModifyPrivateIndex
 /**
  * @from mysql_fdw
  */
+// enum FdwPathPrivateIndex
+// {
+// 	/* has-final-sort flag (as an integer Value node) */
+// 	FdwPathPrivateHasFinalSort,
+// 	/* has-limit flag (as an integer Value node) */
+// 	FdwPathPrivateHasLimit
+// };
 enum FdwPathPrivateIndex
 {
-	/* has-final-sort flag (as an integer Value node) */
-	FdwPathPrivateHasFinalSort,
 	/* has-limit flag (as an integer Value node) */
-	FdwPathPrivateHasLimit
+	FdwPathPrivateHasLimit,
+	/* has-offset flag (as an integer Value node) */
+	FdwPathPrivateHasOffset
 };
 
 struct timeval timeout_struct = {.tv_sec = 10L, .tv_usec = 0L};
@@ -847,6 +854,7 @@ ldap2_fdw_GetForeignRelSize(PlannerInfo *root,
 	
 	baserel->rows = estimate_size(fdw_private->ldapConn->ldap, fdw_private->ldapConn->options);
 	fdw_private->row = 0;
+	fdw_private->pushdown_safe = true;
 	//elog(INFO, "Rows: %f", baserel->rows);
 	baserel->fdw_private = (void *) fdw_private;
 	if(baserel->fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
@@ -984,18 +992,20 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	StringInfoData sql_buf;
 	bool		has_final_sort = false;
 	bool		has_limit = false;
+	bool		has_offset = false;
 	
     initStringInfo(&sql_buf);
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	
 	if (best_path->fdw_private)
 	{
-		has_final_sort = intVal(list_nth(best_path->fdw_private, FdwPathPrivateHasFinalSort));
+		//has_final_sort = intVal(list_nth(best_path->fdw_private, FdwPathPrivateHasFinalSort));
 		has_limit = intVal(list_nth(best_path->fdw_private, FdwPathPrivateHasLimit));
+		has_offset = intVal(list_nth(best_path->fdw_private, FdwPathPrivateHasOffset));
 	}
 	
 	
-	elog(INFO, "has_final_sort: %d, has_limit: %d", has_final_sort, has_limit);
+	elog(INFO, "has_final_sort: %d, has_limit: %d, has_offset: %d", has_final_sort, has_limit, has_offset);
 	
 	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
 	
@@ -2496,37 +2506,11 @@ ldap2_fdw_GetForeignUpperPaths(PlannerInfo *root, UpperRelationKind stage,
 	
 	elog(INFO, "Function: %s", __FUNCTION__);
 	
-	if (parse->limitCount)
-	{
-		elog(INFO, "Limit found!");
-		int limitcount = -1;
-		if (IsA(parse->limitCount, Const)) {
-				Const *constNode = (Const *)parse->limitCount;
-
-			// Check if the value is not NULL and it is of integer type
-			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
-				// Extract the integer value
-				limitcount = DatumGetInt32(constNode->constvalue);
-			}
-		}
-		elog(INFO, "Limit Value: %d", limitcount);
-	}
 	
-	if (parse->limitOffset)
-	{
-		elog(INFO, "Offset found!");
-		int limitoffset = -1;
-		if (IsA(parse->limitOffset, Const)) {
-				Const *constNode = (Const *)parse->limitOffset;
-
-			// Check if the value is not NULL and it is of integer type
-			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
-				// Extract the integer value
-				limitoffset = DatumGetInt32(constNode->constvalue);
-			}
-		}
-		elog(INFO, "Offset Value: %d", limitoffset);
-	}
+	if (!input_rel->fdw_private)
+		elog(INFO, "input_rel->fdw_private is not set!");
+	if (input_rel->fdw_private && !((LdapFdwPlanState *) input_rel->fdw_private)->pushdown_safe)
+		elog(INFO, "input_rel->fdw_private->pushdown_safe is not true!");
 	
 	/*
 	 * If input rel is not safe to pushdown, then simply return as we cannot
@@ -2584,16 +2568,88 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	List	   *fdw_private;
 	ForeignPath *final_path;
 	
+	fpinfo->outerrel = input_rel;
+	
+	elog(INFO, "Has_Limit old Value: %d", fpinfo->has_limit);
+	elog(INFO, "Has_Offset old Value: %d", fpinfo->has_offset);
 	
 	if (parse->limitCount)
 	{
-		elog(INFO, "Limit found!");
+		elog(INFO, "Line %d: Limit found!", __LINE__);
+		fpinfo->has_limit = true;
+		fpinfo->limit_count = -1;
+		if (IsA(parse->limitCount, Const)) {
+				Const *constNode = (Const *)parse->limitCount;
+
+			// Check if the value is not NULL and it is of integer type
+			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
+				// Extract the integer value
+				fpinfo->limit_count = DatumGetInt32(constNode->constvalue);
+			}
+		}
+		elog(INFO, "Limit Value: %d", fpinfo->limit_count);
 	}
 	
 	if (parse->limitOffset)
 	{
-		elog(INFO, "Offset found!");
+		elog(INFO, "Line %d: Offset found!", __LINE__);
+		fpinfo->has_offset = true;
+		fpinfo->limit_offset = -1;
+		if (IsA(parse->limitOffset, Const)) {
+				Const *constNode = (Const *)parse->limitOffset;
+
+			// Check if the value is not NULL and it is of integer type
+			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
+				// Extract the integer value
+				fpinfo->limit_offset = DatumGetInt32(constNode->constvalue);
+			}
+		}
+		elog(INFO, "Offset Value: %d", fpinfo->limit_offset);
 	}
+	
+	
+	startup_cost = 1;
+	total_cost = 1 + startup_cost;
+	rows = fpinfo->limit_count;
+	
+	/*
+	 * Build the fdw_private list that will be used by mysqlGetForeignPlan.
+	 * Items in the list must match order in enum FdwPathPrivateIndex.
+	 */
+	/*fdw_private = list_make2(makeInteger(has_final_sort),
+							 makeInteger(extra->limit_needed));*/
+	fdw_private = list_make2(makeInteger(fpinfo->has_limit), makeInteger(fpinfo->has_offset));
+
+	/*
+	 * Create foreign final path; this gets rid of a no-longer-needed outer
+	 * plan (if any), which makes the EXPLAIN output look cleaner
+	 */
+#if PG_VERSION_NUM >= 170000
+	final_path = create_foreign_upper_path(root,
+										   input_rel,
+										   root->upper_targets[UPPERREL_FINAL],
+										   rows,
+										   startup_cost,
+										   total_cost,
+										   pathkeys,
+										   NULL,	/* no extra plan */
+										   NIL,		/* no fdw_restrictinfo list */
+										   fdw_private);
+#else
+	final_path = create_foreign_upper_path(root,
+										   input_rel,
+										   root->upper_targets[UPPERREL_FINAL],
+										   rows,
+										   startup_cost,
+										   total_cost,
+										   pathkeys,
+										   NULL,	/* no extra plan */
+										   fdw_private);
+#endif
+
+	/* and add it to the final_rel */
+	add_path(final_rel, (Path *) final_path);
+	
 }
 
 /**
