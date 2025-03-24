@@ -173,6 +173,9 @@ static void ldap2_fdw_GetForeignUpperPaths(PlannerInfo *root,
 static List * ldap2_fdw_ImportForeignSchema(ImportForeignSchemaStmt *stmt,
 							Oid serverOid);
 
+//static bool ldap2_fdw_ScrollResultSet();
+
+
 /* magic */
 enum FdwScanPrivateIndex
 {
@@ -2572,17 +2575,18 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	
 	elog(INFO, "Has_Limit old Value: %d", fpinfo->has_limit);
 	elog(INFO, "Has_Offset old Value: %d", fpinfo->has_offset);
+	elog(INFO, "Rows: %d, ntuples: %d", fpinfo->row, fpinfo->ntuples);
 	
 	if (parse->limitCount)
 	{
 		elog(INFO, "Line %d: Limit found!", __LINE__);
-		fpinfo->has_limit = true;
 		fpinfo->limit_count = -1;
 		if (IsA(parse->limitCount, Const)) {
 				Const *constNode = (Const *)parse->limitCount;
 
 			// Check if the value is not NULL and it is of integer type
 			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
+				fpinfo->has_limit = true;
 				// Extract the integer value
 				fpinfo->limit_count = DatumGetInt32(constNode->constvalue);
 			}
@@ -2593,13 +2597,13 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	if (parse->limitOffset)
 	{
 		elog(INFO, "Line %d: Offset found!", __LINE__);
-		fpinfo->has_offset = true;
 		fpinfo->limit_offset = -1;
 		if (IsA(parse->limitOffset, Const)) {
 				Const *constNode = (Const *)parse->limitOffset;
 
 			// Check if the value is not NULL and it is of integer type
 			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
+				fpinfo->has_offset = true;
 				// Extract the integer value
 				fpinfo->limit_offset = DatumGetInt32(constNode->constvalue);
 			}
