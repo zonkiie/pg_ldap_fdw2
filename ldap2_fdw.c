@@ -2295,7 +2295,7 @@ ldap2_fdw_ExecForeignDelete(EState *estate,
 						  TupleTableSlot *slot,
 						  TupleTableSlot *planSlot)
 {
-	LdapFdwModifyState *fmstate = fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
+	LdapFdwModifyState *fmstate = (LdapFdwModifyState *) resultRelInfo->ri_FdwState;;
 	Datum       datum;
 	bool		isNull = false;
 	Oid			foreignTableId;
