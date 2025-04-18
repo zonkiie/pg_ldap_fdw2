@@ -2571,6 +2571,9 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	List	   *fdw_private;
 	ForeignPath *final_path;
 	
+	if (parse->commandType != CMD_SELECT)
+		return;
+
 	fpinfo->outerrel = input_rel;
 	
 	elog(INFO, "Has_Limit old Value: %d", fpinfo->has_limit);
