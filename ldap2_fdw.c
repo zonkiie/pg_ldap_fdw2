@@ -1295,7 +1295,21 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	elog(INFO, "Applying filters: %s", filter);
 	
 	//fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, fdw_private->ldapConn->options->filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fdw_private->msgid) );
-	fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fdw_private->msgid) );
+	
+	//struct berval  *cookie=NULL;
+	//static char pagingCriticality = 'T';
+	//fdw_private->rc = ldap_create_page_control(fdw_private->ldapConn->ldap, pageSize, cookie, pagingCriticality, &pageControl);
+	
+	//fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fdw_private->msgid) );
+	
+	int sizelimit = LDAP_NO_LIMIT;
+	if(fdw_private->has_limit)
+	{
+		sizelimit = fdw_private->limit_count;
+	}
+	
+	elog(INFO, "Size Limit in Search: %d\n", sizelimit);
+	fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, sizelimit, &(fdw_private->msgid) );
 	if ( fdw_private->rc != LDAP_SUCCESS ) {
 
 		elog(INFO, "ldap_search_ext_s: %s\n", ldap_err2string( fdw_private->rc ) );
@@ -2580,6 +2594,43 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	elog(INFO, "Has_Offset old Value: %d", fpinfo->has_offset);
 	elog(INFO, "Rows: %d, ntuples: %d", fpinfo->row, fpinfo->ntuples);
 	
+	// from postgresql source
+	
+	/*
+	 * If the underlying relation has any local conditions, the LIMIT/OFFSET
+	 * cannot be pushed down.
+	 */
+	if (ifpinfo->local_conds)
+		return;
+
+	/*
+	 * If the query has FETCH FIRST .. WITH TIES, 1) it must have ORDER BY as
+	 * well, which is used to determine which additional rows tie for the last
+	 * place in the result set, and 2) ORDER BY must already have been
+	 * determined to be safe to push down before we get here.  So in that case
+	 * the FETCH clause is safe to push down with ORDER BY if the remote
+	 * server is v13 or later, but if not, the remote query will fail entirely
+	 * for lack of support for it.  Since we do not currently have a way to do
+	 * a remote-version check (without accessing the remote server), disable
+	 * pushing the FETCH clause for now.
+	 */
+	if (parse->limitOption == LIMIT_OPTION_WITH_TIES)
+		return;
+
+	/*
+	 * Also, the LIMIT/OFFSET cannot be pushed down, if their expressions are
+	 * not safe to remote.
+	 */
+	/*if (!is_foreign_expr(root, input_rel, (Expr *) parse->limitOffset) ||
+		!is_foreign_expr(root, input_rel, (Expr *) parse->limitCount))
+		return;
+	*/
+	// End from postgresql source
+	
+	if(parse->limitCount != parse->limitOffset)
+	{
+	
+	
 	if (parse->limitCount)
 	{
 		elog(INFO, "Line %d: Limit found!", __LINE__);
@@ -2614,6 +2665,7 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 		elog(INFO, "Offset Value: %d", fpinfo->limit_offset);
 	}
 	
+	}
 	
 	startup_cost = 1;
 	total_cost = 1 + startup_cost;

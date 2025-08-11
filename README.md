@@ -99,6 +99,8 @@ Why not using Multicorn oder JDBC?
 
 [https://wiki.mozilla.org/Mozilla_LDAP_SDK_Programmer%27s_Guide/Adding,_Updating,_and_Deleting_Entries_With_LDAP_C_SDK](https://wiki.mozilla.org/Mozilla_LDAP_SDK_Programmer%27s_Guide/Adding,_Updating,_and_Deleting_Entries_With_LDAP_C_SDK)
 
+[https://www.ibm.com/docs/en/i/7.4.0?topic=ssw_ibm_i_74/apis/ldap_create_page_control.htm](https://www.ibm.com/docs/en/i/7.4.0?topic=ssw_ibm_i_74/apis/ldap_create_page_control.htm)
+
 ## Error constants
 [https://github.com/munakoiso/logerrors/blob/master/constants.h](https://github.com/munakoiso/logerrors/blob/master/constants.h)
 
