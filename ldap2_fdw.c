@@ -1014,7 +1014,10 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		limit_count = intVal(list_nth(best_path->fdw_private, FdwPathPrivateLimitValue));
 		limit_offset = intVal(list_nth(best_path->fdw_private, FdwPathPrivateOffsetValue));
 	}
-	
+	else
+	{
+		elog(INFO, "no fdw private list!");
+	}
 	
 	elog(INFO, "has_final_sort: %d, has_limit: %d, has_offset: %d", has_final_sort, has_limit, has_offset);
 	
@@ -1038,9 +1041,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
 	//dn_clauses = ldap2_fdw_extract_dn(root, foreignTableId, scan_clauses);
 		dn_clauses = ldap2_fdw_extract_dn_value(root, foreignTableId, scan_clauses);
-		//fdw_private_list = list_make1(makeString(dn_clauses));
-		fdw_private_list = list_make5(makeString(dn_clauses), makeInteger(has_limit), makeInteger(has_offset), makeInteger(limit_count), makeInteger(limit_offset));
 	}
+	//fdw_private_list = list_make1(makeString(dn_clauses));
+	fdw_private_list = list_make5(makeString(dn_clauses), makeInteger(has_limit), makeInteger(has_offset), makeInteger(limit_count), makeInteger(limit_offset));
 	
 	/*
 	 * From MongoDB FDW
@@ -1234,9 +1237,11 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	if (list_length(fdw_private_list) > 2) has_offset = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateHasOffset + 1));
 	if (list_length(fdw_private_list) > 3) limit_count = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateLimitValue + 1));
 	if (list_length(fdw_private_list) > 4) limit_offset = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateOffsetValue + 1));
-
+	
+	elog(INFO, "List Length fsplan->fdw_private: %d", list_length(fdw_private_list));
 	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
+	
 	
 	//fdw_private = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	fdw_private->ldapConn = create_LdapFdwConn();
@@ -2645,8 +2650,8 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	*/
 	// End from postgresql source
 	
-	if(parse->limitCount != parse->limitOffset)
-	{
+	//if(parse->limitCount != parse->limitOffset)
+	//{
 	
 	
 	if (parse->limitCount)
@@ -2658,6 +2663,7 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 
 			// Check if the value is not NULL and it is of integer type
 			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
+				elog(INFO, "Line %d", __LINE__);
 				fpinfo->has_limit = true;
 				// Extract the integer value
 				fpinfo->limit_count = DatumGetInt32(constNode->constvalue);
@@ -2675,6 +2681,7 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 
 			// Check if the value is not NULL and it is of integer type
 			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
+				elog(INFO, "Line %d", __LINE__);
 				fpinfo->has_offset = true;
 				// Extract the integer value
 				fpinfo->limit_offset = DatumGetInt32(constNode->constvalue);
@@ -2683,7 +2690,7 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 		elog(INFO, "Offset Value: %d", fpinfo->limit_offset);
 	}
 	
-	}
+	//}
 	
 	startup_cost = 1;
 	total_cost = 1 + startup_cost;
