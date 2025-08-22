@@ -221,7 +221,11 @@ enum FdwPathPrivateIndex
 	/* has-limit flag (as an integer Value node) */
 	FdwPathPrivateHasLimit,
 	/* has-offset flag (as an integer Value node) */
-	FdwPathPrivateHasOffset
+	FdwPathPrivateHasOffset,
+	/* limit value */
+	FdwPathPrivateLimitValue,
+	/* offset value */
+	FdwPathPrivateOffsetValue,
 };
 
 struct timeval timeout_struct = {.tv_sec = 10L, .tv_usec = 0L};
@@ -996,6 +1000,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	bool		has_final_sort = false;
 	bool		has_limit = false;
 	bool		has_offset = false;
+	int			limit_count = -1;
+	int			limit_offset = -1;
 	
     initStringInfo(&sql_buf);
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
@@ -1005,6 +1011,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		//has_final_sort = intVal(list_nth(best_path->fdw_private, FdwPathPrivateHasFinalSort));
 		has_limit = intVal(list_nth(best_path->fdw_private, FdwPathPrivateHasLimit));
 		has_offset = intVal(list_nth(best_path->fdw_private, FdwPathPrivateHasOffset));
+		limit_count = intVal(list_nth(best_path->fdw_private, FdwPathPrivateLimitValue));
+		limit_offset = intVal(list_nth(best_path->fdw_private, FdwPathPrivateOffsetValue));
 	}
 	
 	
@@ -1030,7 +1038,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
 	//dn_clauses = ldap2_fdw_extract_dn(root, foreignTableId, scan_clauses);
 		dn_clauses = ldap2_fdw_extract_dn_value(root, foreignTableId, scan_clauses);
-		fdw_private_list = list_make1(makeString(dn_clauses));
+		//fdw_private_list = list_make1(makeString(dn_clauses));
+		fdw_private_list = list_make5(makeString(dn_clauses), makeInteger(has_limit), makeInteger(has_offset), makeInteger(limit_count), makeInteger(limit_offset));
 	}
 	
 	/*
@@ -1210,11 +1219,21 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	UserMapping *user;*/
 	char * dn_clauses = NULL;
 	char * filter = NULL;
+	bool has_final_sort = false;
+	bool has_limit = false;
+	bool has_offset = false;
+	int limit_count = -1;
+	int limit_offset = -1;
+	int sizelimit = LDAP_NO_LIMIT;
 	
 	int attnum;
 	
 	List	   *fdw_private_list = fsplan->fdw_private;
 	if (list_length(fdw_private_list) > 0) dn_clauses = strVal(list_nth(fsplan->fdw_private, 0));
+	if (list_length(fdw_private_list) > 1) has_limit = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateHasLimit + 1));
+	if (list_length(fdw_private_list) > 2) has_offset = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateHasOffset + 1));
+	if (list_length(fdw_private_list) > 3) limit_count = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateLimitValue + 1));
+	if (list_length(fdw_private_list) > 4) limit_offset = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateOffsetValue + 1));
 
 	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
@@ -1302,10 +1321,9 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	
 	//fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fdw_private->msgid) );
 	
-	int sizelimit = LDAP_NO_LIMIT;
-	if(fdw_private->has_limit)
+	if(has_limit)
 	{
-		sizelimit = fdw_private->limit_count;
+		sizelimit = limit_count;
 	}
 	
 	elog(INFO, "Size Limit in Search: %d\n", sizelimit);
@@ -2677,7 +2695,7 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	 */
 	/*fdw_private = list_make2(makeInteger(has_final_sort),
 							 makeInteger(extra->limit_needed));*/
-	fdw_private = list_make2(makeInteger(fpinfo->has_limit), makeInteger(fpinfo->has_offset));
+	fdw_private = list_make4(makeInteger(fpinfo->has_limit), makeInteger(fpinfo->has_offset), makeInteger(fpinfo->limit_count), makeInteger(fpinfo->limit_offset));
 
 	/*
 	 * Create foreign final path; this gets rid of a no-longer-needed outer
