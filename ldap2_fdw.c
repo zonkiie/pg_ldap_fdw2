@@ -1019,7 +1019,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		elog(INFO, "no fdw private list!");
 	}
 	
-	elog(INFO, "has_final_sort: %d, has_limit: %d, has_offset: %d", has_final_sort, has_limit, has_offset);
+	elog(INFO, "has_final_sort: %d, has_limit: %d, has_offset: %d, limit_count: %d, limit_offset: %d", has_final_sort, has_limit, has_offset, limit_count, limit_offset);
 	
 	//LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc(sizeof(LdapFdwPlanState));
 	
@@ -2605,8 +2605,12 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	double		rows;
 	Cost		startup_cost;
 	Cost		total_cost;
-	List	   *fdw_private;
+	List	   *fdw_private = NIL;
 	ForeignPath *final_path;
+	bool		has_limit = false;
+	bool		has_offset = false;
+	int			limit_count = -1;
+	int			limit_offset = -1;
 	
 	if (parse->commandType != CMD_SELECT)
 		return;
@@ -2658,6 +2662,7 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	{
 		elog(INFO, "Line %d: Limit found!", __LINE__);
 		fpinfo->limit_count = -1;
+		limit_count = -1;
 		if (IsA(parse->limitCount, Const)) {
 				Const *constNode = (Const *)parse->limitCount;
 
@@ -2665,8 +2670,10 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
 				elog(INFO, "Line %d", __LINE__);
 				fpinfo->has_limit = true;
+				has_limit = true;
 				// Extract the integer value
 				fpinfo->limit_count = DatumGetInt32(constNode->constvalue);
+				limit_count = DatumGetInt32(constNode->constvalue);
 			}
 		}
 		elog(INFO, "Limit Value: %d", fpinfo->limit_count);
@@ -2676,6 +2683,7 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	{
 		elog(INFO, "Line %d: Offset found!", __LINE__);
 		fpinfo->limit_offset = -1;
+		limit_offset = -1;
 		if (IsA(parse->limitOffset, Const)) {
 				Const *constNode = (Const *)parse->limitOffset;
 
@@ -2683,8 +2691,10 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 			if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
 				elog(INFO, "Line %d", __LINE__);
 				fpinfo->has_offset = true;
+				has_offset = true;
 				// Extract the integer value
 				fpinfo->limit_offset = DatumGetInt32(constNode->constvalue);
+				limit_offset = DatumGetInt32(constNode->constvalue);
 			}
 		}
 		elog(INFO, "Offset Value: %d", fpinfo->limit_offset);
@@ -2694,7 +2704,8 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	
 	startup_cost = 1;
 	total_cost = 1 + startup_cost;
-	rows = fpinfo->limit_count;
+	//rows = fpinfo->limit_count;
+	rows = limit_count;
 	
 	/*
 	 * Build the fdw_private list that will be used by mysqlGetForeignPlan.
@@ -2702,7 +2713,8 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	 */
 	/*fdw_private = list_make2(makeInteger(has_final_sort),
 							 makeInteger(extra->limit_needed));*/
-	fdw_private = list_make4(makeInteger(fpinfo->has_limit), makeInteger(fpinfo->has_offset), makeInteger(fpinfo->limit_count), makeInteger(fpinfo->limit_offset));
+	//fdw_private = list_make4(makeInteger(fpinfo->has_limit), makeInteger(fpinfo->has_offset), makeInteger(fpinfo->limit_count), makeInteger(fpinfo->limit_offset));
+	fdw_private = list_make4(makeInteger(has_limit), makeInteger(has_offset), makeInteger(limit_count), makeInteger(limit_offset));
 
 	/*
 	 * Create foreign final path; this gets rid of a no-longer-needed outer
