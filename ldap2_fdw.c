@@ -1006,6 +1006,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
     initStringInfo(&sql_buf);
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	
+	elog(INFO, "baserel->fdw_private length: %d", list_length(baserel->fdw_private));
+	elog(INFO, "best_path->fdw_private length: %d", list_length(best_path->fdw_private));
+	
 	if (best_path->fdw_private)
 	{
 		//has_final_sort = intVal(list_nth(best_path->fdw_private, FdwPathPrivateHasFinalSort));
@@ -1016,7 +1019,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	}
 	else
 	{
-		elog(INFO, "no fdw private list!");
+		elog(INFO, "no fdw private list in best_path->fdw_private!");
 	}
 	
 	elog(INFO, "has_final_sort: %d, has_limit: %d, has_offset: %d, limit_count: %d, limit_offset: %d", has_final_sort, has_limit, has_offset, limit_count, limit_offset);
@@ -2715,6 +2718,8 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 							 makeInteger(extra->limit_needed));*/
 	//fdw_private = list_make4(makeInteger(fpinfo->has_limit), makeInteger(fpinfo->has_offset), makeInteger(fpinfo->limit_count), makeInteger(fpinfo->limit_offset));
 	fdw_private = list_make4(makeInteger(has_limit), makeInteger(has_offset), makeInteger(limit_count), makeInteger(limit_offset));
+	
+	elog(INFO, "List Length fdw_private in %s: %d", __FUNCTION__, list_length(fdw_private));
 
 	/*
 	 * Create foreign final path; this gets rid of a no-longer-needed outer
