@@ -982,6 +982,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 						Plan *outer_plan)
 {
 	//Path	   *foreignPath;
+	Query	   *parse = root->parse;
 	Index		scan_relid = baserel->relid;
 	LdapFdwPlanState *fdw_private = NULL;
 	
@@ -1005,6 +1006,46 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
     initStringInfo(&sql_buf);
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
+	
+	if (parse->commandType == CMD_SELECT)
+	{
+		// TODO: Merge with the Code in func ldap2_fdw_add_foreign_final_paths!
+		if (parse->limitCount)
+		{
+			elog(INFO, "Func: %s, Line %d: Limit found!", __FUNCTION__, __LINE__);
+			limit_count = -1;
+			if (IsA(parse->limitCount, Const)) {
+					Const *constNode = (Const *)parse->limitCount;
+
+				// Check if the value is not NULL and it is of integer type
+				if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
+					elog(INFO, "Line %d", __LINE__);
+					has_limit = true;
+					// Extract the integer value
+					limit_count = DatumGetInt32(constNode->constvalue);
+				}
+			}
+			elog(INFO, "Limit Value: %d", limit_count);
+		}
+		
+		if (parse->limitOffset)
+		{
+			elog(INFO, "Func: %s, Line %d: Offset found!", __FUNCTION__, __LINE__);
+			limit_offset = -1;
+			if (IsA(parse->limitOffset, Const)) {
+					Const *constNode = (Const *)parse->limitOffset;
+
+				// Check if the value is not NULL and it is of integer type
+				if ((constNode->consttype == INT2OID || constNode->consttype == INT4OID || constNode->consttype == INT8OID) && !constNode->constisnull) {
+					elog(INFO, "Line %d", __LINE__);
+					has_offset = true;
+					// Extract the integer value
+					limit_offset = DatumGetInt32(constNode->constvalue);
+				}
+			}
+			elog(INFO, "Offset Value: %d", limit_offset);
+		}
+	}
 	
 	elog(INFO, "baserel->fdw_private length: %d", list_length(baserel->fdw_private));
 	elog(INFO, "best_path->fdw_private length: %d", list_length(best_path->fdw_private));
@@ -1329,7 +1370,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	
 	//fdw_private->rc = ldap_search_ext( fdw_private->ldapConn->ldap, fdw_private->ldapConn->options->basedn, fdw_private->ldapConn->options->scope, filter, fdw_private->columns, 0, fdw_private->ldapConn->serverctrls, fdw_private->ldapConn->clientctrls, &timeout_struct, LDAP_NO_LIMIT, &(fdw_private->msgid) );
 	
-	if(has_limit)
+	if(has_limit && !has_offset)
 	{
 		sizelimit = limit_count;
 	}
