@@ -101,6 +101,9 @@ Why not using Multicorn oder JDBC?
 
 [https://www.ibm.com/docs/en/i/7.4.0?topic=ssw_ibm_i_74/apis/ldap_create_page_control.htm](https://www.ibm.com/docs/en/i/7.4.0?topic=ssw_ibm_i_74/apis/ldap_create_page_control.htm)
 
+Remote Offset handling maybe from:
+[https://github.com/EnterpriseDB/hdfs_fdw/blob/master/hdfs_fdw.c](https://github.com/EnterpriseDB/hdfs_fdw/blob/master/hdfs_fdw.c)
+
 ## Error constants
 [https://github.com/munakoiso/logerrors/blob/master/constants.h](https://github.com/munakoiso/logerrors/blob/master/constants.h)
 

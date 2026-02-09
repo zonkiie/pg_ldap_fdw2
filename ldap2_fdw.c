@@ -1232,16 +1232,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 			outer_plan);
 }
 #endif
-/*
- * ExplainForeignScan
- *   no extra info explain plan
- */
-/*
-static void
-ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
-{
-}
-*/
+
 /*
  * BeginForeignScan
  *   called during executor startup. perform any initialization
@@ -2511,9 +2502,10 @@ static void
 ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
 {
 	DEBUGPOINT;
-/*
-	List	   *fdw_private;
-	char	   *sql;
+	ForeignScan *plan = castNode(ForeignScan, node->ss.ps.plan);
+	//List	   *fdw_private;u
+	List	   *fdw_private = plan->fdw_private;
+	char	   *sql = NULL, *rawrelation = NULL, *ptr = NULL;
 	if (es->verbose)
 	{
 		DEBUGPOINT;
@@ -2521,7 +2513,6 @@ ldap2_fdw_ExplainForeignScan(ForeignScanState *node, ExplainState *es)
 		sql = strVal(list_nth(fdw_private, FdwScanPrivateSelectSql));
 		ExplainPropertyText("ldap2_fdw_ SQL", sql, es);
 	}
-*/
 
 }
 
