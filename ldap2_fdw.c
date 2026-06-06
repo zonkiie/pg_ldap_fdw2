@@ -1084,7 +1084,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	// Working on ldap filtering
 	
 	//dn_clauses = ldap2_fdw_extract_dn(root, foreignTableId, scan_clauses);
-		dn_clauses = ldap2_fdw_extract_dn_value(root, foreignTableId, scan_clauses);
+		dn_clauses = ldap2_fdw_extract_dn_value(root, foreignTableId, scan_clauses); // Hier crash bei offset angabe
 	}
 	//fdw_private_list = list_make1(makeString(dn_clauses));
 	fdw_private_list = list_make5(makeString(dn_clauses), makeInteger(has_limit), makeInteger(has_offset), makeInteger(limit_count), makeInteger(limit_offset));

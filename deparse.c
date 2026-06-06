@@ -416,6 +416,7 @@ char * ldap2_fdw_extract_dn_value(PlannerInfo * root, Oid foreignTableId, List *
 	ListCell *cell = NULL;
 	char * retval = NULL;
 	int count = 0;
+	if(scan_clauses == NULL) return NULL;
 	foreach(cell, scan_clauses) {
 		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
 		//Node *expr = (Node*)rinfo->clause;
