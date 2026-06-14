@@ -881,9 +881,13 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 	
 	Path	   *path;
 	LdapFdwPlanState *fdw_private;
+	// Cost defines wether the path from fdw or postgresql will be selected, for example for filtering or applying limit/offset statements.
+	// Lower Costs: offset/limit Handling is done by fdw, higher Costs: handling is done by postgresql.
 	//Cost		startupCost = 0.0;
-	Cost		startup_cost = 10.0;
-	Cost		total_cost = 0.0;
+	//Cost		startup_cost = 10.0;
+	Cost		startup_cost = 0.001;
+	//Cost		total_cost = 0.0;
+	Cost		total_cost = 0.001;
 	
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	
@@ -2642,6 +2646,7 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	Cost		total_cost;
 	List	   *fdw_private = NIL;
 	ForeignPath *final_path;
+	Path *input_path = linitial(input_rel->pathlist);
 	bool		has_limit = false;
 	bool		has_offset = false;
 	int			limit_count = -1;
@@ -2737,8 +2742,11 @@ ldap2_fdw_add_foreign_final_paths(PlannerInfo *root, RelOptInfo *input_rel,
 	
 	//}
 	
-	startup_cost = 1;
-	total_cost = 1 + startup_cost;
+	startup_cost = 0.001;
+	//startup_cost = input_path->startup_cost;
+	total_cost = 0.001;
+	//total_cost = 1 + startup_cost;
+	//total_cost = input_path->total_cost;
 	//rows = fpinfo->limit_count;
 	rows = limit_count;
 	

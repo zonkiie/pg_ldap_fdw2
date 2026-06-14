@@ -409,6 +409,7 @@ char * ldap2_fdw_extract_dn(PlannerInfo * root, Oid foreignTableId, List *scan_c
 char * ldap2_fdw_extract_dn_value(PlannerInfo * root, Oid foreignTableId, List *scan_clauses)
 {
 	deparse_expr_cxt context;
+	if(scan_clauses == NULL) return NULL;
 	context.foreignTableId = foreignTableId;
 	context.root = root;
 	context.remote_handle_able = true;
@@ -416,7 +417,6 @@ char * ldap2_fdw_extract_dn_value(PlannerInfo * root, Oid foreignTableId, List *
 	ListCell *cell = NULL;
 	char * retval = NULL;
 	int count = 0;
-	if(scan_clauses == NULL) return NULL;
 	foreach(cell, scan_clauses) {
 		RestrictInfo *rinfo = (RestrictInfo *) lfirst(cell);
 		//Node *expr = (Node*)rinfo->clause;
