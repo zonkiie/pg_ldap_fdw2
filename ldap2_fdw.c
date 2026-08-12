@@ -57,6 +57,7 @@
 #include "ldap_functions.h"
 #include "ldap_schema_helpers.h"
 #include "deparse.h"
+#include "extraction_functions.h"
 
 static void GetOptionStructr(LdapFdwOptions *, Oid);
 static LdapFdwConn * create_LdapFdwConn(void);
@@ -1010,6 +1011,12 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
     initStringInfo(&sql_buf);
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
+	DEBUGPOINT;
+	//elog(INFO, "Filter-Struktur im AST:");
+	//pprint(baserel->baserestrictinfo);
+	//pprint(scan_clauses);
+	char *ast_str = nodeToString(scan_clauses);
+	elog(INFO, "Filter-AST als String: %s", ast_str ? ast_str : "NULL/NIL");
 	
 	if (parse->commandType == CMD_SELECT)
 	{
