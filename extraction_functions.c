@@ -2,6 +2,9 @@
 
 // Gemini-created funktions from here to EOF
 
+#include "utils/array.h"
+#include "utils/lsyscache.h"
+
 char *
 const_to_string(Const *c)
 {
@@ -37,14 +40,12 @@ get_base_var(Node *node)
 char *
 expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid)
 {
-	//Oid			foreignTableId;
 	if (node == NULL)
 		return NULL;
 
 	/* Handle RestrictInfo Wrapper */
 	if (IsA(node, RestrictInfo))
 	{
-		//return expr_to_ldap_filter((Node *) ((RestrictInfo *) node)->clause, root, baserel);
 		return expr_to_ldap_filter((Node *) ((RestrictInfo *) node)->clause, root, baserel, foreigntableid);
 	}
 
@@ -66,24 +67,68 @@ expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel, Oid fore
 		if (var && IsA(right, Const))
 		{
 			AttrNumber attnum = var->varattno;
-			/* Hol den Postgres-Spaltennamen (z.B. "cn") */
-			//char *attr_name = get_attname(RelationGetRelid(baserel->generichost), attnum, false);
-			//foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
-			elog(INFO, "relid: %u, attnum: %d", baserel->relid, attnum);
-			//char *attr_name = get_attname(baserel->relid, attnum, false);
 			char *attr_name = get_attname(foreigntableid, attnum, false);
 			
-			/* Wenn es ein Array-Match ist (wie bei deinem cn::text[] && array['...']) */
-			if (IsA(right, Const))
+			if (!attr_name)
+				return NULL;
+
+			Const *cnt = (Const *) right;
+			if (!cnt->constisnull)
 			{
-				Const *cnt = (Const *) right;
-				
-				/* Falls es ein Skalar-Wert ist (z.B. cn = 'FirstName1') */
-				if (!cnt->constisnull)
+				/* Prüfen, ob es sich um einen Array-Typ handelt */
+				Oid element_type = get_element_type(cnt->consttype);
+
+				if (OidIsValid(element_type))
 				{
+					/* --- ARRAY-BEHANDLUNG --- */
+					ArrayType *arrayval = DatumGetArrayTypeP(cnt->constvalue);
+					Datum *elems;
+					bool *nulls;
+					int nelems;
+					int16 elmlen;
+					bool elmbyval;
+					char elmalign;
+					Oid typoutput;
+					bool typisvarlena;
+
+					/* Metadaten des Elementtyps ermitteln */
+					get_typlenbyvalalign(element_type, &elmlen, &elmbyval, &elmalign);
+					getTypeOutputInfo(element_type, &typoutput, &typisvarlena);
+
+					/* Array in Einzelwerte zerlegen */
+					deconstruct_array(arrayval, element_type, elmlen, elmbyval, elmalign,
+									&elems, &nulls, &nelems);
+
+					if (nelems == 0)
+						return psprintf("(%s=__no_match__)", attr_name);
+
+					if (nelems == 1)
+					{
+						if (nulls[0])
+							return NULL;
+						char *val_str = OidOutputFunctionCall(typoutput, elems[0]);
+						return psprintf("(%s=%s)", attr_name, val_str);
+					}
+
+					/* Mehrere Elemente -> Als LDAP-OR verknüpfen: (|(attr=val1)(attr=val2)) */
+					StringInfoData or_buf;
+					initStringInfo(&or_buf);
+					appendStringInfo(&or_buf, "(|");
+
+					for (int i = 0; i < nelems; i++)
+					{
+						if (nulls[i])
+							continue;
+						char *val_str = OidOutputFunctionCall(typoutput, elems[i]);
+						appendStringInfo(&or_buf, "(%s=%s)", attr_name, val_str);
+					}
+					appendStringInfoChar(&or_buf, ')');
+					return or_buf.data;
+				}
+				else
+				{
+					/* --- SKALAR-BEHANDLUNG (z.B. cn = 'Max') --- */
 					char *val_str = const_to_string(cnt);
-					
-					// Beispiel für einfachen Filter: (cn=FirstName1)
 					return psprintf("(%s=%s)", attr_name, val_str);
 				}
 			}
@@ -109,17 +154,15 @@ expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel, Oid fore
 		ListCell *lc;
 		foreach(lc, boolexpr->args)
 		{
-			//char *subfilter = expr_to_ldap_filter((Node *) lfirst(lc), root, baserel);
 			char *subfilter = expr_to_ldap_filter((Node *) lfirst(lc), root, baserel, foreigntableid);
 			if (!subfilter)
-				return NULL; /* Wenn ein Teil nicht gepusht werden kann, brechen wir ab */
+				return NULL;
 			appendStringInfoString(&buf, subfilter);
 		}
 		appendStringInfoChar(&buf, ')');
 		return buf.data;
 	}
 
-	/* Wenn der Ausdruck zu komplex ist -> NULL zurückgeben (Postgres filtert dann selbst) */
+	/* Wenn der Ausdruck zu komplex ist -> NULL zurückgeben */
 	return NULL;
 }
-
