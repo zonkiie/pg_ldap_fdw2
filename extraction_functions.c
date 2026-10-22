@@ -2,7 +2,7 @@
 
 // Gemini-created funktions from here to EOF
 
-static char *
+char *
 const_to_string(Const *c)
 {
 	Oid typoutput;
@@ -16,7 +16,7 @@ const_to_string(Const *c)
 }
 
 /* Hilfsfunktion: Entpackt Var aus Casts/Coercions */
-static Var *
+Var *
 get_base_var(Node *node)
 {
 	while (node)
@@ -34,16 +34,18 @@ get_base_var(Node *node)
 }
 
 /* Rekursive Funktion zum Bauen des LDAP-Filters */
-static char *
-expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel)
+char *
+expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid)
 {
+	//Oid			foreignTableId;
 	if (node == NULL)
 		return NULL;
 
 	/* Handle RestrictInfo Wrapper */
 	if (IsA(node, RestrictInfo))
 	{
-		return expr_to_ldap_filter((Node *) ((RestrictInfo *) node)->clause, root, baserel);
+		//return expr_to_ldap_filter((Node *) ((RestrictInfo *) node)->clause, root, baserel);
+		return expr_to_ldap_filter((Node *) ((RestrictInfo *) node)->clause, root, baserel, foreigntableid);
 	}
 
 	/* Handle OpExpr (z.B. =, >=, <=, &&) */
@@ -66,7 +68,10 @@ expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel)
 			AttrNumber attnum = var->varattno;
 			/* Hol den Postgres-Spaltennamen (z.B. "cn") */
 			//char *attr_name = get_attname(RelationGetRelid(baserel->generichost), attnum, false);
-			char *attr_name = get_attname(baserel->relid, attnum, false);
+			//foreignTableId = RelationGetRelid(resultRelInfo->ri_RelationDesc);
+			elog(INFO, "relid: %u, attnum: %d", baserel->relid, attnum);
+			//char *attr_name = get_attname(baserel->relid, attnum, false);
+			char *attr_name = get_attname(foreigntableid, attnum, false);
 			
 			/* Wenn es ein Array-Match ist (wie bei deinem cn::text[] && array['...']) */
 			if (IsA(right, Const))
@@ -104,7 +109,8 @@ expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel)
 		ListCell *lc;
 		foreach(lc, boolexpr->args)
 		{
-			char *subfilter = expr_to_ldap_filter((Node *) lfirst(lc), root, baserel);
+			//char *subfilter = expr_to_ldap_filter((Node *) lfirst(lc), root, baserel);
+			char *subfilter = expr_to_ldap_filter((Node *) lfirst(lc), root, baserel, foreigntableid);
 			if (!subfilter)
 				return NULL; /* Wenn ein Teil nicht gepusht werden kann, brechen wir ab */
 			appendStringInfoString(&buf, subfilter);

@@ -6,5 +6,11 @@
 #include "nodes/pg_list.h"
 #include "nodes/primnodes.h"
 #include "utils/builtins.h"
+#include "utils/lsyscache.h"
+
+Var *get_base_var(Node *node);
+char * const_to_string(Const *c);
+char * expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel, Oid foreigntableid);
+
 
 #endif

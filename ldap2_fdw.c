@@ -1008,15 +1008,52 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	bool		has_offset = false;
 	int			limit_count = -1;
 	int			limit_offset = -1;
+	StringInfoData filter_buf;
+	Node *clause = NULL;
+    initStringInfo(&filter_buf);
 	
     initStringInfo(&sql_buf);
 	fdw_private = (LdapFdwPlanState *) baserel->fdw_private;
 	DEBUGPOINT;
-	//elog(INFO, "Filter-Struktur im AST:");
-	//pprint(baserel->baserestrictinfo);
-	//pprint(scan_clauses);
-	char *ast_str = nodeToString(scan_clauses);
-	elog(INFO, "Filter-AST als String: %s", ast_str ? ast_str : "NULL/NIL");
+	
+	int num_clauses = list_length(scan_clauses);
+	
+	if(num_clauses == 1)
+	{
+		//elog(INFO, "Filter-Struktur im AST:");
+		//pprint(baserel->baserestrictinfo);
+		//pprint(scan_clauses);
+		char *ast_str = nodeToString(scan_clauses);
+		clause = (Node *) linitial(scan_clauses);
+		elog(INFO, "Filter-AST als String: %s", ast_str ? ast_str : "NULL/NIL");
+		char *filter = expr_to_ldap_filter(clause, root, baserel, foreignTableId);
+		elog(INFO, "Filter als String: %s", filter ? filter : "NULL/NIL");
+	}
+	else if(num_clauses > 1)
+	{
+		appendStringInfo(&filter_buf, "(&");
+        ListCell *lc;
+        foreach(lc, scan_clauses)
+        {
+            Node *clause = (Node *) lfirst(lc);
+            char *sub = expr_to_ldap_filter(clause, root, baserel, foreignTableId);
+            if (sub)
+            {
+                appendStringInfoString(&filter_buf, sub);
+            }
+            else
+            {
+                /* 
+                 * Falls eine Klausel unerwartet nicht übersetzt werden konnte,
+                 * müsstest du hier entscheiden, ob du abbrichst oder einen 
+                 * Fehler wirfst.
+                 */
+            }
+        }
+        appendStringInfoChar(&filter_buf, ')');
+		char *filter = filter_buf.data;
+		elog(INFO, "Filter als String: %s", filter ? filter : "NULL/NIL");
+	}
 	
 	if (parse->commandType == CMD_SELECT)
 	{
