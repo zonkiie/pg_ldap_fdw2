@@ -8,6 +8,7 @@
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
 #include "utils/array.h"
+#include <ldap.h>
 
 Var *get_base_var(Node *node);
 char * const_to_string(Const *c);

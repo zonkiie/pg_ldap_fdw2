@@ -107,7 +107,18 @@ expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel, Oid fore
 						if (nulls[0])
 							return NULL;
 						char *val_str = OidOutputFunctionCall(typoutput, elems[0]);
-						return psprintf("(%s=%s)", attr_name, val_str);
+						char *retval = NULL;
+						struct berval out_val;
+						struct berval in_val;
+						in_val.bv_val = val_str;
+						in_val.bv_len = strlen(val_str);
+						if (ldap_bv2escaped_filter_value(&in_val, &out_val) == 0) {
+							
+							retval = psprintf("(%s=%s)", attr_name, out_val.bv_val);
+							ldap_memfree(out_val.bv_val);
+						}
+						//return psprintf("(%s=%s)", attr_name, val_str);
+						return retval;
 					}
 
 					/* Mehrere Elemente -> Als LDAP-OR verknüpfen: (|(attr=val1)(attr=val2)) */
@@ -120,7 +131,19 @@ expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel, Oid fore
 						if (nulls[i])
 							continue;
 						char *val_str = OidOutputFunctionCall(typoutput, elems[i]);
-						appendStringInfo(&or_buf, "(%s=%s)", attr_name, val_str);
+						
+						struct berval out_val;
+						struct berval in_val;
+						in_val.bv_val = val_str;
+						in_val.bv_len = strlen(val_str);
+
+						if (ldap_bv2escaped_filter_value(&in_val, &out_val) == 0) {
+							
+							appendStringInfo(&or_buf, "(%s=%s)", attr_name, out_val.bv_val);
+							ldap_memfree(out_val.bv_val);
+						}
+						
+						//appendStringInfo(&or_buf, "(%s=%s)", attr_name, val_str);
 					}
 					appendStringInfoChar(&or_buf, ')');
 					return or_buf.data;
@@ -129,7 +152,19 @@ expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel, Oid fore
 				{
 					/* --- SKALAR-BEHANDLUNG (z.B. cn = 'Max') --- */
 					char *val_str = const_to_string(cnt);
-					return psprintf("(%s=%s)", attr_name, val_str);
+					char *retval = NULL;
+					struct berval out_val;
+					struct berval in_val;
+					in_val.bv_val = val_str;
+					in_val.bv_len = strlen(val_str);
+					if (ldap_bv2escaped_filter_value(&in_val, &out_val) == 0) {
+						
+						retval = psprintf("(%s=%s)", attr_name, out_val.bv_val);
+						ldap_memfree(out_val.bv_val);
+					}
+					//return psprintf("(%s=%s)", attr_name, val_str);
+					return retval;
+					//return psprintf("(%s=%s)", attr_name, val_str);
 				}
 			}
 		}
