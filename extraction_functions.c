@@ -48,6 +48,11 @@ expr_to_ldap_filter(Node *node, PlannerInfo *root, RelOptInfo *baserel, Oid fore
 	{
 		return expr_to_ldap_filter((Node *) ((RestrictInfo *) node)->clause, root, baserel, foreigntableid);
 	}
+	
+	if (IsA(node, FuncExpr))
+	{
+		return NULL;
+	}
 
 	/* Handle OpExpr (z.B. =, >=, <=, &&) */
 	if (IsA(node, OpExpr))
