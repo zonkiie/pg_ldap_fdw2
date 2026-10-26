@@ -1027,7 +1027,13 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		char *ast_str = nodeToString(scan_clauses);
 		clause = (Node *) linitial(scan_clauses);
 		elog(INFO, "Filter-AST als String: %s", ast_str ? ast_str : "NULL/NIL");
-		filter = pstrdup(expr_to_ldap_filter(clause, root, baserel, foreignTableId));
+		DEBUGPOINT;
+		char * filter_i = expr_to_ldap_filter(clause, root, baserel, foreignTableId);
+		DEBUGPOINT;
+		elog(INFO, "Filter_i als String: %s", filter_i ? filter_i : "NULL/NIL");
+		DEBUGPOINT;
+		if(filter_i != NULL) filter = pstrdup(filter_i);
+		DEBUGPOINT;
 		elog(INFO, "Filter als String: %s", filter ? filter : "NULL/NIL");
 	}
 	else if(num_clauses > 1)
@@ -1052,7 +1058,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 			}
 		}
 		appendStringInfoChar(&filter_buf, ')');
-		filter = pstrdup(filter_buf.data);
+		DEBUGPOINT;
+		if(filter_buf != NULL && filter_buf.data != NULL) filter = pstrdup(filter_buf.data);
+		DEBUGPOINT;
 		elog(INFO, "Filter als String: %s", filter ? filter : "NULL/NIL");
 	}
 		
