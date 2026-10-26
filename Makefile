@@ -8,6 +8,7 @@ DATA		 = ldap2_fdw--1.0.sql
 BUILD_DIR	 = $(shell pwd)
 PG_CONFIG	 = pg_config
 PGXS		 := $(shell $(PG_CONFIG) --pgxs)
-PG_CPPFLAGS	 = -std=c11
+PG_CPPFLAGS	 += -std=c11
+#PG_LDFLAGS	 +=
 include $(PGXS)
 
