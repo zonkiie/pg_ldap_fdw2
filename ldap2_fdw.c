@@ -1059,7 +1059,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		}
 		appendStringInfoChar(&filter_buf, ')');
 		DEBUGPOINT;
-		if(filter_buf != NULL && filter_buf.data != NULL) filter = pstrdup(filter_buf.data);
+		if(filter_buf.len > 0 && filter_buf.data != NULL) filter = pstrdup(filter_buf.data);
 		DEBUGPOINT;
 		elog(INFO, "Filter als String: %s", filter ? filter : "NULL/NIL");
 	}
