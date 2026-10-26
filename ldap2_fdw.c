@@ -1033,29 +1033,29 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	else if(num_clauses > 1)
 	{
 		appendStringInfo(&filter_buf, "(&");
-        ListCell *lc;
-        foreach(lc, scan_clauses)
-        {
-            Node *clause = (Node *) lfirst(lc);
-            char *sub = expr_to_ldap_filter(clause, root, baserel, foreignTableId);
-            if (sub)
-            {
-                appendStringInfoString(&filter_buf, sub);
-            }
-            else
-            {
-                /* 
-                 * Falls eine Klausel unerwartet nicht übersetzt werden konnte,
-                 * müsstest du hier entscheiden, ob du abbrichst oder einen 
-                 * Fehler wirfst.
-                 */
-            }
-        }
-        appendStringInfoChar(&filter_buf, ')');
+		ListCell *lc;
+		foreach(lc, scan_clauses)
+		{
+			Node *clause = (Node *) lfirst(lc);
+			char *sub = expr_to_ldap_filter(clause, root, baserel, foreignTableId);
+			if (sub)
+			{
+				appendStringInfoString(&filter_buf, sub);
+			}
+			else
+			{
+				/* 
+				* Falls eine Klausel unerwartet nicht übersetzt werden konnte,
+				* müsstest du hier entscheiden, ob du abbrichst oder einen 
+				* Fehler wirfst.
+				*/
+			}
+		}
+		appendStringInfoChar(&filter_buf, ')');
 		filter = pstrdup(filter_buf.data);
 		elog(INFO, "Filter als String: %s", filter ? filter : "NULL/NIL");
 	}
-	
+		
 	if (parse->commandType == CMD_SELECT)
 	{
 		// TODO: Merge with the Code in func ldap2_fdw_add_foreign_final_paths!

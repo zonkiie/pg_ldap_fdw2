@@ -610,9 +610,9 @@ deparseExpr(Expr *node, deparse_expr_cxt *context)
 // 		case T_SubscriptingRef:
 // 			ldap2_fdw_deparse_array_ref((SubscriptingRef *) node, context);
 // 			break;
-// 		case T_FuncExpr:
-// 			ldap2_fdw_deparse_func_expr((FuncExpr *) node, context);
-// 			break;
+		case T_FuncExpr:
+			ldap2_fdw_deparse_func_expr((FuncExpr *) node, context);
+			break;
 		case T_OpExpr:
 			ldap2_fdw_deparse_op_expr((OpExpr *) node, context);
 			break;
