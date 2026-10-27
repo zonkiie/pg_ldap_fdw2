@@ -118,12 +118,13 @@ ldap2_fdw_deparse_const(Const *node, deparse_expr_cxt *context)
 		case INT4OID:
 		case INT8OID:
 		case OIDOID:
-		case FLOAT4OID:
-		case FLOAT8OID:
-		case NUMERICOID:
 			{
+				//elog(INFO, "Const Value: %l, typeid: %d", node->constvalue, node->consttype);
 				DEBUGPOINT;
-				extval = OidOutputFunctionCall(typoutput, node->constvalue);
+				extval = psprintf("%lld", node->constvalue);
+				
+				//extval = OidOutputFunctionCall(typoutput, node->constvalue);
+				DEBUGPOINT;
 
 				/*
 				 * No need to quote unless it's a special value such as 'NaN'.
@@ -141,6 +142,14 @@ ldap2_fdw_deparse_const(Const *node, deparse_expr_cxt *context)
 				*/
 			}
 			break;
+		case FLOAT4OID:
+		case FLOAT8OID:
+		case NUMERICOID:
+		{
+			DEBUGPOINT;
+			extval = psprintf("%Lf", node->constvalue);
+			DEBUGPOINT;
+		}
 		case BITOID:
 		case VARBITOID:
 			DEBUGPOINT;
@@ -181,6 +190,7 @@ ldap2_fdw_deparse_const(Const *node, deparse_expr_cxt *context)
 			break;
 	}
 	strmcat_multi(&(context->cbuf), ")");
+	elog(INFO, "Extval: %s", extval);
 }
 
 static void
@@ -640,7 +650,7 @@ deparseExpr(Expr *node, deparse_expr_cxt *context)
 		default:
 			//elog(ERROR, "unsupported expression type for deparse: %d",
 			//	 (int) nodeTag(node));
-			elog(INFO, "unsupported expression type for deparse: %d", (int) nodeTag(node));
+			elog(INFO, "unsupported expression type for deparse: %d (%s)", (int) nodeTag(node), nodeToString(node));
 			context->remote_handle_able = false;
 			break;
 	}

@@ -1063,6 +1063,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		DEBUGPOINT;
 		elog(INFO, "Filter als String: %s", filter ? filter : "NULL/NIL");
 	}
+	DEBUGPOINT;
 		
 	if (parse->commandType == CMD_SELECT)
 	{
@@ -1141,10 +1142,14 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	// Working on ldap filtering
 	
 	//dn_clauses = ldap2_fdw_extract_dn(root, foreignTableId, scan_clauses);
+		DEBUGPOINT;
 		dn_clauses = ldap2_fdw_extract_dn_value(root, foreignTableId, scan_clauses); // Hier crash bei offset angabe
+		DEBUGPOINT;
 	}
 	//fdw_private_list = list_make1(makeString(dn_clauses));
 	fdw_private_list = list_make5(makeString(dn_clauses), makeInteger(has_limit), makeInteger(has_offset), makeInteger(limit_count), makeInteger(limit_offset));
+	
+	DEBUGPOINT;
 	
 	/*
 	 * From MongoDB FDW
@@ -1179,6 +1184,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 */
 	}
 	
+	DEBUGPOINT;
+	
 	if(scan_clauses == NULL)
 	{
 		//DEBUGPOINT;
@@ -1187,6 +1194,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	{
 		//DEBUGPOINT;
 	}
+	
+	DEBUGPOINT;
 	
 	//ereport(INFO, errmsg_internal("%s ereport Line %d : List length: %d\n", __FUNCTION__, __LINE__, list_length(scan_clauses)));
 	
