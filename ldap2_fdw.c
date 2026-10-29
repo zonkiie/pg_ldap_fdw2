@@ -1001,6 +1001,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	List		*fdw_scan_tlist = NIL;
 	List		*whole_row_lists = NIL;
 	*/
+	List 		*pathkeys = best_path->path.pathkeys;
 	char		*dn_clauses = NULL;
 	StringInfoData sql_buf;
 	bool		has_final_sort = false;
@@ -1064,6 +1065,50 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		elog(INFO, "Filter als String: %s", filter ? filter : "NULL/NIL");
 	}
 	DEBUGPOINT;
+	
+	ListCell *lc;
+
+	foreach(lc, pathkeys)
+	{
+		PathKey *pathkey = (PathKey *) lfirst(lc);
+		
+		// Über den PathKey kommst du an die EquivalenceClass bzw. den Ausdruck (Expr)
+		// Beispielhaft analog zu postgres_fdw / Standard-Postgres-Interna:
+		EquivalenceClass *ec = pathkey->pk_eclass;
+		
+		// Hier prüfst du, ob der Ausdruck zu deiner Relation/Tabelle gehört
+		// und extrahierst z. B. das Attribut (Var-Node) und den Sortieroperator.
+		
+		// 1. Spalte/Ausdruck für unsere Relation finden
+		Expr *sort_expr = NULL;
+		ListCell *lc_em;
+		foreach(lc_em, ec->ec_members)
+		{
+			EquivalenceMember *em = (EquivalenceMember *) lfirst(lc_em);
+			if (IsA(em->em_expr, Var))
+			{
+				Var *var = (Var *) em->em_expr;
+				if (var->varno == scan_relid /*foreign_varno*/)
+				{
+					sort_expr = (Expr *) var;
+					break;
+				}
+				AttrNumber attnum = var->varattno;
+				char *attr_name = get_attname(foreignTableId, attnum, false);
+				elog(INFO, "sort attr: %s", attr_name);
+			}
+		}
+
+		if (sort_expr)
+		{
+			// 2. Sortierrichtung ermitteln
+			bool is_desc = (pathkey->pk_strategy == BTGreaterStrategyNumber);
+			
+			// 3. Hier kannst du `sort_expr` (z.B. Attributname über den Attributnummer-Index `var->varattno`) 
+			// und `is_desc` für deine `fdw_private`-Liste serialisieren!
+		}
+	
+	}
 		
 	if (parse->commandType == CMD_SELECT)
 	{
