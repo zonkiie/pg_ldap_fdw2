@@ -905,7 +905,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 												   baserel->rows,
 												   startup_cost,
 												   total_cost,
-												   NIL, /* no pathkeys */
+												   root->query_pathkeys, /*NIL, /* no pathkeys */
 												   baserel->lateral_relids,
 												   NULL,	/* no extra plan */
 												   NIL, /* no fdw_restrictinfo list */
@@ -918,7 +918,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 												   baserel->rows,
 												   startup_cost,
 												   total_cost,
-												   NIL, /* no pathkeys */
+												   root->query_pathkeys, /*NIL, /* no pathkeys */
 												   baserel->lateral_relids,
 												   NULL,	/* no extra plan */
 												   NIL);	/* no fdw_private list */
@@ -1070,6 +1070,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 
 	foreach(lc, pathkeys)
 	{
+		DEBUGPOINT;
 		PathKey *pathkey = (PathKey *) lfirst(lc);
 		
 		// Über den PathKey kommst du an die EquivalenceClass bzw. den Ausdruck (Expr)
@@ -1084,9 +1085,11 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		ListCell *lc_em;
 		foreach(lc_em, ec->ec_members)
 		{
+			DEBUGPOINT;
 			EquivalenceMember *em = (EquivalenceMember *) lfirst(lc_em);
 			if (IsA(em->em_expr, Var))
 			{
+				DEBUGPOINT;
 				Var *var = (Var *) em->em_expr;
 				if (var->varno == scan_relid /*foreign_varno*/)
 				{
