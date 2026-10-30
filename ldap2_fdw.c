@@ -1087,6 +1087,30 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		{
 			DEBUGPOINT;
 			EquivalenceMember *em = (EquivalenceMember *) lfirst(lc_em);
+			// Prüfen, ob der Member zu unserer RelOptInfo (baserel) gehört
+// 			if (bms_is_member(em->em_relids, baserel->relids))
+// 			{
+// 				Node *expr = em->em_expr;
+// 				
+// 				// Jetzt prüfen, ob der Ausdruck eine Tabellenspalte (Var) ist
+// 				if (IsA(expr, Var))
+// 				{
+// 					Var *var = (Var *) expr;
+// 					AttrNumber attnum = var->varattno;
+// 					
+// 					// Hole den Attributnamen (Spaltennamen) über den Katalog oder dein FDW-Mapping
+// 					char *colname = get_attname(baserel->relid, attnum, false);
+// 					
+// 					// Sortierrichtung prüfen:
+// 					// pathkey->pk_strategy: 
+// 					//   BTLessStrategyNumber (<) -> ASC
+// 					//   BTGreaterStrategyNumber (>) -> DESC
+// 					bool is_ascending = (pathkey->pk_strategy == BTLessStrategyNumber);
+// 					
+// 					elog(INFO, "sort colname: %s", colname);
+// 					// TODO: colname und is_ascending für deine LDAP-Sortierung (Control) speichern!
+// 				}
+// 			}
 			if (IsA(em->em_expr, Var))
 			{
 				DEBUGPOINT;
