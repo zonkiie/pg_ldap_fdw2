@@ -1087,30 +1087,46 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		{
 			DEBUGPOINT;
 			EquivalenceMember *em = (EquivalenceMember *) lfirst(lc_em);
+			elog(INFO, "em->em_relids: %d, baserel->relids: %d\n", em->em_relids, baserel->relids);
 			// Prüfen, ob der Member zu unserer RelOptInfo (baserel) gehört
-// 			if (bms_is_member(em->em_relids, baserel->relids))
-// 			{
-// 				Node *expr = em->em_expr;
-// 				
-// 				// Jetzt prüfen, ob der Ausdruck eine Tabellenspalte (Var) ist
-// 				if (IsA(expr, Var))
-// 				{
-// 					Var *var = (Var *) expr;
-// 					AttrNumber attnum = var->varattno;
-// 					
-// 					// Hole den Attributnamen (Spaltennamen) über den Katalog oder dein FDW-Mapping
-// 					char *colname = get_attname(baserel->relid, attnum, false);
-// 					
-// 					// Sortierrichtung prüfen:
-// 					// pathkey->pk_strategy: 
-// 					//   BTLessStrategyNumber (<) -> ASC
-// 					//   BTGreaterStrategyNumber (>) -> DESC
-// 					bool is_ascending = (pathkey->pk_strategy == BTLessStrategyNumber);
-// 					
-// 					elog(INFO, "sort colname: %s", colname);
-// 					// TODO: colname und is_ascending für deine LDAP-Sortierung (Control) speichern!
-// 				}
-// 			}
+			//if (bms_is_member(em->em_relids, baserel->relids))
+			if (bms_is_subset(em->em_relids, baserel->relids))
+			{
+				DEBUGPOINT;
+				Node *expr = em->em_expr;
+				char *ast_str = nodeToString(expr);
+				
+				elog(INFO, "Sort-AST als String: %s", ast_str ? ast_str : "NULL/NIL");
+				while (expr && IsA(expr, RelabelType))
+				{
+					expr = (Node *) ((RelabelType *) expr)->arg;
+				}
+				
+				ast_str = nodeToString(expr);
+				elog(INFO, "Sort-AST als String: %s, foreignTableId: %d", ast_str ? ast_str : "NULL/NIL", foreignTableId);
+				
+				// Jetzt prüfen, ob der Ausdruck eine Tabellenspalte (Var) ist
+				if (IsA(expr, Var))
+				{
+					DEBUGPOINT;
+					Var *var = (Var *) expr;
+					AttrNumber attnum = var->varattno;
+					DEBUGPOINT;
+					
+					// Hole den Attributnamen (Spaltennamen) über den Katalog oder dein FDW-Mapping
+					//char *colname = get_attname(baserel->relid, attnum, false);
+					char *colname = get_attname(foreignTableId, attnum, false);
+					
+					// Sortierrichtung prüfen:
+					// pathkey->pk_strategy: 
+					//   BTLessStrategyNumber (<) -> ASC
+					//   BTGreaterStrategyNumber (>) -> DESC
+					bool is_ascending = (pathkey->pk_strategy == BTLessStrategyNumber);
+					
+					elog(INFO, "sort colname: %s, asc: %d", colname, is_ascending);
+					// TODO: colname und is_ascending für deine LDAP-Sortierung (Control) speichern!
+				}
+			}
 			if (IsA(em->em_expr, Var))
 			{
 				DEBUGPOINT;
