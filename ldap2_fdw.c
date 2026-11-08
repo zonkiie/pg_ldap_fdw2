@@ -1093,7 +1093,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 			if (bms_is_subset(em->em_relids, baserel->relids))
 			{
 				DEBUGPOINT;
-				Node *expr = em->em_expr;
+				Node *expr = (Node*)em->em_expr;
 				char *ast_str = nodeToString(expr);
 				
 				elog(INFO, "Sort-AST als String: %s", ast_str ? ast_str : "NULL/NIL");
