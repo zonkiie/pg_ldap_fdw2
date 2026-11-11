@@ -227,6 +227,8 @@ enum FdwPathPrivateIndex
 	FdwPathPrivateLimitValue,
 	/* offset value */
 	FdwPathPrivateOffsetValue,
+	/* sort keys */
+	FdwPathPrivateSortKeys,
 };
 
 struct timeval timeout_struct = {.tv_sec = 10L, .tv_usec = 0L};
@@ -407,6 +409,15 @@ static char ** extract_array_from_datum(Datum datum, Oid oid)
 	}
 	
 	return retval;
+}
+
+/** Make a List with order keys.
+ * @param key: the key to order
+ * @param asc: true when order by key asc, false when order by key desc
+ */
+static List* make_sort_key(char *key, bool asc)
+{
+	return list_make2(makeString(pstrdup(key)), makeInteger(asc));
 }
 
 static int estimate_size(LDAP *ldap, LdapFdwOptions *options)
@@ -993,6 +1004,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	
 	ListCell	*cell = NULL;
 	List 		*fdw_private_list = NIL;
+	List		*sortkeys = NIL;
 #warning remove unused vars or rewrite code
 	/*
 	List 		*remote_exprs = NIL;
@@ -1087,6 +1099,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 		{
 			DEBUGPOINT;
 			EquivalenceMember *em = (EquivalenceMember *) lfirst(lc_em);
+			List *single_sortkeys = NIL;
 			elog(INFO, "em->em_relids: %d, baserel->relids: %d\n", em->em_relids, baserel->relids);
 			// Prüfen, ob der Member zu unserer RelOptInfo (baserel) gehört
 			//if (bms_is_member(em->em_relids, baserel->relids))
@@ -1125,6 +1138,8 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 					
 					elog(INFO, "sort colname: %s, asc: %d", colname, is_ascending);
 					// TODO: colname und is_ascending für deine LDAP-Sortierung (Control) speichern!
+					single_sortkeys = make_sort_key(colname, is_ascending);
+					lappend(sortkeys, single_sortkeys);
 				}
 			}
 			if (IsA(em->em_expr, Var))
@@ -1236,6 +1251,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	}
 	//fdw_private_list = list_make1(makeString(dn_clauses));
 	fdw_private_list = list_make5(makeString(dn_clauses), makeInteger(has_limit), makeInteger(has_offset), makeInteger(limit_count), makeInteger(limit_offset));
+	lappend(fdw_private_list, sortkeys);
 	
 	DEBUGPOINT;
 	
@@ -1405,6 +1421,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	Relation rel;
 	TupleDesc tupdesc;
+	List *sortkeys = NIL;
 #warning remove unused vars or rewrite code
 	/*ForeignTable *table;
 	ForeignServer *server;
@@ -1426,6 +1443,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	if (list_length(fdw_private_list) > 2) has_offset = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateHasOffset + 1));
 	if (list_length(fdw_private_list) > 3) limit_count = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateLimitValue + 1));
 	if (list_length(fdw_private_list) > 4) limit_offset = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateOffsetValue + 1));
+	if (list_length(fdw_private_list) > 5) sortkeys = (List*)list_nth(fsplan->fdw_private, FdwPathPrivateOffsetValue + 1);
 	
 	elog(INFO, "List Length fsplan->fdw_private: %d", list_length(fdw_private_list));
 	
