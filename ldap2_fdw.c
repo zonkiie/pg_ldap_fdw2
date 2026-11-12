@@ -1139,7 +1139,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 					elog(INFO, "sort colname: %s, asc: %d", colname, is_ascending);
 					// TODO: colname und is_ascending für deine LDAP-Sortierung (Control) speichern!
 					single_sortkeys = make_sort_key(colname, is_ascending);
-					lappend(sortkeys, single_sortkeys);
+					elog(INFO, "List Length single_sortkeys: %d", list_length(single_sortkeys));
+					sortkeys = lappend(sortkeys, single_sortkeys);
+					elog(INFO, "List Length sortkeys: %d", list_length(sortkeys));
 				}
 			}
 			if (IsA(em->em_expr, Var))
@@ -1421,7 +1423,8 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	LdapFdwPlanState *fdw_private = (LdapFdwPlanState *) palloc0(sizeof(LdapFdwPlanState));
 	Relation rel;
 	TupleDesc tupdesc;
-	List *sortkeys = NIL;
+	List *param_sortkeys = NIL;
+	List *lparam_sortkeys = NIL;
 #warning remove unused vars or rewrite code
 	/*ForeignTable *table;
 	ForeignServer *server;
@@ -1443,9 +1446,10 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	if (list_length(fdw_private_list) > 2) has_offset = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateHasOffset + 1));
 	if (list_length(fdw_private_list) > 3) limit_count = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateLimitValue + 1));
 	if (list_length(fdw_private_list) > 4) limit_offset = intVal(list_nth(fsplan->fdw_private, FdwPathPrivateOffsetValue + 1));
-	if (list_length(fdw_private_list) > 5) sortkeys = (List*)list_nth(fsplan->fdw_private, FdwPathPrivateOffsetValue + 1);
+	if (list_length(fdw_private_list) > 5) param_sortkeys = (List*)list_nth(fsplan->fdw_private, FdwPathPrivateSortKeys + 1);
 	
 	elog(INFO, "List Length fsplan->fdw_private: %d", list_length(fdw_private_list));
+	elog(INFO, "List Length param_sortkeys: %d", list_length(param_sortkeys));
 	
 	if(fdw_private == NULL) elog(ERROR, "fdw_private is NULL! Line: %d", __LINE__);
 	
@@ -1503,6 +1507,23 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	// from:     dynamodb_fdw/dynamodb_impl.cpp line 800
 	// LDAP search
 	//rc = ldap_search_ext( ld, option_params->basedn, option_params->scope, filter, attributes_array, 0, serverctrls, clientctrls, NULL, LDAP_NO_LIMIT, &msgid );
+	
+	if(list_length(param_sortkeys) > 0)
+	{
+		LDAPSortKey **sortkeys = (LDAPSortKey**)palloc(sizeof(LDAPSortKey*) * list_length(param_sortkeys) + 1);
+		ListCell *listitem;
+		foreach(listitem, param_sortkeys)
+		{
+			List *inner_list = lfirst(listitem);
+			Value *val_order_cell = (Value *) list_nth((List*)inner_list, 0);
+			Value *val_order_asc = (Value *) list_nth((List*)inner_list, 1);
+			char *order_cell = strVal(val_order_cell);
+			int order_asc = intVal(val_order_asc);
+			elog(INFO, "Adding order by %s %d", order_cell, order_asc);
+		}
+		sortkeys[list_length(param_sortkeys)] = NULL;
+		int rc_sort = ldap_create_sort_control(fdw_private->ldapConn->ldap, sortkeys, 0, &(fdw_private->ldapConn->serverctrls)[0]);		
+	}
 	
 	if(fdw_private->ldapConn->options->use_remotefiltering && dn_clauses != NULL)
 	{
