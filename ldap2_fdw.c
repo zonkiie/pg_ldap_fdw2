@@ -1253,7 +1253,7 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	}
 	//fdw_private_list = list_make1(makeString(dn_clauses));
 	fdw_private_list = list_make5(makeString(dn_clauses), makeInteger(has_limit), makeInteger(has_offset), makeInteger(limit_count), makeInteger(limit_offset));
-	lappend(fdw_private_list, sortkeys);
+	fdw_private_list = lappend(fdw_private_list, sortkeys);
 	
 	DEBUGPOINT;
 	
@@ -1512,6 +1512,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 	{
 		LDAPSortKey **sortkeys = (LDAPSortKey**)palloc(sizeof(LDAPSortKey*) * list_length(param_sortkeys) + 1);
 		ListCell *listitem;
+		int sortkey_iterator = 0;
 		foreach(listitem, param_sortkeys)
 		{
 			List *inner_list = lfirst(listitem);
@@ -1519,9 +1520,19 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 			Value *val_order_asc = (Value *) list_nth((List*)inner_list, 1);
 			char *order_cell = strVal(val_order_cell);
 			int order_asc = intVal(val_order_asc);
+			LDAPSortKey *single_sk = (LDAPSortKey*)palloc(sizeof(LDAPSortKey));
+			//single_sk->sk_attrtype = order_cell;
+			single_sk->attributeType = order_cell;
+			//single_sk->sk_matchrule = NULL;
+			single_sk->orderingRule = NULL;
+			//single_sk->sk_reverseorder = !order_asc;
+			single_sk->reverseOrder = !order_asc;
+			sortkeys[sortkey_iterator] = single_sk;
 			elog(INFO, "Adding order by %s %d", order_cell, order_asc);
+			sortkey_iterator++;
 		}
 		sortkeys[list_length(param_sortkeys)] = NULL;
+		fdw_private->ldapConn->serverctrls = (LDAPControl**)palloc(sizeof(LDAPControl*) + 1);
 		int rc_sort = ldap_create_sort_control(fdw_private->ldapConn->ldap, sortkeys, 0, &(fdw_private->ldapConn->serverctrls)[0]);		
 	}
 	
@@ -1606,6 +1617,7 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	char *entrydn = NULL;
 	struct berval **vals = NULL;
 	//Datum relnamespace = rel->rd_rel->relnamespace;
+	
 	fdw_private->ldap_message_result = NULL;
 	//bool first_in_array = true;
 #define array_delimiter ','
@@ -1628,7 +1640,81 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	{
 		case -1:
 		case LDAP_RES_SEARCH_RESULT:
-			//elog(INFO, "LDAP_RES_SEARCH_RESULT");
+		{
+#warning TODO: Code sauber aufbauen
+			int rc = 0;
+			LDAPControl **returned_serverctrls = NULL;
+			int errcode = 0;
+			char *matched = NULL;
+			char *errmsg = NULL;
+			char **referrals = NULL;
+			elog(INFO, "\n\nLDAP_RES_SEARCH_RESULT\n\n");
+			rc = ldap_parse_result(
+				fdw_private->ldapConn->ldap,
+				fdw_private->ldap_message_result,
+				&errcode,
+				&matched,
+				&errmsg,
+				&referrals,
+				&returned_serverctrls,
+				0 // 0 = LDAPMessage 'res' wird hier noch nicht freigegeben
+			);
+			if (rc != LDAP_SUCCESS) {
+				elog(INFO, "Fehler bei ldap_parse_result: %s\n", ldap_err2string(rc));
+				break;
+			}
+			if (rc == LDAP_SUCCESS)
+			{
+				elog(INFO, "LDAP SUCCESS");
+			}
+			
+			if (returned_serverctrls != NULL) {
+				ber_int_t sort_result = 0;
+				char *failed_attr = NULL;
+
+				// 3. Werte das Sortier-Control aus
+				// Hinweis: Die Funktion sucht automatisch nach der OID "1.2.840.113556.1.4.474"
+				rc = ldap_parse_sortresponse_control(
+					fdw_private->ldapConn->ldap,
+					returned_serverctrls,
+					&sort_result,
+					&failed_attr
+				);
+
+				if (rc == LDAP_SUCCESS) {
+					if (sort_result == LDAP_SUCCESS) {
+						elog(INFO, "Server-Side Sorting war erfolgreich!\n");
+					} else {
+						elog(INFO, "Sortierung fehlgeschlagen! Status: %s (%d)\n",
+							ldap_err2string(sort_result), sort_result);
+						
+						// Falls bekannt, gibt der Server das Attribut an, das den Fehler verursacht hat
+						if (failed_attr != NULL) {
+							elog(INFO, "Problem bei Attribut: %s\n", failed_attr);
+							ldap_memfree(failed_attr); // Speicher freigeben!
+						}
+					}
+				} else if (rc == LDAP_CONTROL_NOT_FOUND) {
+					elog(INFO, "Der Server hat kein Sort-Response-Control zurückgesendet.\n");
+				} else {
+					elog(INFO, "Fehler beim Parsen des Sort-Controls: %s\n", ldap_err2string(rc));
+				}
+
+				// 4. Speicher der Controls wieder freigeben
+				ldap_controls_free(returned_serverctrls);
+			}
+			else
+			{
+				elog(INFO, "returned_serverctrls: NULL!");
+			}
+
+			// Aufraeumen der restlichen Strings aus ldap_parse_result
+			if (matched) ldap_memfree(matched);
+			if (errmsg) ldap_memfree(errmsg);
+			if (referrals) ber_memvfree((void **)referrals);
+			
+			return slot;
+		}
 		case LDAP_RES_SEARCH_REFERENCE:
 			//elog(INFO, "LDAP_RES_SEARCH_REFERENCE");
 			return slot;
@@ -1698,6 +1784,10 @@ ldap2_fdw_IterateForeignScan(ForeignScanState *node)
 	
 	tuple = heap_form_tuple(tupdesc, d_values, null_values);
 	ExecStoreHeapTuple(tuple, slot, false);
+	
+	
+	
+	
 	return slot;
 
 }
