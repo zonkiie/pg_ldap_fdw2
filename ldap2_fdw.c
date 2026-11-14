@@ -916,7 +916,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 												   baserel->rows,
 												   startup_cost,
 												   total_cost,
-												   root->query_pathkeys, /*NIL, /* no pathkeys */
+												   NIL, /*root->query_pathkeys, /*NIL, /* no pathkeys */
 												   baserel->lateral_relids,
 												   NULL,	/* no extra plan */
 												   NIL, /* no fdw_restrictinfo list */
@@ -929,7 +929,7 @@ ldap2_fdw_GetForeignPaths(PlannerInfo *root,
 												   baserel->rows,
 												   startup_cost,
 												   total_cost,
-												   root->query_pathkeys, /*NIL, /* no pathkeys */
+												   NIL, /*root->query_pathkeys, /*NIL, /* no pathkeys */
 												   baserel->lateral_relids,
 												   NULL,	/* no extra plan */
 												   NIL);	/* no fdw_private list */
@@ -1013,7 +1013,9 @@ ldap2_fdw_GetForeignPlan(PlannerInfo *root,
 	List		*fdw_scan_tlist = NIL;
 	List		*whole_row_lists = NIL;
 	*/
-	List 		*pathkeys = best_path->path.pathkeys;
+	//List 		*pathkeys = best_path->path.pathkeys;
+	List		*pathkeys = root->query_pathkeys;
+	
 	char		*dn_clauses = NULL;
 	StringInfoData sql_buf;
 	bool		has_final_sort = false;
@@ -1576,6 +1578,7 @@ ldap2_fdw_BeginForeignScan(ForeignScanState *node, int eflags)
 
 		elog(INFO, "ldap_search_ext_s: %s\n", ldap_err2string( fdw_private->rc ) );
 	}
+	DEBUGPOINT;
 }
 
 /*
